@@ -1,5 +1,4 @@
 import { applyD1Migrations, env } from 'cloudflare:test';
-import type { D1Migration } from '@cloudflare/vitest-pool-workers/config';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv {
@@ -7,7 +6,7 @@ declare module 'cloudflare:test' {
     DEMO_MODE: string;
     ALLOWED_EMAIL_DOMAINS: string;
     TIMEZONE: string;
-    TEST_MIGRATIONS: D1Migration[];
+    TEST_MIGRATIONS: Parameters<typeof applyD1Migrations>[1];
     TEST_SEED_SQL: string;
   }
 }
