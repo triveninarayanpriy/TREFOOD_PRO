@@ -20,6 +20,9 @@
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
   "vars": {
     "DEMO_MODE": "true",
     "ALLOWED_EMAIL_DOMAINS": "nitp.ac.in",
