@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@client/*": ["src/client/*"],
+      "@worker/*": ["src/worker/*"],
+      "@shared/*": ["src/shared/*"]
+    },
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers", "vite/client"]
+  },
+  "include": ["src", "tests", "e2e", "vite.config.ts", "vitest.config.ts", "playwright.config.ts", "drizzle.config.ts"]
+}

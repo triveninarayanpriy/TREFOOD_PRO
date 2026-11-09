@@ -1,0 +1,4 @@
+# TreFood Environment Variables (Local Development)
+DEMO_MODE=true
+ALLOWED_EMAIL_DOMAINS=nitp.ac.in
+TIMEZONE=Asia/Kolkata

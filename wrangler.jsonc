@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "trefood-prototype",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "trefood-db",
+      "database_id": "32e25eab-fd65-4479-b80d-3c358ba36eb0"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "DEMO_MODE": "true",
+    "ALLOWED_EMAIL_DOMAINS": "nitp.ac.in",
+    "TIMEZONE": "Asia/Kolkata"
+  }
+}
