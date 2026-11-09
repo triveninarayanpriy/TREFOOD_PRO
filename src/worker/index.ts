@@ -19,7 +19,7 @@ app.get('/api/health', async (c) => {
   const response: HealthResponse = {
     ok: dbHealthy,
     version: c.env.APP_VERSION || '0.1.0',
-    commit: c.env.GIT_COMMIT || 'skeleton',
+    commit: c.env.GIT_COMMIT || '0ba74a9',
     db: dbHealthy,
   };
 
