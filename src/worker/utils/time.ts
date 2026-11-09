@@ -11,6 +11,23 @@ export function nowUtc(): number {
 }
 
 /**
+ * Returns current UTC timestamp, or mock timestamp in DEMO_MODE if header is provided
+ */
+export function getRequestNow(c?: {
+  env?: { DEMO_MODE?: string };
+  req?: { header: (k: string) => string | undefined };
+}): number {
+  if (c?.env?.DEMO_MODE === 'true' && c.req) {
+    const mockHdr = c.req.header('x-mock-time') || c.req.header('x-test-now');
+    if (mockHdr) {
+      const parsed = parseInt(mockHdr, 10);
+      if (!isNaN(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return nowUtc();
+}
+
+/**
  * Converts UTC timestamp (in seconds) to Asia/Kolkata date components
  */
 export function getIstComponents(utcSeconds: number): {

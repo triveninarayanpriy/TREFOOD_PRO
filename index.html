@@ -2,11 +2,45 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TreFood | NIT Patna Campus Delivery</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>TreFood | Hyperlocal Campus Delivery for NIT Patna</title>
+    <meta
+      name="description"
+      content="Hyperlocal campus delivery for NIT Patna. Order food, fruits, groceries and raw chicken. Zero delivery fee, pay at gate, curfew-aware 4-digit code matching."
+    />
+    <meta name="theme-color" content="#830020" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph & Social Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TreFood | NIT Patna Campus Delivery" />
+    <meta
+      property="og:description"
+      content="Zero delivery fee, pay at the hostel gate, 4-digit packet code verification."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TreFood | NIT Patna Campus Delivery" />
+    <meta
+      name="twitter:description"
+      content="Zero delivery fee, pay at the hostel gate, 4-digit packet code verification."
+    />
+
+    <!-- JSON-LD Structured Data for Campus Food Platform -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "TreFood",
+        "url": "https://trefood-prototype.technicaltriveniyt.workers.dev",
+        "logo": "https://trefood-prototype.technicaltriveniyt.workers.dev/icon-512.png",
+        "description": "Hyperlocal campus delivery for NIT Patna.",
+        "areaServed": "National Institute of Technology Patna"
+      }
+    </script>
   </head>
-  <body class="min-h-screen bg-neutral-50 text-neutral-900 antialiased selection:bg-amber-100">
+  <body class="min-h-screen bg-stone-50 text-stone-900 antialiased selection:bg-amber-100 dark:bg-stone-950 dark:text-stone-100">
     <div id="root"></div>
     <script type="module" src="/src/client/main.tsx"></script>
   </body>

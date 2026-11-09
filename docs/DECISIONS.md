@@ -40,3 +40,5 @@ This document records architectural choices and the rationale for every dependen
 | `typescript-eslint` | ESLint tooling and parser for TypeScript. |
 | `@playwright/test` | End-to-end browser automation for mobile (390x844) and desktop (1280x800). |
 | `wrangler` | Cloudflare developer platform CLI for local simulation, D1, and deployments. |
+| `i18next` | Internationalization framework for multi-language support (English and Hindi). |
+| `react-i18next` | React integration hooks and components for i18next. |

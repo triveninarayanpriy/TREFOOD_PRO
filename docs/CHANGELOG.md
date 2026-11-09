@@ -4,6 +4,67 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Hardening, Quality, E2E & Production Verification
+- **Playwright Full Regression Suite**: 8/8 end-to-end tests passing at both Mobile (390x844) and Desktop (1280x800) viewports:
+  - App shell smoke test (branding, header, signature HandoverTicket demo, zero-friction browse navigation).
+  - Complete customer journey: guest browse → add to cart → 1-tap demo student sign-in → pay-at-gate checkout → live HandoverTicket.
+  - Vendor Counter Tablet console: role login, 4-column kanban board, real-time stock toggle, daily settlement CSV export.
+  - Admin Operations portal: role login, key metrics overview, SVG orders volume chart, gate curfew controls, vendor management.
+- **Strict Performance & Bundle Budgeting**:
+  - Main student bundle: **146.04 kB gzip** (strictly within the < 150 kB gzip budget).
+  - Lazy-loaded `VendorConsolePage` (6.54 kB gzip) and `AdminConsolePage` (6.29 kB gzip) ensuring zero vendor/admin code leaks into the customer app.
+  - Self-hosted Inter and Plus Jakarta Sans fonts with preconnect and immutable cache headers.
+- **Enterprise Edge Security**:
+  - Strict Content-Security-Policy (CSP) headers without unsafe-inline for scripts.
+  - HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and anti-clickjacking frame protections.
+  - Cookie flags: `HttpOnly`, `Secure`, `SameSite=Lax`, and `__Host-` prefix in production.
+  - Complete IDOR protection: students strictly prohibited from viewing or confirming another user's orders.
+  - Role-based authorization middleware enforcing 403 Forbidden for unauthorized student/vendor access on `/admin` and `/v`.
+- **Accessibility & UX**:
+  - Full WCAG AA compliance with visible keyboard focus rings, semantic landmark structure, ARIA live regions for order status transitions, and dark mode support.
+  - Standard 44px touch targets on student mobile interfaces, and 56px touch targets on vendor counter tablet interface.
+
+### Added - Admin Management Console (/admin)
+- **Campus Executive Dashboard**:
+  - Live metric cards: Total Orders, Delivered Orders, GMV (₹), Active Vendors, Acceptance Rate (%), Median Delivery Time.
+  - Lightweight, dependency-free hand-written SVG orders-per-hour histogram chart.
+  - Live campus orders monitoring table with full event timeline inspection and admin force-cancellation modal.
+- **Vendor Operations & Lifecycle**:
+  - Vendor approval and suspension toggles with immediate effect on student visibility.
+  - Vendor detail editing (FSSAI number, contact phone, operating hours, preparation time).
+  - Reachability mapping: assign delivery gates and extra travel times per vendor.
+  - One-tap vendor invite link generator in demo mode.
+- **Campus Gates, Curfews & Festivals**:
+  - Real-time gate curfew editing (`curfew_time`, `buffer_minutes`, `travel_minutes`).
+  - Campus festival & emergency override system (e.g., closing gates or entire campus during Chhath Puja / holidays with student warning banners).
+- **Campus Announcements & Audit Log**:
+  - Campus announcement banner broadcaster with scheduled start and end timestamps.
+  - Immutable audit logging tracking every administrative and vendor state mutation with actor IDs and IP addresses.
+
+### Added - Vendor Counter Tablet Console (/v)
+- **Landscape Counter Board**:
+  - 4 kanban columns matching the delivery lifecycle: New Orders, Preparing, On Route, and At Gate.
+  - 56px oversized touch targets designed for kitchen staff handling orders with wet or busy hands.
+  - Synthesized Web Audio chime on incoming orders with visual ring animation.
+  - Screen Wake Lock API integration to prevent kitchen counter tablets from dimming during rush hours.
+- **Thermal Receipt Printing**:
+  - Dedicated `#print-slip` template formatted for standard 58mm POS receipt and A6 thermal paper.
+  - Prints public order number, delivery gate, 4-digit verification code, item breakdown, and special cooking instructions.
+- **Stock Management & Daily Settlement**:
+  - 1-tap live menu item stock toggling (in stock / out of stock).
+  - Open/busy store mode controls with configurable busy duration (15m, 30m, 45m).
+  - Daily settlement summary with one-click CSV export for vendor bookkeeping.
+
+### Added - Customer Full App Experience
+- **Signature UI Primitives**: Perforated `HandoverTicket` with oversized tabular 4-digit code, status `Stepper`, `GatePicker`, `QtyStepper`, `CurfewBanner`, `OfflineBanner`, and dark mode design tokens.
+- **Product Discovery & Ordering**:
+  - Campus canteen browsing by gate reachability and product categories (meals, snacks, fruits, groceries, raw chicken, etc.).
+  - Real-time debounced cart quote with server-enforced pricing, stock verification, and curfew checking.
+  - Idempotent order placement via unique `Idempotency-Key` headers.
+  - Live order tracking page with 4-second ETag polling and 304 Not Modified optimization.
+  - Gate code matching and student delivery confirmation.
+  - Post-delivery rating & review submission, issue reporting, past order history, and account data deletion.
+
 ### Added - Day 1 & 2: Backend Foundation, Data Model, API, Auth & Services
 - **Complete Drizzle Schema & Migrations**: Defined 18 tables in `src/worker/db/schema.ts` with ULID primary keys, integer paise currency, and UTC timestamps. Generated SQL migrations and added partial unique index on `(gate_id, handover_code)` for active orders.
 - **Seeded NIT Patna Campus Data**: 3 gates with curfew rules (Main Gate, Hostel 5, Hostel 7), 8 campus vendors across all product categories (meals, snacks, fruits, groceries, veggies, raw chicken, late night, beverages) with 80+ realistic menu items, and 20 historical delivered orders for admin analytics.

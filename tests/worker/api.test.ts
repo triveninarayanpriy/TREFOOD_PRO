@@ -2,7 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:
 import { describe, it, expect, beforeAll } from 'vitest';
 import worker, { expireOldPlacedOrders } from '@worker/index';
 import { getDb } from '@worker/db';
-import { orders, vendors, gates } from '@worker/db/schema';
+import { orders, vendors, gates, users } from '@worker/db/schema';
 import { createSession, buildSetCookieHeader } from '@worker/auth/session';
 import { eq } from 'drizzle-orm';
 import { ulid } from '@worker/utils/ulid';
@@ -22,7 +22,7 @@ describe('Worker Full API Integration Tests', () => {
 
     await db
       .update(gates)
-      .set({ curfewTime: '23:59', bufferMinutes: 0, travelMinutes: 5 })
+      .set({ curfewTime: '04:00', bufferMinutes: 0, travelMinutes: 5 })
       .where(eq(gates.id, 'gate_main'));
 
     // Create session cookies using the seeded demo users
@@ -178,5 +178,37 @@ describe('Worker Full API Integration Tests', () => {
 
     const updated = await db.select().from(orders).where(eq(orders.id, staleOrderId)).get();
     expect(updated?.status).toBe('expired');
+  });
+
+  it('allows authenticated users to delete their account and personal data (privacy compliance)', async () => {
+    const db = getDb(env.DB);
+    const tempUserId = `usr_temp_${ulid()}`;
+    await db.insert(users).values({
+      id: tempUserId,
+      email: `temp_${tempUserId}@nitp.ac.in`,
+      name: 'Temporary User',
+      role: 'student',
+      campusId: 'campus_nitp',
+      createdAt: Math.floor(Date.now() / 1000),
+    });
+
+    const session = await createSession(db, tempUserId);
+    const tempCookie = buildSetCookieHeader('session', session.token);
+
+    const delReq = new Request('http://localhost/api/auth/delete-account', {
+      method: 'DELETE',
+      headers: { Cookie: tempCookie },
+    });
+    const ctx = createExecutionContext();
+    const res = await worker.fetch(delReq, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
+
+    const userInDb = await db.select().from(users).where(eq(users.id, tempUserId)).get();
+    expect(userInDb?.email).toContain('@privacy.trefood.local');
+    expect(userInDb?.name).toBe('Deleted Student');
   });
 });

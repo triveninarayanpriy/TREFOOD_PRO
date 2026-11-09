@@ -2,35 +2,46 @@
 
 > Hyperlocal campus delivery for NIT Patna. Students order food, fruits, groceries and raw chicken from campus vendors and collect at a hostel gate by matching a 4-digit code on the packet. Zero delivery fee, pay at the gate, curfew-aware.
 
-*Note: All seeded and mock data in this repository is sample data used strictly for prototyping and testing purposes.*
+**Live Edge Deployment**: [https://trefood-prototype.technicaltriveniyt.workers.dev](https://trefood-prototype.technicaltriveniyt.workers.dev)
 
-## Architecture
+> [!IMPORTANT]
+> **SAMPLE DATA DISCLAIMER**: All seeded campus data, vendor profiles, menu items, prices, telephone numbers, and user records contained in this repository and deployment are purely synthetic **SAMPLE DATA** created exclusively for prototype demonstration, evaluation, and automated testing.
 
-The project runs on a unified Cloudflare Workers architecture serving both the Single-Page Application (SPA) client and the edge API backend.
+---
 
-```mermaid
-flowchart TD
-    User["Student / Vendor Browser"]
-    
-    subgraph Cloudflare["Cloudflare Global Network (Edge)"]
-        Worker["Cloudflare Worker (Hono API)"]
-        Assets["Static Assets (React 19 SPA)"]
-        D1[("Cloudflare D1 (SQLite DB)")]
-    end
-    
-    User -->|Static Assets: HTML/CSS/JS| Assets
-    User -->|API Requests: /api/*| Worker
-    Worker -->|Type-safe queries (Drizzle ORM)| D1
-```
+## Documentation Index
+
+- [Interactive Demo & Evaluator Walkthrough](docs/DEMO.md)
+- [System Architecture & State Machine Specification](docs/ARCHITECTURE.md)
+- [Quality, Performance & Hardening Report](docs/QUALITY.md)
+- [Security Threat Model & Cryptographic Verification](docs/SECURITY.md)
+- [API Reference & OpenAPI Specifications](docs/API.md)
+- [Engineering Decisions Record (ADR)](docs/DECISIONS.md)
+- [Post-Prototype Product Roadmap](docs/ROADMAP.md)
+- [Project Changelog](docs/CHANGELOG.md)
+
+---
 
 ## Tech Stack
 
 - **Edge Runtime & Hosting:** Cloudflare Workers + Cloudflare Static Assets (`wrangler.jsonc`)
-- **API Framework:** [Hono](https://hono.dev/) with Zod validation
+- **API Framework:** [Hono](https://hono.dev/) with strict Zod validation
 - **Frontend:** React 19, Vite, TypeScript strict, Tailwind CSS v4, React Router 7, TanStack Query
-- **Database:** Cloudflare D1 (Serverless SQLite) with Drizzle ORM
+- **Database:** Cloudflare D1 (Serverless SQLite at the Edge) with Drizzle ORM
 - **Icons & Fonts:** Lucide React, Self-hosted Inter & Plus Jakarta Sans via `@fontsource-variable`
-- **Testing:** Vitest with Workers pool, Playwright E2E, ESLint, Prettier
+- **Testing:** Vitest with `@cloudflare/vitest-pool-workers`, Playwright E2E, axe-core
+
+---
+
+## 1-Tap Demo Accounts (DEMO_MODE)
+
+In `DEMO_MODE=true`, each interface provides a one-tap login button for instant reviewer access:
+
+| Role | Demo Email | Access URL | Features |
+| :--- | :--- | :--- | :--- |
+| **Student** | `student@demo.trefood.test` | `/` and `/browse` | Browse menus, gate selection, cart quote, live `HandoverTicket`, order confirmation |
+| **Vendor** | `vendor@demo.trefood.test` | `/v` | 4-column kitchen tablet board, 56px touch targets, sound chimes, POS receipt printing, stock toggles |
+| **Admin** | `admin@demo.trefood.test` | `/admin` | Metrics overview, SVG orders chart, gate curfews, festival emergency overrides, force cancellation |
 
 ## Project Structure
 

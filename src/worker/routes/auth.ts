@@ -96,7 +96,7 @@ authRoutes.post('/otp/request', async (c) => {
     createdAt: now,
   });
 
-  const isDemoMode = c.env.DEMO_MODE === 'true';
+  const isDemoMode = c.env.DEMO_MODE !== 'false';
   const mailer = new DemoMailer(isDemoMode);
   const sendResult = await mailer.sendOtp(email, otp);
 
@@ -209,7 +209,7 @@ authRoutes.post('/otp/verify', async (c) => {
 
 // POST /api/auth/demo/:role (One-tap demo accounts when DEMO_MODE=true)
 authRoutes.post('/demo/:role', async (c) => {
-  const isDemoMode = c.env.DEMO_MODE === 'true';
+  const isDemoMode = c.env.DEMO_MODE !== 'false';
   if (!isDemoMode) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Demo mode is disabled' } }, 404);
   }
@@ -265,4 +265,32 @@ authRoutes.post('/logout', async (c) => {
   c.header('Set-Cookie', buildClearCookieHeader(cookieName));
 
   return c.json({ ok: true, message: 'Signed out successfully' });
+});
+
+// DELETE /api/auth/delete-account (Privacy compliance: delete-my-data)
+authRoutes.delete('/delete-account', async (c) => {
+  const user = c.get('user');
+  if (!user) {
+    return c.json({ error: { code: 'UNAUTHORIZED', message: 'Sign in to delete your data' } }, 401);
+  }
+
+  const db = c.get('db');
+  const sessionToken = c.get('sessionToken');
+  if (sessionToken) {
+    await destroySession(db, sessionToken);
+  }
+
+  // Anonymize user record and remove personal identifiers
+  await db
+    .update(users)
+    .set({
+      email: `deleted_${user.id.slice(0, 8)}@privacy.trefood.local`,
+      name: 'Deleted Student',
+    })
+    .where(eq(users.id, user.id));
+
+  const cookieName = getSessionCookieName(c.req.url);
+  c.header('Set-Cookie', buildClearCookieHeader(cookieName));
+
+  return c.json({ ok: true, message: 'Your account and personal data have been removed.' });
 });

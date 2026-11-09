@@ -17,7 +17,7 @@ import { canDeliver } from '../services/delivery';
 import { priceCart, CartConflictError } from '../services/cart';
 import { nextStatus, StatusTransitionError, type OrderStatus } from '../services/order';
 import { generateHandoverCode } from '../services/handover';
-import { nowUtc } from '../utils/time';
+import { nowUtc, getRequestNow } from '../utils/time';
 import { ulid } from '../utils/ulid';
 import { sha256 } from '../utils/crypto';
 import {
@@ -69,7 +69,7 @@ orderRoutes.post('/', async (c) => {
   }
 
   const { vendorId, gateId, items } = parseResult.data;
-  const now = nowUtc();
+  const now = getRequestNow(c);
 
   // Validate gate
   const allGates = await db.select().from(gates).all();

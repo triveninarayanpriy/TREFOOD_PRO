@@ -11,7 +11,7 @@ import {
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
 import { priceCart, CartConflictError } from '../services/cart';
-import { nowUtc } from '../utils/time';
+import { getRequestNow } from '../utils/time';
 import { CartQuoteRequestSchema } from '@shared/schemas';
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
@@ -31,13 +31,13 @@ publicRoutes.get('/gates', async (c) => {
 // GET /api/vendors?gate&category&q&veg&open
 publicRoutes.get('/vendors', async (c) => {
   const db = c.get('db');
-  const gateId = c.req.query('gate');
+  const gateId = c.req.query('gate') || c.req.query('gateId');
   const category = c.req.query('category');
   const q = c.req.query('q')?.toLowerCase();
   const vegOnly = c.req.query('veg') === 'true' || c.req.query('veg') === '1';
   const openOnly = c.req.query('open') === 'true' || c.req.query('open') === '1';
 
-  const now = nowUtc();
+  const now = getRequestNow(c);
 
   // Fetch all active gates for curfew check & alternative gate resolution
   const allGates = await db.select().from(gates).all();
@@ -204,6 +204,7 @@ publicRoutes.get('/vendors/:slug', async (c) => {
       status: vendor.status,
       ratingAvg: vendor.ratingAvg,
       ratingCount: vendor.ratingCount,
+      categories: structuredCategories,
     },
     categories: structuredCategories,
   });
@@ -222,7 +223,7 @@ publicRoutes.post('/cart/quote', async (c) => {
   }
 
   const { vendorId, gateId, items } = parseResult.data;
-  const now = nowUtc();
+  const now = getRequestNow(c);
 
   // Verify gate
   const allGates = await db.select().from(gates).all();

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { eq, and, lte } from 'drizzle-orm';
 import type { Env } from './types';
 import { getDb } from './db';
-import { orders, orderEvents } from './db/schema';
+import { orders, orderEvents, vendors } from './db/schema';
 import {
   requestIdMiddleware,
   securityHeadersMiddleware,
@@ -66,7 +66,56 @@ app.route('/api/vendor', vendorRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api', publicRoutes); // /api/gates, /api/vendors, /api/cart/quote, /api/announcements
 
-// 6. Typed JSON Error Handler
+// 6. SEO & Bot routes
+app.get('/sitemap.xml', async (c) => {
+  const db = c.get('db');
+  let vendorList: Array<{ slug: string }> = [];
+  try {
+    if (db) {
+      vendorList = await db.select({ slug: vendors.slug }).from(vendors).where(eq(vendors.status, 'active')).all();
+    }
+  } catch {}
+
+  const host = c.req.header('host') || 'trefood-prototype.technicaltriveniyt.workers.dev';
+  const proto = host.includes('localhost') ? 'http' : 'https';
+  const baseUrl = `${proto}://${host}`;
+
+  const urls = [
+    `${baseUrl}/`,
+    `${baseUrl}/browse`,
+    ...vendorList.map((v) => `${baseUrl}/vendor/${v.slug}`),
+  ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url><loc>${u}</loc><changefreq>hourly</changefreq></url>`).join('\n')}
+</urlset>`;
+
+  return new Response(xml, {
+    headers: {
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
+});
+
+app.get('/robots.txt', async (c) => {
+  const host = c.req.header('host') || 'trefood-prototype.technicaltriveniyt.workers.dev';
+  const proto = host.includes('localhost') ? 'http' : 'https';
+  const txt = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /v
+
+Sitemap: ${proto}://${host}/sitemap.xml
+`;
+  return new Response(txt, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+});
+
+// 7. Typed JSON Error Handler
 app.onError((err, c) => {
   console.error(`[Error] ${c.req.method} ${c.req.url}:`, err);
   return c.json(
