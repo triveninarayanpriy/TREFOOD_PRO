@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline | TreFood NIT Patna</title>
+    <meta name="theme-color" content="#830020" />
+    <style>
+      :root {
+        --bg: #fbf8f3;
+        --surface: #ffffff;
+        --sunken: #f3efe6;
+        --text: #1c1917;
+        --muted: #57534e;
+        --border: #e5dec9;
+        --brand: #830020;
+        --gold: #ffb400;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e0608;
+          --surface: #180b0f;
+          --sunken: #241117;
+          --text: #f5f0eb;
+          --muted: #c4b5ae;
+          --border: #3a2229;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .card {
+        width: 100%;
+        max-width: 28rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 1.5rem;
+        padding: 1.75rem;
+        box-shadow: 0 12px 32px rgba(28, 25, 23, 0.08);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: var(--sunken);
+        color: var(--brand);
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      @media (prefers-color-scheme: dark) {
+        .badge { color: var(--gold); }
+      }
+      h1 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.375rem;
+        line-height: 1.25;
+      }
+      p {
+        margin: 0 0 1.25rem;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      .gates {
+        background: var(--sunken);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 0.9rem 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .gates h2 {
+        margin: 0 0 0.5rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8125rem;
+        padding: 0.3rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .row:last-child { border-bottom: 0; }
+      .actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 1.125rem;
+        border-radius: 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        border: 1px solid transparent;
+        flex: 1;
+      }
+      .btn-primary {
+        background: #830020;
+        color: #ffffff;
+      }
+      .btn-secondary {
+        background: var(--sunken);
+        color: var(--text);
+        border-color: var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 14C4 9.58 7.58 6 12 6C16.42 6 20 9.58 20 14H4Z" fill="#FFB400" />
+          <path d="M3 16.5H21C21 18.7 19.2 20.5 17 20.5H7C4.8 20.5 3 18.7 3 16.5Z" fill="#830020" />
+        </svg>
+        <span>TreFood NIT Patna • Offline Mode</span>
+      </div>
+      <h1>You are currently offline</h1>
+      <p>
+        Hostel WiFi or mobile data dropped out. Your saved cart packet stays stored on this device. Reconnect to place orders or refresh live gate tracking.
+      </p>
+
+      <section class="gates" aria-label="Campus gate hours reference">
+        <h2>Campus Gate Reference (IST)</h2>
+        <div class="row">
+          <span>Main Gate / Academic Blocks</span>
+          <strong>24x7 Open</strong>
+        </div>
+        <div class="row">
+          <span>Boys Hostel Gate</span>
+          <strong>Curfew 19:30</strong>
+        </div>
+        <div class="row">
+          <span>Girls Hostel Gate</span>
+          <strong>Curfew 19:30</strong>
+        </div>
+        <div class="row">
+          <span>Campus Night Safety</span>
+          <strong>19:00+ Owner Delivery</strong>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" onclick="window.location.reload()">
+          Retry Connection
+        </button>
+        <a href="/app" class="btn btn-secondary">Browse Cached App</a>
+      </div>
+    </main>
+  </body>
+</html>

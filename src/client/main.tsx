@@ -27,3 +27,11 @@ if (rootElement) {
     </StrictMode>
   );
 }
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+      // Service worker unavailable in restricted environments
+    });
+  });
+}

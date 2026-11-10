@@ -56,7 +56,7 @@ export function HandoverTicket({
     out_for_delivery: { label: 'Out for Delivery', color: 'bg-sky-100 text-sky-900', icon: Truck },
     at_gate: {
       label: 'Packet at Gate!',
-      color: 'bg-emerald-600 text-white animate-pulse',
+      color: 'bg-emerald-800 text-white animate-pulse',
       icon: ShieldCheck,
     },
     delivered: { label: 'Delivered', color: 'bg-emerald-100 text-emerald-900', icon: CheckCircle2 },

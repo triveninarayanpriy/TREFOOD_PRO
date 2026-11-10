@@ -90,7 +90,7 @@ export function AdminConsolePage() {
   const { user, loginAsDemo, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'vendors' | 'gates' | 'orders' | 'announcements' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'vendors' | 'gates' | 'orders' | 'reports' | 'announcements' | 'audit'>('overview');
 
   // Overview metrics
   const [metrics, setMetrics] = useState<any>(null);
@@ -105,6 +105,20 @@ export function AdminConsolePage() {
   const [adminOrders, setAdminOrders] = useState<any[]>([]);
   const [selectedOrderTimeline, setSelectedOrderTimeline] = useState<any[] | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Reports queue
+  const [adminReports, setAdminReports] = useState<
+    Array<{
+      id: string;
+      orderId: string;
+      orderPublicNo: string;
+      vendorName: string;
+      reason: string;
+      description: string;
+      status: string;
+      resolutionNote?: string | null;
+    }>
+  >([]);
 
   // Force cancel
   const [forceCancelId, setForceCancelId] = useState<string | null>(null);
@@ -183,12 +197,42 @@ export function AdminConsolePage() {
     } catch {}
   };
 
+  // Load reports queue
+  const loadReports = async () => {
+    try {
+      const res = await fetch('/api/admin/reports');
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        setAdminReports(data.reports || []);
+      }
+    } catch {}
+  };
+
+  const handleResolveReport = async (id: string, status: 'resolved' | 'credited' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/admin/reports/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          resolutionNote: `Marked ${status} by campus admin`,
+          refundPaise: status === 'credited' ? 2000 : 0,
+        }),
+      });
+      if (res.ok) {
+        showToast(`Report marked ${status}`, 'success');
+        loadReports();
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     if (user?.role === 'admin') {
       loadMetrics();
       loadVendors();
       loadGates();
       loadOrders();
+      loadReports();
     }
   }, [user]);
 
@@ -370,6 +414,7 @@ export function AdminConsolePage() {
             { id: 'vendors', label: 'Vendors', icon: <Store className="h-3.5 w-3.5" /> },
             { id: 'gates', label: 'Gates & Curfews', icon: <MapPin className="h-3.5 w-3.5" /> },
             { id: 'orders', label: 'Orders Monitor', icon: <FileText className="h-3.5 w-3.5" /> },
+            { id: 'reports', label: `Reports (${adminReports.filter((r) => r.status === 'open').length})`, icon: <AlertTriangle className="h-3.5 w-3.5" /> },
             { id: 'announcements', label: 'Announcements', icon: <Megaphone className="h-3.5 w-3.5" /> },
             { id: 'audit', label: 'Audit Log', icon: <History className="h-3.5 w-3.5" /> },
           ].map((tab) => (
@@ -379,6 +424,7 @@ export function AdminConsolePage() {
                 setActiveTab(tab.id as any);
                 if (tab.id === 'audit') loadAudit();
                 if (tab.id === 'orders') loadOrders();
+                if (tab.id === 'reports') loadReports();
               }}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                 activeTab === tab.id
@@ -680,6 +726,75 @@ export function AdminConsolePage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* TAB 6B: REPORTS QUEUE */}
+      {activeTab === 'reports' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-stone-500">
+              Student Issue Reports Queue ({adminReports.length})
+            </h2>
+            <Button size="sm" variant="secondary" onClick={loadReports}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Refresh Queue
+            </Button>
+          </div>
+
+          {adminReports.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-stone-200 p-8 text-center text-xs text-stone-500 dark:border-stone-800">
+              No student order reports in queue.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {adminReports.map((rep) => (
+                <div
+                  key={rep.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3.5 text-xs dark:border-stone-800 dark:bg-stone-850"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono font-bold text-[#830020] dark:text-amber-400">
+                        #{rep.orderPublicNo}
+                      </span>
+                      <span className="font-bold text-stone-900 dark:text-stone-100">
+                        {rep.vendorName}
+                      </span>
+                      <Badge variant={rep.status === 'open' ? 'warning' : 'success'}>
+                        {rep.reason} • {rep.status}
+                      </Badge>
+                    </div>
+                    <p className="text-stone-600 dark:text-stone-300">{rep.description}</p>
+                    {rep.resolutionNote && (
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                        Resolution: {rep.resolutionNote}
+                      </div>
+                    )}
+                  </div>
+
+                  {rep.status === 'open' && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleResolveReport(rep.id, 'credited')}
+                      >
+                        Credit ₹20
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleResolveReport(rep.id, 'resolved')}
+                      >
+                        Resolve
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

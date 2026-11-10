@@ -23,6 +23,11 @@ const InstallAppModal = lazy(() =>
 const CartDrawer = lazy(() =>
   import('./components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
 );
+const NotificationCentreDrawer = lazy(() =>
+  import('./components/notifications/NotificationCentre').then((m) => ({
+    default: m.NotificationCentreDrawer,
+  }))
+);
 
 // Lazy-load secondary routes so first load stays lean (<150 KB gzip) for hostel WiFi
 const CustomerHomePage = lazy(() =>
@@ -79,6 +84,7 @@ function AppShell() {
   const { selectedGateId, setSelectedGateId, itemCount } = useCart();
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { modalOpen: installModalOpen, setModalOpen: setInstallModalOpen, triggerInstall } =
     usePwaInstall();
 
@@ -118,6 +124,7 @@ function AppShell() {
           onOpenCart={() => setCartDrawerOpen(true)}
           showDesktopLinks={isLandingRoute}
           onInstallApp={triggerInstall}
+          onOpenNotifications={() => setNotificationsOpen(true)}
         />
       )}
 
@@ -189,6 +196,16 @@ function AppShell() {
       <Suspense fallback={null}>
         {installModalOpen && (
           <InstallAppModal open={installModalOpen} onClose={() => setInstallModalOpen(false)} />
+        )}
+      </Suspense>
+
+      {/* Lazy Order Notifications Centre */}
+      <Suspense fallback={null}>
+        {notificationsOpen && (
+          <NotificationCentreDrawer
+            open={notificationsOpen}
+            onClose={() => setNotificationsOpen(false)}
+          />
         )}
       </Suspense>
     </div>

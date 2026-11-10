@@ -11,6 +11,7 @@ import {
   X,
   UserCheck,
   Heart,
+  Bell,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ export interface TopBarProps {
   onOpenCart: () => void;
   showDesktopLinks?: boolean;
   onInstallApp?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 const LANDING_ANCHORS = [
@@ -54,6 +56,7 @@ export function TopBar({
   onOpenCart,
   showDesktopLinks = false,
   onInstallApp,
+  onOpenNotifications,
 }: TopBarProps) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
@@ -188,6 +191,16 @@ export function TopBar({
 
           {!showDesktopLinks && (
             <>
+              {onOpenNotifications && (
+                <button
+                  type="button"
+                  onClick={onOpenNotifications}
+                  aria-label="Open order notifications"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                >
+                  <Bell className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+                </button>
+              )}
               <Link
                 to="/favorites"
                 aria-label="Saved Favourites"

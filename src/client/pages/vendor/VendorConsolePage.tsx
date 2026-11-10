@@ -504,6 +504,7 @@ export function VendorConsolePage() {
                   newOrders.map((order) => (
                     <div
                       key={order.id}
+                      data-order-no={order.publicNo}
                       className="rounded-xl border-2 border-amber-300 bg-amber-50/50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/30 space-y-3"
                     >
                       <div className="flex items-start justify-between">
@@ -602,6 +603,7 @@ export function VendorConsolePage() {
                   preparingOrders.map((order) => (
                     <div
                       key={order.id}
+                      data-order-no={order.publicNo}
                       className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-850 space-y-3"
                     >
                       <div className="flex items-start justify-between">
@@ -680,6 +682,7 @@ export function VendorConsolePage() {
                   outOrders.map((order) => (
                     <div
                       key={order.id}
+                      data-order-no={order.publicNo}
                       className="rounded-xl border border-stone-200 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-850 space-y-3"
                     >
                       <div className="flex items-start justify-between">
@@ -731,6 +734,7 @@ export function VendorConsolePage() {
                   atGateOrders.map((order) => (
                     <div
                       key={order.id}
+                      data-order-no={order.publicNo}
                       className="rounded-xl border border-emerald-300 bg-white p-4 dark:border-emerald-800 dark:bg-stone-900 space-y-3 shadow-xs"
                     >
                       <div className="flex items-start justify-between">
