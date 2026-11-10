@@ -7,7 +7,7 @@ export function BottomNav() {
 
   const links = [
     { to: '/', label: t('nav.home', 'Home'), icon: Home },
-    { to: '/browse', label: t('nav.browse', 'Browse'), icon: Compass },
+    { to: '/app', label: t('nav.browse', 'Browse'), icon: Compass },
     { to: '/favorites', label: t('nav.favorites', 'Saved'), icon: Heart },
     { to: '/orders', label: t('nav.orders', 'Orders'), icon: Receipt },
     { to: '/account', label: t('nav.account', 'Account'), icon: User },

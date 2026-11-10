@@ -25,6 +25,9 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
     updateQuantity,
     updateNotes,
     clearCart,
+    couponCode,
+    setCouponCode,
+    scheduledFor,
     quote,
     quoteLoading,
     quoteError,
@@ -96,76 +99,110 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
             {/* Items List */}
             <div className="flex-1 divide-y divide-stone-100 overflow-y-auto max-h-[45vh] pr-1 dark:divide-stone-800">
-              {items.map((item) => (
-                <div key={item.itemId} className="py-3 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`inline-block h-2 w-2 rounded-full ${
-                            item.isVeg ? 'bg-emerald-600' : 'bg-red-600'
-                          }`}
-                        />
-                        <span className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
-                          {item.name}
+              {items.map((item) => {
+                const lineId = item.lineKey || item.itemId;
+                return (
+                  <div key={lineId} className="py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`inline-block h-2 w-2 rounded-full ${
+                              item.isVeg ? 'bg-emerald-600' : 'bg-red-600'
+                            }`}
+                          />
+                          <span className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                        {(item.variantLabel || item.addonsLabel) && (
+                          <div className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
+                            {[item.variantLabel, item.addonsLabel ? `+ ${item.addonsLabel}` : null]
+                              .filter(Boolean)
+                              .join(' • ')}
+                          </div>
+                        )}
+                        <span className="text-xs font-mono font-medium text-stone-500">
+                          ₹{(item.pricePaise / 100).toFixed(2)}
                         </span>
                       </div>
-                      <span className="text-xs font-mono font-medium text-stone-500">
-                        ₹{(item.pricePaise / 100).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="shrink-0">
-                      <QtyStepper
-                        value={item.quantity}
-                        onIncrease={() => updateQuantity(item.itemId, item.quantity + 1)}
-                        onDecrease={() => updateQuantity(item.itemId, item.quantity - 1)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes / Special Instructions */}
-                  <div className="text-xs">
-                    {editingNotesId === item.itemId ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          maxLength={80}
-                          placeholder="e.g. less spicy, extra ketchup (max 80 chars)"
-                          defaultValue={item.notes || ''}
-                          onBlur={(e) => {
-                            updateNotes(item.itemId, e.target.value);
-                            setEditingNotesId(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              updateNotes(item.itemId, (e.target as HTMLInputElement).value);
-                              setEditingNotesId(null);
-                            }
-                          }}
-                          autoFocus
-                          className="h-8 flex-1 rounded-lg border border-stone-300 px-2 text-xs dark:border-stone-700 dark:bg-stone-800"
+                      <div className="shrink-0">
+                        <QtyStepper
+                          value={item.quantity}
+                          onIncrease={() => updateQuantity(lineId, item.quantity + 1)}
+                          onDecrease={() => updateQuantity(lineId, item.quantity - 1)}
                         />
+                      </div>
+                    </div>
+
+                    {/* Notes / Special Instructions */}
+                    <div className="text-xs">
+                      {editingNotesId === lineId ? (
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            maxLength={80}
+                            placeholder="e.g. less spicy, extra ketchup (max 80 chars)"
+                            defaultValue={item.notes || ''}
+                            onBlur={(e) => {
+                              updateNotes(lineId, e.target.value);
+                              setEditingNotesId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                updateNotes(lineId, (e.target as HTMLInputElement).value);
+                                setEditingNotesId(null);
+                              }
+                            }}
+                            autoFocus
+                            className="h-8 flex-1 rounded-lg border border-stone-300 px-2 text-xs dark:border-stone-700 dark:bg-stone-800"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditingNotesId(null)}
+                            className="text-xs text-stone-500 underline"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => setEditingNotesId(null)}
-                          className="text-xs text-stone-500 underline"
+                          onClick={() => setEditingNotesId(lineId)}
+                          className="text-[11px] text-stone-500 hover:text-stone-700 underline dark:hover:text-stone-300"
                         >
-                          Done
+                          {item.notes ? `Note: "${item.notes}" (edit)` : '+ Add note (e.g. less spicy)'}
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingNotesId(item.itemId)}
-                        className="text-[11px] text-stone-500 hover:text-stone-700 underline dark:hover:text-stone-300"
-                      >
-                        {item.notes ? `Note: "${item.notes}" (edit)` : '+ Add note (e.g. less spicy)'}
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
+            {couponCode && (
+              <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                <span>
+                  Promo <strong className="font-mono">{couponCode}</strong>{' '}
+                  {quote?.discountPaise && quote.discountPaise > 0
+                    ? `applied (-₹${(quote.discountPaise / 100).toFixed(0)})`
+                    : quote?.couponError || 'pending'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCouponCode('')}
+                  className="font-semibold underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {scheduledFor && (
+              <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-stone-800 dark:bg-stone-850 dark:text-stone-300">
+                Pre-order scheduled for opening window.
+              </div>
+            )}
 
             {/* Bill Summary */}
             <div className="rounded-xl border border-stone-200 bg-white p-3.5 space-y-2 dark:border-stone-800 dark:bg-stone-900">
@@ -175,6 +212,12 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                   {quoteLoading ? '...' : `₹${((quote?.subtotalPaise || 0) / 100).toFixed(2)}`}
                 </span>
               </div>
+              {(quote?.discountPaise ?? 0) > 0 && (
+                <div className="flex justify-between text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
+                  <span>Promo Savings</span>
+                  <span className="font-mono">-₹{((quote?.discountPaise || 0) / 100).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs text-stone-600 dark:text-stone-400">
                 <span>Delivery Fee</span>
                 <span className="font-bold text-emerald-600">FREE</span>

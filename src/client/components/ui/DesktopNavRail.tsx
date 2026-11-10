@@ -19,7 +19,7 @@ export function DesktopNavRail() {
 
   const primaryLinks = [
     { to: '/', label: t('nav.home', 'Home'), icon: Home },
-    { to: '/browse', label: t('nav.browse', 'Browse Canteens'), icon: Compass },
+    { to: '/app', label: t('nav.browse', 'Browse Canteens'), icon: Compass },
     { to: '/favorites', label: t('nav.favorites', 'Favourites'), icon: Heart },
     { to: '/orders', label: t('nav.orders', 'My Orders'), icon: Receipt },
     { to: '/account', label: t('nav.account', 'Account'), icon: User },

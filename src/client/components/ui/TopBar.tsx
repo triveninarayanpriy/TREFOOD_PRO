@@ -163,7 +163,7 @@ export function TopBar({
               </a>
             ))}
             <Link
-              to="/browse"
+              to="/app"
               className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 xl:px-3 text-xs xl:text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
             >
               Browse menus
@@ -276,7 +276,7 @@ export function TopBar({
             </a>
           ))}
           <Link
-            to="/browse"
+            to="/app"
             onClick={() => setMobileMenuOpen(false)}
             className="flex min-h-[44px] items-center rounded-xl px-3 text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)]"
           >

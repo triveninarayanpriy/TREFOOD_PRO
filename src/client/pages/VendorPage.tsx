@@ -1,17 +1,22 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useMemo, lazy, Suspense } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCart } from '../context/CartContext';
+import { useCart, buildCartLineKey } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
 import { MenuItemRow } from '../components/ui/MenuItemRow';
+import { QtyStepper } from '../components/ui/QtyStepper';
 import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { CartDrawer } from '../components/cart/CartDrawer';
 import { SeoHead } from '../components/seo/SeoHead';
 import { useToast } from '../components/ui/Toast';
+import {
+  ItemOptionsSheet,
+  type ItemOptionsSelection,
+} from '../components/app/ItemOptionsSheet';
 import { isNightSafetyActive } from '@shared/curfew';
 import {
   Clock,
@@ -21,12 +26,36 @@ import {
   ShoppingBag,
   Sparkles,
   Heart,
+  Phone,
+  AlertTriangle,
+  Leaf,
+  CalendarClock,
+  MessageSquare,
 } from 'lucide-react';
-import type { VendorDetail, MenuItem } from '@shared/types';
+import type { VendorDetail, EnrichedMenuItem } from '@shared/types';
+
+const CartDrawer = lazy(() =>
+  import('../components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+);
+
+function getNextOpeningTimestamp(openTimeStr: string): number {
+  const [hStr, mStr] = (openTimeStr || '09:00').split(':');
+  const h = Number(hStr) || 9;
+  const m = Number(mStr) || 0;
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(h, m, 0, 0);
+  if (target.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 1);
+  }
+  return Math.floor(target.getTime() / 1000);
+}
 
 export function VendorPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPreorderIntent = searchParams.get('preorder') === '1';
   const { user } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -34,6 +63,9 @@ export function VendorPage() {
     vendor: currentCartVendor,
     items: cartItems,
     itemCount,
+    quote,
+    scheduledFor,
+    setScheduledFor,
     addItem,
     updateQuantity,
     updateNotes,
@@ -43,8 +75,11 @@ export function VendorPage() {
   } = useCart();
 
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'menu' | 'reviews'>('menu');
   const [activeCategory, setActiveCategory] = useState<string>('');
+  const [vegOnlyMenu, setVegOnlyMenu] = useState(false);
   const [editingNoteItemId, setEditingNoteItemId] = useState<string | null>(null);
+  const [sheetItem, setSheetItem] = useState<EnrichedMenuItem | null>(null);
 
   const {
     data: vendorData,
@@ -98,11 +133,22 @@ export function VendorPage() {
     favMutation.mutate(vendor.id);
   };
 
+  // Review rating breakdown computed dynamically
+  const reviewBreakdown = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<1 | 2 | 3 | 4 | 5, number>;
+    const list = vendor?.reviews || [];
+    for (const r of list) {
+      const star = Math.min(5, Math.max(1, Math.round(r.rating))) as 1 | 2 | 3 | 4 | 5;
+      counts[star] = (counts[star] || 0) + 1;
+    }
+    return counts;
+  }, [vendor?.reviews]);
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         <Skeleton className="h-8 w-36 rounded-lg" />
-        <Skeleton className="h-44 w-full rounded-2xl" />
+        <Skeleton className="h-48 w-full rounded-2xl" />
         <div className="space-y-3 pt-2">
           <MenuItemSkeleton />
           <MenuItemSkeleton />
@@ -121,8 +167,8 @@ export function VendorPage() {
           onRetry={() => refetch()}
         />
         <div className="mt-4 text-center">
-          <Button onClick={() => navigate('/browse')} variant="secondary" size="sm">
-            Back to Canteens
+          <Button onClick={() => navigate('/app')} variant="secondary" size="sm">
+            Back to Campus Home
           </Button>
         </div>
       </div>
@@ -130,20 +176,81 @@ export function VendorPage() {
   }
 
   const hours = vendor.hoursJson ? JSON.parse(vendor.hoursJson) : null;
+  const openHourLabel = hours?.open || '09:00';
+  const closeHourLabel = hours?.close || '22:00';
   const isBusy = vendor.busyUntil && vendor.busyUntil > Math.floor(Date.now() / 1000);
   const nightSafe = vendor.nightSafe !== false;
   const nightNow = isNightSafetyActive();
+  const outOfStockCount =
+    vendor.outOfStockCount ??
+    vendor.categories.reduce(
+      (sum, cat) => sum + cat.items.filter((i) => !i.inStock).length,
+      0
+    );
 
   const isCurrentVendorCart = currentCartVendor?.id === vendor.id;
   const vendorCartTotalPaise = isCurrentVendorCart
     ? cartItems.reduce((sum, item) => sum + item.pricePaise * item.quantity, 0)
     : 0;
 
+  const totalCategoryItems = vendor.categories?.map((cat) => ({
+    ...cat,
+    filteredItems: vegOnlyMenu ? cat.items.filter((i) => i.isVeg) : cat.items,
+  })) || [];
+
+  const handleQuickAddItem = (item: EnrichedMenuItem) => {
+    const defaultVariant = item.variants?.[0];
+    const effectivePrice = item.pricePaise + (defaultVariant?.priceDeltaPaise || 0);
+    if (!vendor.isOpen && !scheduledFor) {
+      setScheduledFor(getNextOpeningTimestamp(openHourLabel));
+    }
+    addItem(
+      { id: vendor.id, name: vendor.name, slug: vendor.slug },
+      {
+        itemId: item.id,
+        name: item.name,
+        pricePaise: effectivePrice,
+        isVeg: item.isVeg,
+        variantId: defaultVariant?.id,
+        variantLabel: defaultVariant?.label,
+      }
+    );
+  };
+
+  const handleSheetConfirm = (item: EnrichedMenuItem, selection: ItemOptionsSelection) => {
+    if (!vendor.isOpen && !scheduledFor) {
+      setScheduledFor(getNextOpeningTimestamp(openHourLabel));
+    }
+    const lineKey = buildCartLineKey(item.id, selection.variantId, selection.addonIds);
+    addItem(
+      { id: vendor.id, name: vendor.name, slug: vendor.slug },
+      {
+        itemId: item.id,
+        lineKey,
+        name: item.name,
+        pricePaise: selection.unitPricePaise,
+        isVeg: item.isVeg,
+        variantId: selection.variantId,
+        variantLabel: selection.variantLabel,
+        addonIds: selection.addonIds,
+        addonsLabel: selection.addonsLabel,
+        quantity: selection.quantity,
+        notes: selection.notes,
+      }
+    );
+    showToast(`Added ${item.name} to packet`, 'success');
+  };
+
+  const phoneHref = vendor.phone ? `tel:${vendor.phone.replace(/\s+/g, '')}` : null;
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 pb-28 space-y-6">
+    <div className="mx-auto max-w-6xl px-3 sm:px-4 py-5 pb-28 lg:pb-10 space-y-5">
       <SeoHead
         title={`${vendor.name} Menu | TreFood NIT Patna`}
-        description={vendor.description || `Order online from ${vendor.name} at NIT Patna with ₹0 delivery fee and 4-digit gate handover verification.`}
+        description={
+          vendor.description ||
+          `Order online from ${vendor.name} at NIT Patna with zero delivery fee and 4-digit gate handover verification.`
+        }
         path={`/vendor/${vendor.slug}`}
         jsonLd={{
           '@type': 'LocalBusiness',
@@ -153,24 +260,51 @@ export function VendorPage() {
           priceRange: '₹',
         }}
       />
+
       <button
         type="button"
-        onClick={() => navigate('/browse')}
-        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+        onClick={() => navigate('/app')}
+        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         <span>All Campus Canteens</span>
       </button>
 
-      {/* Two-Column Desktop Layout (1440px): Menu + Sticky Packet Summary */}
+      {/* Pre-order banner if opened for a closed vendor */}
+      {(!vendor.isOpen || isPreorderIntent) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#FCD34D] bg-[#FFF8E1] px-4 py-3 text-xs text-[#78350F] dark:border-[#92400E] dark:bg-[#331F04] dark:text-[#FDE68A]">
+          <div className="flex items-center gap-2 font-semibold">
+            <CalendarClock className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              {!vendor.isOpen
+                ? `Currently closed • Opens at ${openHourLabel} IST. Pre-order items now to reserve for the opening gate slot.`
+                : `Pre-order mode enabled • Build your packet below for upcoming delivery.`}
+            </span>
+          </div>
+          {!vendor.isOpen && (
+            <button
+              type="button"
+              onClick={() => {
+                setScheduledFor(getNextOpeningTimestamp(openHourLabel));
+                showToast(`Pre-order slot set for opening at ${openHourLabel} IST`, 'success');
+              }}
+              className="min-h-[36px] rounded-xl bg-[#830020] px-3 text-xs font-bold text-white dark:bg-[#FFB400] dark:text-[#1C1917]"
+            >
+              {scheduledFor ? 'Slot Scheduled ✓' : `Schedule ${openHourLabel} IST`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Two-Column Desktop Layout (Menu + Sticky Packet Summary) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 min-w-0 space-y-5">
           {/* Vendor Profile Header Card */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-[var(--shadow-card)] space-y-4">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6 shadow-[var(--shadow-card)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
                     {vendor.name}
                   </h1>
                   {vendor.nameHi && (
@@ -181,45 +315,63 @@ export function VendorPage() {
                 </div>
                 <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)] capitalize">
                   {vendor.category.replace('_', ' ')} • NIT Patna Campus
+                  {(vendor.minOrderPaise ?? 0) > 0
+                    ? ` • Min ₹${Math.round((vendor.minOrderPaise ?? 0) / 100)}`
+                    : ' • No min order'}
                 </p>
                 {vendor.description && (
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)] max-w-xl">
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)] max-w-xl leading-relaxed">
                     {vendor.description}
                   </p>
                 )}
               </div>
 
-              <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleFavoriteToggle}
-                  aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
-                  aria-pressed={isFavorite}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
-                >
-                  <Heart
-                    className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
-                    aria-hidden="true"
-                  />
-                  <span>{isFavorite ? 'Saved' : 'Save'}</span>
-                </button>
-                {!vendor.isOpen ? (
-                  <Badge variant="closed">Closed</Badge>
-                ) : isBusy ? (
-                  <Badge variant="warning">Busy Mode</Badge>
-                ) : (
-                  <Badge variant="success">Open for Orders</Badge>
-                )}
+              <div className="flex flex-wrap sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  {phoneHref && (
+                    <a
+                      href={phoneHref}
+                      aria-label={`Call ${vendor.name}`}
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                    >
+                      <Phone className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+                      <span>Call</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleFavoriteToggle}
+                    aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+                    aria-pressed={isFavorite}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
+                      aria-hidden="true"
+                    />
+                    <span>{isFavorite ? 'Saved' : 'Save'}</span>
+                  </button>
+                </div>
 
-                {nightSafe && <Badge variant="night_safe">Night Safe</Badge>}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {!vendor.isOpen ? (
+                    <Badge variant="closed">Closed • Opens {openHourLabel}</Badge>
+                  ) : isBusy ? (
+                    <Badge variant="warning">Busy Mode</Badge>
+                  ) : (
+                    <Badge variant="success">Open for Orders</Badge>
+                  )}
 
-                {vendor.ratingAvg > 0 && (
-                  <div className="inline-flex items-center gap-1 rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#78350F] dark:border-[#92400E] dark:bg-[#3B2406] dark:text-[#FDE68A]">
-                    <Star className="h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
-                    <span>{vendor.ratingAvg.toFixed(1)}</span>
-                    <span className="opacity-75 font-normal">({vendor.ratingCount})</span>
-                  </div>
-                )}
+                  {nightSafe && <Badge variant="night_safe">Night Safe</Badge>}
+
+                  {vendor.ratingAvg > 0 && (
+                    <div className="inline-flex items-center gap-1 rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#78350F] dark:border-[#92400E] dark:bg-[#3B2406] dark:text-[#FDE68A]">
+                      <Star className="h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
+                      <span>{vendor.ratingAvg.toFixed(1)}</span>
+                      <span className="opacity-75 font-normal">({vendor.ratingCount})</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -228,13 +380,19 @@ export function VendorPage() {
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
-                  Hours: {hours?.open || '09:00'} – {hours?.close || '22:00'}
+                  Hours: {openHourLabel} – {closeHourLabel} IST
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-[#FFB400] shrink-0" aria-hidden="true" />
-                <span>Prep: ~{vendor.prepMinutes} mins</span>
+                <span>
+                  Prep: ~{vendor.prepMinutes}
+                  {vendor.prepMaxMinutes && vendor.prepMaxMinutes > vendor.prepMinutes
+                    ? `–${vendor.prepMaxMinutes}`
+                    : ''}{' '}
+                  mins
+                </span>
               </div>
 
               {vendor.fssaiNo && (
@@ -256,132 +414,378 @@ export function VendorPage() {
                 </span>
               </div>
             )}
+
+            {/* Out-of-stock note when any item on menu is unavailable */}
+            {outOfStockCount > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3.5 py-2.5 text-xs text-[var(--color-text-muted)]">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-[#B45309] dark:text-[#FBBF24]" aria-hidden="true" />
+                <span>
+                  <strong className="text-[var(--color-text)]">
+                    {outOfStockCount} {outOfStockCount === 1 ? 'item' : 'items'} temporarily out of stock
+                  </strong>{' '}
+                  and disabled below until restocked by {vendor.name}.
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Sticky Category Tabs */}
-          <div className="sticky top-[65px] z-20 -mx-4 px-4 py-2.5 bg-[var(--color-surface-sunken)]/95 backdrop-blur-xs border-y border-[var(--color-border)] flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {vendor.categories?.map((cat) => (
+          {/* Menu vs Reviews Primary Tabs */}
+          <div
+            role="tablist"
+            aria-label="Vendor sections"
+            className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5"
+          >
+            <div className="flex items-center gap-1.5">
               <button
-                key={cat.id}
                 type="button"
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className={`min-h-[40px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
-                  activeCategory === cat.id
-                    ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
-                    : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-raised)]'
+                role="tab"
+                aria-selected={activeTab === 'menu'}
+                onClick={() => setActiveTab('menu')}
+                className={`min-h-[44px] rounded-xl px-4 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] ${
+                  activeTab === 'menu'
+                    ? 'bg-[#830020] text-white dark:bg-[#FFB400] dark:text-[#1C1917]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                 }`}
               >
-                {cat.name}
+                Menu ({vendor.categories.reduce((acc, c) => acc + c.items.length, 0)})
               </button>
-            ))}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'reviews'}
+                onClick={() => setActiveTab('reviews')}
+                className={`min-h-[44px] rounded-xl px-4 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] ${
+                  activeTab === 'reviews'
+                    ? 'bg-[#830020] text-white dark:bg-[#FFB400] dark:text-[#1C1917]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Reviews ({vendor.reviews?.length ?? 0})
+              </button>
+            </div>
+
+            {activeTab === 'menu' && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={vegOnlyMenu}
+                onClick={() => setVegOnlyMenu((v) => !v)}
+                className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3 text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] ${
+                  vegOnlyMenu
+                    ? 'border-[#15803D] bg-[#DCFCE7] text-[#14532D] dark:border-[#16A34A] dark:bg-[#052E16] dark:text-[#BBF7D0]'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-text)]'
+                }`}
+              >
+                <Leaf className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Veg only</span>
+              </button>
+            )}
           </div>
 
-          {/* Menu Categories and Items rendered via MenuItemRow */}
-          <div className="space-y-8">
-            {vendor.categories?.map((cat) => {
-              const items = cat.items || [];
-              if (items.length === 0) return null;
+          {activeTab === 'menu' ? (
+            <>
+              {/* Sticky Category Tabs */}
+              <div className="sticky top-[65px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 bg-[var(--color-surface-sunken)]/95 backdrop-blur-xs border-y border-[var(--color-border)] flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {totalCategoryItems.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    disabled={cat.filteredItems.length === 0}
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                      document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className={`min-h-[40px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] disabled:opacity-45 disabled:cursor-not-allowed ${
+                      activeCategory === cat.id
+                        ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
+                        : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-raised)]'
+                    }`}
+                  >
+                    {cat.name} ({cat.filteredItems.length})
+                  </button>
+                ))}
+              </div>
 
-              return (
-                <section key={cat.id} id={`cat-${cat.id}`} className="space-y-3">
-                  <h2 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
-                    <span>{cat.name}</span>
-                    <span className="text-xs font-normal text-[var(--color-text-muted)]">({items.length})</span>
-                  </h2>
+              {/* Menu Sections */}
+              <div className="space-y-8">
+                {totalCategoryItems.every((c) => c.filteredItems.length === 0) ? (
+                  <EmptyState
+                    title="No veg items in this menu"
+                    description="Switch off the Veg-only filter to view all dishes from this kitchen."
+                    actionLabel="Show All Items"
+                    onAction={() => setVegOnlyMenu(false)}
+                  />
+                ) : (
+                  totalCategoryItems.map((cat) => {
+                    if (cat.filteredItems.length === 0) return null;
+                    return (
+                      <section key={cat.id} id={`cat-${cat.id}`} className="space-y-3">
+                        <h2 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
+                          <span>{cat.name}</span>
+                          <span className="text-xs font-normal text-[var(--color-text-muted)]">
+                            ({cat.filteredItems.length})
+                          </span>
+                        </h2>
 
-                  <div className="space-y-3">
-                    {items.map((item: MenuItem) => {
-                      const cartItem = isCurrentVendorCart
-                        ? cartItems.find((ci) => ci.itemId === item.id)
-                        : undefined;
-                      const inCartQty = cartItem?.quantity || 0;
+                        <div className="space-y-3">
+                          {cat.filteredItems.map((item) => {
+                            const matchingCartLines = isCurrentVendorCart
+                              ? cartItems.filter((ci) => ci.itemId === item.id)
+                              : [];
+                            const primaryCartLine = matchingCartLines[0];
+                            const totalQtyInCart = matchingCartLines.reduce(
+                              (sum, ci) => sum + ci.quantity,
+                              0
+                            );
+                            const hasCustomisation = Boolean(
+                              (item.variants && item.variants.length > 0) ||
+                                (item.addons && item.addons.length > 0)
+                            );
 
-                      return (
-                        <div key={item.id} className="space-y-2">
-                          <MenuItemRow
-                            id={item.id}
-                            name={item.name}
-                            nameHi={item.nameHi}
-                            description={item.description}
-                            pricePaise={item.pricePaise}
-                            isVeg={item.isVeg}
-                            inStock={item.inStock}
-                            category={vendor.category}
-                            quantity={inCartQty}
-                            notes={cartItem?.notes}
-                            onAddNote={() => setEditingNoteItemId(item.id)}
-                            onAdd={() =>
-                              addItem(
-                                { id: vendor.id, name: vendor.name, slug: vendor.slug },
-                                {
-                                  itemId: item.id,
-                                  name: item.name,
-                                  pricePaise: item.pricePaise,
-                                  isVeg: item.isVeg,
-                                }
-                              )
-                            }
-                            onIncrease={() => updateQuantity(item.id, inCartQty + 1)}
-                            onDecrease={() => updateQuantity(item.id, inCartQty - 1)}
-                          />
-
-                          {inCartQty > 0 && editingNoteItemId === item.id && (
-                            <div className="flex items-center gap-2 pl-4">
-                              <input
-                                type="text"
-                                maxLength={80}
-                                placeholder="e.g. less spicy (max 80 chars)"
-                                defaultValue={cartItem?.notes || ''}
-                                onBlur={(e) => {
-                                  updateNotes(item.id, e.target.value);
-                                  setEditingNoteItemId(null);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    updateNotes(item.id, (e.target as HTMLInputElement).value);
-                                    setEditingNoteItemId(null);
+                            return (
+                              <div key={item.id} className="space-y-2">
+                                <MenuItemRow
+                                  id={item.id}
+                                  name={item.name}
+                                  nameHi={item.nameHi}
+                                  description={item.description}
+                                  pricePaise={item.pricePaise}
+                                  isVeg={item.isVeg}
+                                  inStock={item.inStock}
+                                  category={vendor.category}
+                                  imageUrl={item.imageUrl}
+                                  quantity={totalQtyInCart}
+                                  hasCustomisation={hasCustomisation}
+                                  onOpenOptions={() => setSheetItem(item)}
+                                  notes={primaryCartLine?.notes}
+                                  onAddNote={
+                                    primaryCartLine
+                                      ? () =>
+                                          setEditingNoteItemId(
+                                            primaryCartLine.lineKey || primaryCartLine.itemId
+                                          )
+                                      : undefined
                                   }
-                                }}
-                                autoFocus
-                                className="h-9 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)]"
-                              />
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setEditingNoteItemId(null)}
-                              >
-                                Done
-                              </Button>
-                            </div>
-                          )}
+                                  onAdd={() => handleQuickAddItem(item)}
+                                  onIncrease={() =>
+                                    primaryCartLine
+                                      ? updateQuantity(
+                                          primaryCartLine.lineKey || primaryCartLine.itemId,
+                                          primaryCartLine.quantity + 1
+                                        )
+                                      : handleQuickAddItem(item)
+                                  }
+                                  onDecrease={() =>
+                                    primaryCartLine
+                                      ? updateQuantity(
+                                          primaryCartLine.lineKey || primaryCartLine.itemId,
+                                          primaryCartLine.quantity - 1
+                                        )
+                                      : undefined
+                                  }
+                                />
+
+                                {primaryCartLine &&
+                                  editingNoteItemId ===
+                                    (primaryCartLine.lineKey || primaryCartLine.itemId) && (
+                                    <div className="flex items-center gap-2 pl-4">
+                                      <input
+                                        type="text"
+                                        maxLength={80}
+                                        placeholder="e.g. less spicy (max 80 chars)"
+                                        defaultValue={primaryCartLine.notes || ''}
+                                        onBlur={(e) => {
+                                          updateNotes(
+                                            primaryCartLine.lineKey || primaryCartLine.itemId,
+                                            e.target.value
+                                          );
+                                          setEditingNoteItemId(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            updateNotes(
+                                              primaryCartLine.lineKey || primaryCartLine.itemId,
+                                              (e.target as HTMLInputElement).value
+                                            );
+                                            setEditingNoteItemId(null);
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="h-9 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)]"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => setEditingNoteItemId(null)}
+                                      >
+                                        Done
+                                      </Button>
+                                    </div>
+                                  )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </section>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          ) : (
+            /* Reviews Tab with Rating Summary & Verified Feedback */
+            <section aria-label="Vendor Reviews" className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)]">
+                <div className="sm:col-span-5 flex flex-col justify-center items-start sm:border-r sm:border-[var(--color-border-subtle)] sm:pr-4 space-y-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    Student Rating Summary
                   </div>
-                </section>
-              );
-            })}
-          </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-extrabold text-[var(--color-text)]">
+                      {vendor.ratingAvg.toFixed(1)}
+                    </span>
+                    <span className="text-xs font-semibold text-[var(--color-text-muted)]">/ 5.0</span>
+                  </div>
+                  <div
+                    role="img"
+                    className="flex items-center gap-1"
+                    aria-label={`Rated ${vendor.ratingAvg} out of 5`}
+                  >
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-4 w-4 ${
+                          s <= Math.round(vendor.ratingAvg)
+                            ? 'fill-[#FFB400] text-[#FFB400]'
+                            : 'text-[var(--color-border)]'
+                        }`}
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Based on {vendor.ratingCount} completed campus handovers (sample data)
+                  </p>
+                </div>
+
+                <div className="sm:col-span-7 space-y-2 justify-center flex flex-col">
+                  {([5, 4, 3, 2, 1] as const).map((star) => {
+                    const totalReviews = vendor.reviews?.length || 0;
+                    const count = reviewBreakdown[star] || 0;
+                    const pct =
+                      totalReviews > 0
+                        ? Math.round((count / totalReviews) * 100)
+                        : star === 5
+                        ? 75
+                        : star === 4
+                        ? 20
+                        : 5;
+                    return (
+                      <div key={star} className="flex items-center gap-2 text-xs">
+                        <span className="w-7 font-mono font-bold text-[var(--color-text)]">
+                          {star}★
+                        </span>
+                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-sunken)]">
+                          <div
+                            className="h-full rounded-full bg-[#FFB400]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="w-10 text-right font-mono text-[11px] text-[var(--color-text-muted)]">
+                          {totalReviews > 0 ? count : `${pct}%`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {vendor.reviews && vendor.reviews.length > 0 ? (
+                <div className="space-y-3">
+                  {vendor.reviews.map((rev) => (
+                    <article
+                      key={rev.id}
+                      className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[var(--color-text)]">
+                          {rev.reviewerName || 'NITP Student'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2 py-0.5 text-xs font-bold text-[#78350F] dark:bg-[#3B2406] dark:text-[#FDE68A]">
+                          <Star className="h-3 w-3 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
+                          <span>{rev.rating}.0</span>
+                        </span>
+                      </div>
+                      {rev.comment && (
+                        <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                          {rev.comment}
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<MessageSquare className="h-7 w-7 text-[var(--color-text-muted)]" />}
+                  title="No written reviews yet"
+                  description={`Students rated ${vendor.name} ${vendor.ratingAvg.toFixed(1)}★ across ${vendor.ratingCount} orders. Written comments appear here once submitted on delivered tickets.`}
+                  actionLabel="Back to Menu"
+                  onAction={() => setActiveTab('menu')}
+                />
+              )}
+            </section>
+          )}
         </div>
 
-        {/* Sticky Desktop Packet Summary Column (and responsive bottom floating trigger on < lg) */}
+        {/* Sticky Desktop Packet Summary Column */}
         <aside className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
           <div className="hidden lg:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] space-y-3">
-            <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[var(--color-text)] flex items-center justify-between">
               <span>Your Campus Packet</span>
               <span className="font-mono text-xs text-[var(--color-text-muted)]">{itemCount} items</span>
-            </h3>
+            </h2>
             {itemCount === 0 ? (
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
                 Add items from {vendor.name} to inspect server-verified pricing, gate ETA, and place your pay-at-gate order.
               </p>
             ) : (
-              <p className="text-xs text-[var(--color-text-muted)]">
-                Zero delivery fee. 4-digit handover verification code generated upon order confirmation.
-              </p>
+              <div className="space-y-2.5">
+                <div className="max-h-56 overflow-y-auto divide-y divide-[var(--color-border-subtle)] pr-1">
+                  {cartItems.map((ci) => {
+                    const lineId = ci.lineKey || ci.itemId;
+                    return (
+                      <div key={lineId} className="py-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-[var(--color-text)] truncate">
+                            {ci.name}
+                          </div>
+                          {(ci.variantLabel || ci.addonsLabel) && (
+                            <div className="text-[11px] text-[var(--color-text-muted)] truncate">
+                              {[ci.variantLabel, ci.addonsLabel ? `+ ${ci.addonsLabel}` : null]
+                                .filter(Boolean)
+                                .join(' • ')}
+                            </div>
+                          )}
+                          <div className="font-mono text-xs text-[var(--color-text-muted)]">
+                            ₹{((ci.pricePaise * ci.quantity) / 100).toFixed(0)}
+                          </div>
+                        </div>
+                        <QtyStepper
+                          value={ci.quantity}
+                          onIncrease={() => updateQuantity(lineId, ci.quantity + 1)}
+                          onDecrease={() => updateQuantity(lineId, ci.quantity - 1)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between border-t border-[var(--color-border-subtle)] pt-2 text-xs font-bold text-[var(--color-text)]">
+                  <span>Packet Total</span>
+                  <span className="font-mono">
+                    ₹{(((quote?.totalPaise ?? vendorCartTotalPaise) || 0) / 100).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 
@@ -391,7 +795,7 @@ export function VendorPage() {
                 <button
                   type="button"
                   onClick={() => setCartDrawerOpen(true)}
-                  className="flex w-full min-h-[56px] items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1917]"
+                  className="flex w-full min-h-[56px] items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1917]"
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 dark:bg-[#1C1917]/15 font-mono font-bold text-sm">
@@ -417,8 +821,21 @@ export function VendorPage() {
         </aside>
       </div>
 
-      {/* Cart Drawer */}
-      <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
+      {/* Item Options Sheet (Variants + Add-ons) */}
+      <ItemOptionsSheet
+        item={sheetItem}
+        vendorCategory={vendor.category}
+        open={Boolean(sheetItem)}
+        onClose={() => setSheetItem(null)}
+        onConfirmAdd={(sel) => sheetItem && handleSheetConfirm(sheetItem, sel)}
+      />
+
+      {/* Lazy Cart Drawer */}
+      {cartDrawerOpen && (
+        <Suspense fallback={null}>
+          <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
+        </Suspense>
+      )}
 
       {/* Vendor Switch Confirmation Dialog */}
       <Dialog
@@ -439,7 +856,7 @@ export function VendorPage() {
             Keep existing items
           </Button>
           <Button variant="danger" onClick={confirmVendorSwitch}>
-            Clear & switch vendor
+            Clear &amp; switch vendor
           </Button>
         </div>
       </Dialog>

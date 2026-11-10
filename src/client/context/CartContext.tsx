@@ -3,11 +3,25 @@ import { useSearchParams } from 'react-router-dom';
 
 export interface CartItem {
   itemId: string;
+  lineKey?: string;
   name: string;
   pricePaise: number;
   quantity: number;
   notes?: string;
   isVeg?: boolean;
+  variantId?: string;
+  variantLabel?: string;
+  addonIds?: string[];
+  addonsLabel?: string;
+}
+
+export function buildCartLineKey(
+  itemId: string,
+  variantId?: string,
+  addonIds?: string[]
+): string {
+  const addonsPart = addonIds && addonIds.length > 0 ? [...addonIds].sort().join(',') : '';
+  return `${itemId}::${variantId || ''}::${addonsPart}`;
 }
 
 export interface CartVendor {
@@ -18,11 +32,15 @@ export interface CartVendor {
 
 export interface CartQuote {
   subtotalPaise: number;
+  packingTotalPaise?: number;
+  discountPaise?: number;
   deliveryFeePaise: number;
   totalPaise: number;
   etaMinutes: number;
   canDeliver: boolean;
   reason?: string;
+  couponApplied?: string | null;
+  couponError?: string | null;
   alternativeGates?: Array<{ id: string; name: string }>;
 }
 
@@ -31,16 +49,23 @@ interface CartContextType {
   items: CartItem[];
   selectedGateId: string;
   setSelectedGateId: (gateId: string) => void;
-  addItem: (vendor: CartVendor, item: Omit<CartItem, 'quantity'>) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
-  updateNotes: (itemId: string, notes: string) => void;
-  removeItem: (itemId: string) => void;
+  couponCode: string;
+  setCouponCode: (code: string) => void;
+  scheduledFor: number | null;
+  setScheduledFor: (ts: number | null) => void;
+  addItem: (vendor: CartVendor, item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  updateQuantity: (itemIdOrKey: string, quantity: number) => void;
+  updateNotes: (itemIdOrKey: string, notes: string) => void;
+  removeItem: (itemIdOrKey: string) => void;
   clearCart: () => void;
   itemCount: number;
   quote: CartQuote | null;
   quoteLoading: boolean;
   quoteError: string | null;
-  pendingVendorSwitch: { vendor: CartVendor; item: Omit<CartItem, 'quantity'> } | null;
+  pendingVendorSwitch: {
+    vendor: CartVendor;
+    item: Omit<CartItem, 'quantity'> & { quantity?: number };
+  } | null;
   confirmVendorSwitch: () => void;
   cancelVendorSwitch: () => void;
   refetchQuote: () => Promise<CartQuote | null | undefined>;
@@ -91,13 +116,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return [];
   });
 
+  const [couponCode, setCouponCodeState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STORAGE_CART_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return parsed.couponCode || '';
+        }
+      } catch {}
+    }
+    return '';
+  });
+
+  const [scheduledFor, setScheduledForState] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STORAGE_CART_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return typeof parsed.scheduledFor === 'number' ? parsed.scheduledFor : null;
+        }
+      } catch {}
+    }
+    return null;
+  });
+
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
   const [pendingVendorSwitch, setPendingVendorSwitch] = useState<{
     vendor: CartVendor;
-    item: Omit<CartItem, 'quantity'>;
+    item: Omit<CartItem, 'quantity'> & { quantity?: number };
   } | null>(null);
 
   // Sync gate changes to localStorage and URL
@@ -119,12 +170,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [setSearchParams]
   );
 
+  const setCouponCode = useCallback((code: string) => {
+    setCouponCodeState(code.trim().toUpperCase());
+  }, []);
+
+  const setScheduledFor = useCallback((ts: number | null) => {
+    setScheduledForState(ts);
+  }, []);
+
   // Save cart to localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_CART_KEY, JSON.stringify({ vendor, items }));
+      localStorage.setItem(
+        STORAGE_CART_KEY,
+        JSON.stringify({ vendor, items, couponCode, scheduledFor })
+      );
     }
-  }, [vendor, items]);
+  }, [vendor, items, couponCode, scheduledFor]);
 
   // Debounced quote fetcher
   const fetchQuote = useCallback(async () => {
@@ -145,14 +207,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           gateId: selectedGateId,
           vendorId: vendor.id,
-          items: items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+          couponCode: couponCode || undefined,
+          items: items.map((i) => ({
+            itemId: i.itemId,
+            quantity: i.quantity,
+            variantId: i.variantId,
+            addonIds: i.addonIds,
+          })),
         }),
       });
 
       const data = (await res.json()) as any;
       if (!res.ok) {
         if (res.status === 409) {
-          // Price or stock mismatch
           setQuoteError(data.error?.message || 'Some items changed in price or availability.');
         } else {
           setQuoteError(data.error?.message || 'Could not calculate quote.');
@@ -161,11 +228,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } else {
         const newQuote: CartQuote = {
           subtotalPaise: data.subtotalPaise,
+          packingTotalPaise: data.packingTotalPaise,
+          discountPaise: data.discountPaise,
           deliveryFeePaise: data.deliveryFeePaise,
           totalPaise: data.totalPaise,
           etaMinutes: data.etaMinutes,
           canDeliver: data.canDeliver,
           reason: data.reason,
+          couponApplied: data.couponApplied,
+          couponError: data.couponError,
           alternativeGates: data.alternativeGates,
         };
         setQuote(newQuote);
@@ -177,7 +248,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setQuoteLoading(false);
     }
-  }, [vendor, items, selectedGateId]);
+  }, [vendor, items, selectedGateId, couponCode]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -187,25 +258,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [fetchQuote]);
 
   const addItem = useCallback(
-    (newVendor: CartVendor, newItem: Omit<CartItem, 'quantity'>) => {
+    (newVendor: CartVendor, newItem: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
+      const qtyToAdd = Math.max(1, newItem.quantity ?? 1);
+      const lineKey = newItem.lineKey || buildCartLineKey(newItem.itemId, newItem.variantId, newItem.addonIds);
+
       if (vendor && vendor.id !== newVendor.id && items.length > 0) {
-        // Prompt for vendor switch confirmation
-        setPendingVendorSwitch({ vendor: newVendor, item: newItem });
+        setPendingVendorSwitch({ vendor: newVendor, item: { ...newItem, lineKey, quantity: qtyToAdd } });
         return;
       }
 
       setVendor(newVendor);
       setItems((prev) => {
-        const existingIdx = prev.findIndex((i) => i.itemId === newItem.itemId);
+        const existingIdx = prev.findIndex(
+          (i) => (i.lineKey || buildCartLineKey(i.itemId, i.variantId, i.addonIds)) === lineKey
+        );
         if (existingIdx >= 0) {
           const next = [...prev];
           next[existingIdx] = {
             ...next[existingIdx],
-            quantity: next[existingIdx].quantity + 1,
+            quantity: next[existingIdx].quantity + qtyToAdd,
+            notes: newItem.notes ?? next[existingIdx].notes,
           };
           return next;
         }
-        return [...prev, { ...newItem, quantity: 1 }];
+        return [...prev, { ...newItem, lineKey, quantity: qtyToAdd }];
       });
     },
     [vendor, items.length]
@@ -213,8 +289,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const confirmVendorSwitch = useCallback(() => {
     if (pendingVendorSwitch) {
+      const qty = Math.max(1, pendingVendorSwitch.item.quantity ?? 1);
       setVendor(pendingVendorSwitch.vendor);
-      setItems([{ ...pendingVendorSwitch.item, quantity: 1 }]);
+      setItems([{ ...pendingVendorSwitch.item, quantity: qty }]);
+      setScheduledForState(null);
       setPendingVendorSwitch(null);
     }
   }, [pendingVendorSwitch]);
@@ -223,23 +301,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setPendingVendorSwitch(null);
   }, []);
 
-  const updateQuantity = useCallback((itemId: string, quantity: number) => {
+  const updateQuantity = useCallback((itemIdOrKey: string, quantity: number) => {
     setItems((prev) => {
+      const matches = (i: CartItem) =>
+        i.lineKey === itemIdOrKey || (!i.lineKey && i.itemId === itemIdOrKey) || i.itemId === itemIdOrKey;
       if (quantity <= 0) {
-        const next = prev.filter((i) => i.itemId !== itemId);
-        return next;
+        return prev.filter((i) => !matches(i));
       }
-      return prev.map((i) => (i.itemId === itemId ? { ...i, quantity } : i));
+      return prev.map((i) => (matches(i) ? { ...i, quantity } : i));
     });
   }, []);
 
-  const updateNotes = useCallback((itemId: string, notes: string) => {
+  const updateNotes = useCallback((itemIdOrKey: string, notes: string) => {
     const safeNotes = notes.slice(0, 80);
-    setItems((prev) => prev.map((i) => (i.itemId === itemId ? { ...i, notes: safeNotes } : i)));
+    setItems((prev) =>
+      prev.map((i) =>
+        i.lineKey === itemIdOrKey || i.itemId === itemIdOrKey ? { ...i, notes: safeNotes } : i
+      )
+    );
   }, []);
 
-  const removeItem = useCallback((itemId: string) => {
-    setItems((prev) => prev.filter((i) => i.itemId !== itemId));
+  const removeItem = useCallback((itemIdOrKey: string) => {
+    setItems((prev) =>
+      prev.filter((i) => i.lineKey !== itemIdOrKey && i.itemId !== itemIdOrKey)
+    );
   }, []);
 
   const clearCart = useCallback(() => {
@@ -247,6 +332,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setVendor(null);
     setQuote(null);
     setQuoteError(null);
+    setScheduledForState(null);
+    setCouponCodeState('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_CART_KEY);
     }
@@ -261,6 +348,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         items,
         selectedGateId,
         setSelectedGateId,
+        couponCode,
+        setCouponCode,
+        scheduledFor,
+        setScheduledFor,
         addItem,
         updateQuantity,
         updateNotes,

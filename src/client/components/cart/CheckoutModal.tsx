@@ -17,7 +17,17 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, requestOtp, verifyOtp, loginAsDemo } = useAuth();
-  const { vendor, items, selectedGateId, quote, quoteLoading, refetchQuote, clearCart } = useCart();
+  const {
+    vendor,
+    items,
+    selectedGateId,
+    couponCode,
+    scheduledFor,
+    quote,
+    quoteLoading,
+    refetchQuote,
+    clearCart,
+  } = useCart();
   const { showToast } = useToast();
 
   // Sign-in states
@@ -172,10 +182,14 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
         body: JSON.stringify({
           vendorId: vendor.id,
           gateId: selectedGateId,
+          couponCode: couponCode || undefined,
+          scheduledFor: scheduledFor || undefined,
           items: items.map((i) => ({
             itemId: i.itemId,
             quantity: i.quantity,
             notes: i.notes,
+            variantId: i.variantId,
+            addonIds: i.addonIds,
             expectedPricePaise: i.pricePaise,
           })),
         }),

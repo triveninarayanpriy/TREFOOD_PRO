@@ -23,6 +23,12 @@ const InstallAppModal = lazy(() =>
 );
 
 // Lazy-load secondary routes so first load stays lean (<150 KB gzip) for hostel WiFi
+const CustomerHomePage = lazy(() =>
+  import('./pages/CustomerHomePage').then((m) => ({ default: m.CustomerHomePage }))
+);
+const SearchResultsPage = lazy(() =>
+  import('./pages/SearchResultsPage').then((m) => ({ default: m.SearchResultsPage }))
+);
 const BrowsePage = lazy(() =>
   import('./pages/BrowsePage').then((m) => ({ default: m.BrowsePage }))
 );
@@ -86,14 +92,14 @@ function AppShell() {
   const gatesList = gatesData?.gates || [];
   const currentGate = gatesList.find((g) => g.id === selectedGateId) || gatesList[0] || null;
 
-  const isVendorRoute = location.pathname.startsWith('/v');
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isVendorRoute = location.pathname === '/v' || location.pathname.startsWith('/v/');
+  const isAdminRoute = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
   const isLandingRoute = location.pathname === '/';
   const isDedicatedConsole = isVendorRoute || isAdminRoute;
   const showLeftRail = !isDedicatedConsole && !isLandingRoute;
 
   return (
-    <div className="min-h-screen overflow-x-clip flex flex-col bg-[var(--color-surface-sunken)] text-[var(--color-text)] transition-colors">
+    <div className="min-h-screen overflow-x-clip flex flex-col bg-[var(--color-surface-sunken)] text-[var(--color-text)]">
       <SplashScreen />
       <OfflineBanner />
 
@@ -129,6 +135,10 @@ function AppShell() {
           >
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/app" element={<CustomerHomePage />} />
+              <Route path="/app/search" element={<SearchResultsPage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
+              <Route path="/app/vendor/:slug" element={<VendorPage />} />
               <Route path="/browse" element={<BrowsePage />} />
               <Route path="/vendor/:slug" element={<VendorPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
