@@ -565,4 +565,102 @@ describe('Worker Full API Integration Tests', () => {
     expect(rejected.ok).toBe(false);
     expect(rejected.errorCodes).toContain('missing-input-response');
   });
+
+  it('enriches /api/vendors with quickPicks/startingPrice, searches vendors+dishes at /api/search, and quotes item variants/addons', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+    const dayMockTs = Math.floor(new Date('2026-11-10T08:30:00Z').getTime() / 1000).toString();
+
+    // 1. /api/vendors includes quickPicks, startingPricePaise & offerTags
+    const vRes = await exec(
+      new Request('http://localhost/api/vendors?gateId=gate_main', {
+        headers: { 'x-mock-time': dayMockTs },
+      })
+    );
+    expect(vRes.status).toBe(200);
+    const vBody = (await vRes.json()) as {
+      ok: boolean;
+      vendors: Array<{ id: string; startingPricePaise?: number; offerTags?: string[] }>;
+      quickPicks: Array<{ id: string; vendorSlug: string; pricePaise: number }>;
+    };
+    expect(vBody.ok).toBe(true);
+    expect(vBody.quickPicks.length).toBeGreaterThan(0);
+    const ganga = vBody.vendors.find((v) => v.id === 'v_ganga')!;
+    expect(ganga.startingPricePaise).toBeGreaterThan(0);
+    expect(ganga.offerTags?.length).toBeGreaterThan(0);
+
+    // 2. /api/search returns combined vendors & dishes matching query + filters
+    const searchRes = await exec(
+      new Request('http://localhost/api/search?q=chicken&gateId=gate_main&veg=true&sort=price_asc', {
+        headers: { 'x-mock-time': dayMockTs },
+      })
+    );
+    expect(searchRes.status).toBe(200);
+    const searchBody = (await searchRes.json()) as {
+      ok: boolean;
+      vendors: Array<{ id: string }>;
+      dishes: Array<{ id: string; isVeg: boolean }>;
+      counts: { all: number; vendors: number; dishes: number };
+    };
+    expect(searchBody.ok).toBe(true);
+    // All dishes returned with veg=true must strictly be vegetarian
+    expect(searchBody.dishes.every((d) => d.isVeg)).toBe(true);
+
+    const broadSearchRes = await exec(
+      new Request('http://localhost/api/search?q=paneer&gateId=gate_main', {
+        headers: { 'x-mock-time': dayMockTs },
+      })
+    );
+    const broadBody = (await broadSearchRes.json()) as {
+      ok: boolean;
+      vendors: Array<{ slug: string }>;
+      dishes: Array<{ id: string; name: string }>;
+      counts: { all: number; vendors: number; dishes: number };
+    };
+    expect(broadBody.ok).toBe(true);
+    expect(broadBody.vendors.length).toBeGreaterThan(0);
+    expect(broadBody.dishes.some((d) => d.name.toLowerCase().includes('paneer'))).toBe(true);
+    expect(broadBody.counts.all).toBe(broadBody.vendors.length + broadBody.dishes.length);
+
+    // 3. Variant + Addon cart quote computes exact effectiveUnit and accepts matching expectedPricePaise
+    const quoteRes = await exec(
+      new Request('http://localhost/api/cart/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-mock-time': dayMockTs },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          items: [
+            {
+              itemId: 'it_g1',
+              quantity: 1,
+              variantId: 'full', // 16000 + 8000 = 24000 paise
+              expectedPricePaise: 24000,
+            },
+            {
+              itemId: 'it_g8',
+              quantity: 1,
+              addonIds: ['raita'], // 18000 + 2000 = 20000 paise + 1000 packing
+              expectedPricePaise: 20000,
+            },
+          ],
+        }),
+      })
+    );
+    expect(quoteRes.status).toBe(200);
+    const quoteBody = (await quoteRes.json()) as {
+      ok: boolean;
+      subtotalPaise: number;
+      packingTotalPaise: number;
+      totalPaise: number;
+    };
+    expect(quoteBody.ok).toBe(true);
+    expect(quoteBody.subtotalPaise).toBe(44000);
+    expect(quoteBody.packingTotalPaise).toBe(1000);
+    expect(quoteBody.totalPaise).toBe(45000);
+  });
 });

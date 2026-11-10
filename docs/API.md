@@ -137,19 +137,24 @@ Returns all active campus hostel and boundary gates.
   ```
 
 ### `GET /api/vendors`
-Lists campus vendors. When `?gate=` is provided, vendors unable to deliver to that gate are excluded or annotated with curfew status.
+Lists campus vendors. When `?gate=` (or `gateId=`) is provided, vendors unable to deliver to that gate are filtered/annotated with curfew status (`canDeliverToGate`, `deliveryReason`, `suggestedGate`, `latestOrderTime`, `etaMinutes`). Also returns batch-computed `startingPricePaise`, `minVegPricePaise`, `hasVegItems`, `offerTags`, and curated open `quickPicks[]`.
 - **Query Params:**
-  - `gate`: Gate ID (enforces reachability and curfew calculation)
+  - `gate` / `gateId`: Gate ID (enforces reachability and curfew calculation)
   - `category`: Filter by category (`meals`, `snacks`, `fruits`, `groceries`, `vegetables`, `raw_chicken`, `late_night`, `beverages`)
   - `q`: Search substring across vendor name or description
-  - `veg`: `true` to filter vegetarian offerings
+  - `veg`: `true` to filter vendors offering vegetarian items
   - `open`: `true` to return only currently open vendors
 
 ### `GET /api/vendors/:id`
-Fetches vendor profile (accepts either vendor `id` or `slug`), operating hours, FSSAI licence number, `nightSafe` badge, delivery reach, and full menu grouped by category.
+Fetches vendor profile (accepts either vendor `id` or `slug`), operating hours, phone, FSSAI licence number, `nightSafe` badge, `outOfStockCount`, delivery reach, full menu grouped by category (including item `variants` & `addons`), and recent `reviews[]` with reviewer display names.
 
 ### `GET /api/search/suggest?q=`
-Returns quick autocomplete suggestions (up to 6 active vendors and 6 menu items matching substring `q`, minimum 2 chars).
+Returns quick autocomplete suggestions (up to 6 active vendors and 6 menu items with `vendorSlug`/`vendorName` matching substring `q`, minimum 2 chars).
+
+### `GET /api/search`
+Combined vendor and dish search endpoint powered by indexed batch D1 queries (`idx_vendors_campus_status`, `idx_vendor_gates_gate`, `idx_menu_items_vendor`).
+- **Query Params:** `q`, `gate` / `gateId`, `category`, `veg` (`true`), `open` (`true`), `sort` (`relevance` | `eta` | `rating` | `price_asc` | `price_desc`).
+- **Response `200 OK`**: `{ "ok": true, "query": "...", "vendors": [...], "dishes": [...], "counts": { "all", "vendors", "dishes" } }`.
 
 ### `GET /api/coupons`
 Returns active, unexpired campus coupons configured for NIT Patna.

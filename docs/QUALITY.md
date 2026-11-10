@@ -8,14 +8,17 @@ This report records the verification metrics, accessibility audits, performance 
 
 | Metric Category | Target Budget | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **First Load JavaScript Bundle** | < 150.0 kB gzip | **144.43 kB gzip** | Passed |
-| **Vendor Console Lazy Chunk** | Isolated chunk | **6.50 kB gzip** | Passed |
-| **Admin Console Lazy Chunk** | Isolated chunk | **6.09 kB gzip** | Passed |
+| **First Load JavaScript Bundle** | < 150.0 kB gzip | **145.42 kB gzip** | Passed |
+| **Customer Home (`/app`) Lazy Chunk** | Isolated chunk | **6.30 kB gzip** | Passed |
+| **Search Results (`/app/search`) Lazy Chunk** | Isolated chunk | **4.58 kB gzip** | Passed |
+| **Vendor Page (`/vendor/:slug`) Lazy Chunk** | Isolated chunk | **8.48 kB gzip** | Passed |
+| **Vendor Console Lazy Chunk** | Isolated chunk | **6.44 kB gzip** | Passed |
+| **Admin Console Lazy Chunk** | Isolated chunk | **5.98 kB gzip** | Passed |
 | **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **5.93 kB gzip** | Passed |
 | **Legal Pages Lazy Chunk** | Isolated chunk | **3.10 kB gzip** | Passed |
 | **Sign-In (`/signin`) Lazy Chunk** | Isolated chunk | **4.59 kB gzip** | Passed |
-| **Vitest Worker & Domain Tests** | 100% passing | **30 / 30 passed (6 files)** | Passed |
-| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **22 / 22 passed (30.0s)** | Passed |
+| **Vitest Worker & Domain Tests** | 100% passing | **34 / 34 passed (7 files)** | Passed |
+| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **26 / 26 passed (33.8s)** | Passed |
 | **TypeScript Strict Compilation** | 0 errors | **0 errors** | Passed |
 | **ESLint Static Code Analysis** | 0 errors | **0 errors (33 warnings)** | Passed |
 | **Axe Accessibility Audit (Light & Dark)** | 0 critical / serious | **0 violations** | Passed |
@@ -138,8 +141,9 @@ Playwright tests run across Chromium Desktop (`1280x800` + `1440x900`) and Chrom
 4. **`design-system.spec.ts`** (Desktop & Mobile): Light & Dark `/dev/ui` `@axe-core/playwright` + 1440px/390px nav & zero overflow.
 5. **`landing.spec.ts`** (Desktop & Mobile): Hero guest gate picker & search, live stats, curfew mini-demo, D1 onboarding form, sample testimonials/FAQ 11+ items, light & dark `axe-core`, draft `/terms`, `/sitemap.xml`, `/robots.txt`, and `320px`/`1440px` zero horizontal overflow.
 6. **`auth-gates.spec.ts`** (Desktop & Mobile): First-visit splash (`1.5s`, 44px Skip, suppressed on reload & deep links), persistent `Deliver to:` header, mobile bottom-sheet vs desktop popover Gate Picker + 1-tap closed gate alternative switch, `/signin` mock Google chooser, OTP dev toast fallback, Demo Role Switcher, guest-to-sign-in `returnTo` flow, and refresh persistence.
+7. **`customer-app.spec.ts`** (Desktop & Mobile): `/app` mobile-first & `1280px` two-column home (`320px` zero overflow), promotions carousel, Quick picks, Popular vendors, Open-first ordering, Slim closed list (`Opens at`, `Notify me`, `Pre-order`), zero-result category chip guard, `ETA`/`Rating`/`Price` sorting, search suggestions + recent searches -> `/app/search`, `/vendor/:slug` Call/Save/Reviews summary tab & `ItemOptionsSheet` variants/add-ons, plus `@axe-core/playwright` audits on `/app`, `/app/search`, and `/vendor/:slug`.
 
-**Total Execution Time**: 30.0 seconds, 22 tests passed, 0 failures, 0 retries.
+**Total Execution Time**: 33.8 seconds, 26 tests passed, 0 failures, 0 retries.
 
 ---
 

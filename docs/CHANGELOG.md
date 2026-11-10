@@ -4,6 +4,18 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Customer Experience (/app, /app/search, /vendor/:slug)
+- **Customer Home (`/app`, `/browse` alias, mobile-first & two-column desktop)**:
+  - Built mobile-first / two-column desktop storefront (`src/client/pages/CustomerHomePage.tsx`) featuring a persistent right-column `DesktopPacketSidebar` (`lg:col-span-4 lg:sticky`), `AppSearchBar` with live vendor/dish suggestions and `localStorage` recent searches, `PromotionCarousel` fed by live `/api/coupons` and `/api/announcements` with 1-tap coupon application, **Quick picks** shelf, **Popular vendors**, **Open Now** sorted first, and a slim **Closed** list displaying `Opens at` time, `Notify me` reminder toggle, and `Pre-order` action (no large dimmed photos).
+  - Implemented `src/shared/catalogFilters.ts` with category chips showing live counts, automatic zero-result combination prevention (disabling 0-count chips and auto-resetting incompatible categories), **Veg only** toggle, and sorting by **ETA**, **Rating**, and **Price**.
+  - Enriched `VendorCard` (`src/client/components/ui/VendorCard.tsx`) with gate-aware ETA, rating + count, minimum order badge, starting item price, Night Safe badge, offer tags, and keyboard-accessible controls.
+- **Vendor Page (`/vendor/:slug`, `/app/vendor/:slug`) & Variant/Add-on Customization**:
+  - Added header `Call` (`tel:`) button, `Save` favourite button, prep/hours/Night Safety/out-of-stock status notices, pre-order opening slot banner, sticky category tabs with Veg-only filter, **Reviews** tab with 5-star breakdown summary and sample verified reviews, and `ItemOptionsSheet` supporting variants (`Half`/`Full`), add-ons (`Extra Boondi Raita`), and cooking notes.
+  - Updated `src/worker/services/cart.ts`, `CartContext`, `CartDrawer`, and `CheckoutModal` to price variants/add-ons on server truth cleanly and support coupon & scheduled pre-order payloads.
+- **Unified Search Page (`/app/search`, `/search`)**:
+  - Added batch-indexed `GET /api/search` in `src/worker/routes/public.ts` and `src/client/pages/SearchResultsPage.tsx` searching matching vendors and dishes together with type tabs, live-count category chips, Veg-only, Open-now, and Sort (`Relevance`, `ETA`, `Rating`, `Price`).
+  - Added sample student reviews to `scripts/seed.sql` and unit/worker/E2E test coverage (`tests/worker/catalog-filters.test.ts`, `tests/worker/api.test.ts`, `e2e/customer-app.spec.ts`).
+
 ### Added - Authentication (/signin), KV Sessions, Turnstile Flag, Gate Picker & Splash
 - **Authentication & Role Switcher (`/signin`)**:
   - Built `/signin` (`src/client/pages/SignInPage.tsx`) featuring **Sign in with Google** (mock NIT Patna Google Account Chooser by default; real Google OAuth 2.0 Authorization Code flow when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are configured), **Email OTP fallback** displaying dev codes cleanly in toast notifications, and **Prominent Demo Mode** buttons (`Continue as Student`, `Continue as Vendor`, `Continue as Admin`).

@@ -73,6 +73,7 @@ test.describe('Public Landing Page (/), Legal Routes & SEO', () => {
 
     await page.getByRole('button', { name: /Switch to dark theme/i }).click();
     await expect(page.locator('html')).toHaveClass(/dark/);
+    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
     const darkAxe = await new AxeBuilder({ page }).analyze();
     expect(
       darkAxe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
