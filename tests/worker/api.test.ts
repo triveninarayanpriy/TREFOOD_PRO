@@ -401,4 +401,76 @@ describe('Worker Full API Integration Tests', () => {
       ).status
     ).toBe(200);
   });
+
+  it('serves live campus stats, vendor onboarding D1 storage, and SEO sitemap/robots routes', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    const campusRes = await exec(new Request('http://localhost/api/campuses/nitp'));
+    expect(campusRes.status).toBe(200);
+    const campusBody = (await campusRes.json()) as {
+      ok: boolean;
+      stats: {
+        openVendorsCount: number;
+        avgEtaMinutes: number;
+        ordersHandedOver: number;
+        isSampleData: boolean;
+      };
+    };
+    expect(campusBody.ok).toBe(true);
+    expect(campusBody.stats.openVendorsCount).toBeGreaterThanOrEqual(1);
+    expect(campusBody.stats.avgEtaMinutes).toBeGreaterThanOrEqual(10);
+    expect(campusBody.stats.ordersHandedOver).toBeGreaterThanOrEqual(1);
+    expect(campusBody.stats.isSampleData).toBe(true);
+
+    // Reject invalid vendor application
+    const badApplyRes = await exec(
+      new Request('http://localhost/api/vendor-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendorName: 'A', shopType: 'meals', phone: '12345' }),
+      })
+    );
+    expect(badApplyRes.status).toBe(400);
+
+    // Accept and store valid vendor onboarding application in D1
+    const goodApplyRes = await exec(
+      new Request('http://localhost/api/vendor-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorName: 'Patna Hostel Chai Corner',
+          shopType: 'snacks',
+          phone: '9876543210',
+        }),
+      })
+    );
+    expect(goodApplyRes.status).toBe(201);
+    const applyBody = (await goodApplyRes.json()) as {
+      ok: boolean;
+      application: { id: string; vendorName: string; status: string };
+    };
+    expect(applyBody.ok).toBe(true);
+    expect(applyBody.application.vendorName).toBe('Patna Hostel Chai Corner');
+    expect(applyBody.application.status).toBe('pending');
+
+    // SEO sitemap.xml & robots.txt
+    const sitemapRes = await exec(new Request('http://localhost/sitemap.xml'));
+    expect(sitemapRes.status).toBe(200);
+    const sitemapXml = await sitemapRes.text();
+    expect(sitemapXml).toContain('/about</loc>');
+    expect(sitemapXml).toContain('/terms</loc>');
+    expect(sitemapXml).toContain('/privacy</loc>');
+    expect(sitemapXml).toContain('/refunds</loc>');
+
+    const robotsRes = await exec(new Request('http://localhost/robots.txt'));
+    expect(robotsRes.status).toBe(200);
+    const robotsTxt = await robotsRes.text();
+    expect(robotsTxt).toContain('Disallow: /admin');
+    expect(robotsTxt).toContain('Sitemap:');
+  });
 });

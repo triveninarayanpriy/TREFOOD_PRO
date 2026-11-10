@@ -83,6 +83,10 @@ app.get('/sitemap.xml', async (c) => {
   const urls = [
     `${baseUrl}/`,
     `${baseUrl}/browse`,
+    `${baseUrl}/about`,
+    `${baseUrl}/terms`,
+    `${baseUrl}/privacy`,
+    `${baseUrl}/refunds`,
     ...vendorList.map((v) => `${baseUrl}/vendor/${v.slug}`),
   ];
 

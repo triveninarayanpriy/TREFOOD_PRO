@@ -396,3 +396,22 @@ export const pushSubscriptions = sqliteTable(
   },
   (table) => [index('idx_push_user').on(table.userId)]
 );
+
+// Vendor onboarding applications (from public /#for-vendors form)
+export const vendorApplications = sqliteTable(
+  'vendor_applications',
+  {
+    id: text('id').primaryKey(),
+    campusId: text('campus_id')
+      .notNull()
+      .references(() => campuses.id),
+    vendorName: text('vendor_name').notNull(),
+    shopType: text('shop_type').notNull(),
+    phone: text('phone').notNull(),
+    status: text('status', { enum: ['pending', 'reviewed', 'approved'] })
+      .notNull()
+      .default('pending'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('idx_vendor_applications_campus_created').on(table.campusId, table.createdAt)]
+);

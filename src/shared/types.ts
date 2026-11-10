@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export * from './schemas';
+import type { Gate } from './schemas';
 
 export const HealthResponseSchema = z.object({
   ok: z.boolean(),
@@ -75,4 +76,28 @@ export interface OrderSummary {
   totalPaise: number;
   handoverCode: string;
   createdAt: number;
+}
+
+export interface CampusSummaryResponse {
+  ok: boolean;
+  campus: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  gates: Gate[];
+  announcements: Array<{
+    id: string;
+    message: string;
+    active: boolean;
+    createdAt: number;
+  }>;
+  stats: {
+    totalVendors: number;
+    openVendorsCount: number;
+    avgEtaMinutes: number;
+    ordersHandedOver: number;
+    serverTime: number;
+    isSampleData: boolean;
+  };
 }

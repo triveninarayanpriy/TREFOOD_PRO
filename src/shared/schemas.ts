@@ -273,3 +273,35 @@ export const CouponInputSchema = z.object({
   active: z.boolean().default(true),
   expiresAt: z.number().int().nullable().optional(),
 });
+
+// ==========================================
+// Public Vendor Onboarding Applications
+// ==========================================
+export const VENDOR_SHOP_TYPES = [
+  'meals',
+  'snacks',
+  'fruits',
+  'groceries',
+  'vegetables',
+  'raw_chicken',
+  'late_night',
+  'beverages',
+] as const;
+
+export const VendorApplicationInputSchema = z.object({
+  vendorName: z
+    .string()
+    .trim()
+    .min(2, 'Enter your shop or canteen name (at least 2 characters)')
+    .max(80, 'Shop name must be under 80 characters'),
+  shopType: z.enum(VENDOR_SHOP_TYPES, {
+    errorMap: () => ({ message: 'Select a valid campus shop category' }),
+  }),
+  phone: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/[\s-]/g, '').replace(/^\+91/, ''))
+    .refine((v) => /^[6-9]\d{9}$/.test(v), 'Enter a valid 10-digit Indian mobile number'),
+});
+
+export type VendorApplicationInput = z.infer<typeof VendorApplicationInputSchema>;

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, asc, or, like, desc } from 'drizzle-orm';
+import { eq, and, asc, or, like, desc, inArray, sql } from 'drizzle-orm';
 import type { Env } from '../types';
 import {
   campuses,
@@ -11,11 +11,15 @@ import {
   announcements,
   coupons,
   reviews,
+  orders,
+  vendorApplications,
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
 import { priceCart, CartConflictError } from '../services/cart';
-import { getRequestNow } from '../utils/time';
-import { CartQuoteRequestSchema } from '@shared/schemas';
+import { getRequestNow, nowUtc } from '../utils/time';
+import { ulid } from '../utils/ulid';
+import { checkRateLimit } from '../utils/rate-limit';
+import { CartQuoteRequestSchema, VendorApplicationInputSchema } from '@shared/schemas';
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -36,18 +40,45 @@ publicRoutes.get('/campuses/:slug', async (c) => {
     db.select().from(announcements).where(and(eq(announcements.campusId, campus.id), eq(announcements.active, true))).all(),
   ]);
 
-  const openVendorsCount = campusVendors.filter((v) => v.isOpen).length;
+  const activeGates = campusGates.filter((g) => g.active);
+  const openVendors = campusVendors.filter((v) => v.isOpen);
+  const openVendorsCount = openVendors.length;
+
+  // Compute indexed delivered order count via idx_orders_gate_status
+  let ordersHandedOver = 0;
+  if (activeGates.length > 0) {
+    const activeGateIds = activeGates.map((g) => g.id);
+    const deliveredAgg = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(inArray(orders.gateId, activeGateIds), eq(orders.status, 'delivered')))
+      .get();
+    ordersHandedOver = Number(deliveredAgg?.count || 0);
+  }
+
+  // Average ETA across open vendors + average active gate travel time
+  const avgPrep =
+    openVendors.length > 0
+      ? openVendors.reduce((sum, v) => sum + v.prepMinutes, 0) / openVendors.length
+      : 15;
+  const avgTravel =
+    activeGates.length > 0
+      ? activeGates.reduce((sum, g) => sum + g.travelMinutes, 0) / activeGates.length
+      : 8;
+  const avgEtaMinutes = Math.max(10, Math.round(avgPrep + avgTravel));
 
   return c.json({
     ok: true,
     campus,
-    gates: campusGates.filter((g) => g.active),
+    gates: activeGates,
     announcements: campusAnnouncements,
     stats: {
       totalVendors: campusVendors.length,
       openVendorsCount,
-      avgEtaMinutes: 20,
+      avgEtaMinutes,
+      ordersHandedOver,
       serverTime: now,
+      isSampleData: true,
     },
   });
 });
@@ -405,4 +436,65 @@ publicRoutes.get('/announcements', async (c) => {
     .all();
 
   return c.json({ ok: true, announcements: list });
+});
+
+// POST /api/vendor-applications (Public vendor onboarding inquiry stored in D1)
+publicRoutes.post('/vendor-applications', async (c) => {
+  const db = c.get('db');
+  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '127.0.0.1';
+
+  const maxApplyPerIp = c.env.DEMO_MODE === 'true' ? 100 : 10;
+  const ipLimit = await checkRateLimit(db, `vendor_apply_ip:${clientIp}`, maxApplyPerIp, 600, c.env.RATE_LIMIT_KV);
+  if (!ipLimit.allowed) {
+    return c.json(
+      {
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: `Too many onboarding submissions. Try again in ${ipLimit.retryAfterSeconds}s.`,
+        },
+      },
+      429
+    );
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = VendorApplicationInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        error: {
+          code: 'INVALID_INPUT',
+          message: parsed.error.errors[0]?.message || 'Please check vendor onboarding details.',
+        },
+      },
+      400
+    );
+  }
+
+  const now = nowUtc();
+  const id = ulid();
+  await db.insert(vendorApplications).values({
+    id,
+    campusId: 'campus_nitp',
+    vendorName: parsed.data.vendorName,
+    shopType: parsed.data.shopType,
+    phone: parsed.data.phone,
+    status: 'pending',
+    createdAt: now,
+  });
+
+  return c.json(
+    {
+      ok: true,
+      application: {
+        id,
+        vendorName: parsed.data.vendorName,
+        shopType: parsed.data.shopType,
+        phone: parsed.data.phone,
+        status: 'pending',
+        createdAt: now,
+      },
+    },
+    201
+  );
 });
