@@ -20,6 +20,37 @@ export const ErrorResponseSchema = z.object({
 
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 
+export interface MenuItemVariant {
+  id: string;
+  label: string;
+  priceDeltaPaise: number;
+}
+
+export interface MenuItemAddon {
+  id: string;
+  label: string;
+  pricePaise: number;
+  isVeg?: boolean;
+}
+
+export interface EnrichedMenuItem {
+  id: string;
+  vendorId: string;
+  categoryId: string;
+  name: string;
+  nameHi?: string | null;
+  description: string;
+  pricePaise: number;
+  packingChargePaise?: number;
+  imageUrl?: string | null;
+  isVeg: boolean;
+  tags: string[];
+  variants?: MenuItemVariant[];
+  addons?: MenuItemAddon[];
+  inStock: boolean;
+  sort: number;
+}
+
 export interface VendorSummary {
   id: string;
   slug: string;
@@ -30,6 +61,13 @@ export interface VendorSummary {
   fssaiNo: string;
   hoursJson?: string;
   prepMinutes: number;
+  prepMaxMinutes?: number;
+  minOrderPaise?: number;
+  startingPricePaise?: number;
+  minVegPricePaise?: number;
+  hasVegItems?: boolean;
+  hasNonVegItems?: boolean;
+  offerTags?: string[];
   isOpen: boolean;
   busyUntil?: number | null;
   nightSafe?: boolean;
@@ -39,30 +77,96 @@ export interface VendorSummary {
   canDeliverToGate?: boolean;
   deliveryReason?: string;
   deliveryMessage?: string;
+  suggestedGate?: string;
+  latestOrderTime?: string;
   etaMinutes?: number;
 }
 
+export interface VendorReview {
+  id: string;
+  orderId: string;
+  vendorId: string;
+  userId: string;
+  reviewerName?: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: number;
+}
+
 export interface VendorDetail extends VendorSummary {
+  phone?: string;
   hoursJson: string;
+  outOfStockCount?: number;
+  reviews?: VendorReview[];
   categories: Array<{
     id: string;
     name: string;
     nameHi?: string | null;
     sort: number;
-    items: Array<{
-      id: string;
-      vendorId: string;
-      categoryId: string;
-      name: string;
-      nameHi?: string | null;
-      description: string;
-      pricePaise: number;
-      isVeg: boolean;
-      tags: string[];
-      inStock: boolean;
-      sort: number;
-    }>;
+    items: EnrichedMenuItem[];
   }>;
+}
+
+export interface QuickPickItem {
+  id: string;
+  vendorId: string;
+  vendorSlug: string;
+  vendorName: string;
+  vendorCategory: string;
+  vendorIsOpen: boolean;
+  etaMinutes: number;
+  name: string;
+  description: string;
+  pricePaise: number;
+  isVeg: boolean;
+  imageUrl?: string | null;
+  tags: string[];
+  hasCustomisation: boolean;
+}
+
+export interface SearchDishResult {
+  id: string;
+  vendorId: string;
+  vendorSlug: string;
+  vendorName: string;
+  vendorCategory: string;
+  vendorIsOpen: boolean;
+  vendorRatingAvg: number;
+  vendorNightSafe: boolean;
+  canDeliverToGate: boolean;
+  etaMinutes: number;
+  name: string;
+  nameHi?: string | null;
+  description: string;
+  pricePaise: number;
+  isVeg: boolean;
+  inStock: boolean;
+  imageUrl?: string | null;
+  tags: string[];
+  hasCustomisation: boolean;
+}
+
+export interface CombinedSearchResponse {
+  ok: boolean;
+  query: string;
+  vendors: VendorSummary[];
+  dishes: SearchDishResult[];
+  counts: {
+    all: number;
+    vendors: number;
+    dishes: number;
+  };
+}
+
+export interface CouponSummary {
+  id: string;
+  code: string;
+  description: string;
+  discountType: 'percent' | 'flat';
+  discountValue: number;
+  minOrderPaise: number;
+  maxDiscountPaise: number | null;
+  newUsersOnly: boolean;
 }
 
 export interface OrderSummary {

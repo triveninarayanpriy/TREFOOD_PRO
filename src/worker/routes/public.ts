@@ -12,6 +12,7 @@ import {
   coupons,
   reviews,
   orders,
+  users,
   vendorApplications,
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
@@ -95,6 +96,23 @@ publicRoutes.get('/gates', async (c) => {
   return c.json({ ok: true, gates: gateList });
 });
 
+function deriveVendorOfferTags(vendor: { category: string; minOrderPaise: number; nightSafe: boolean }): string[] {
+  const tags: string[] = [];
+  if (vendor.category === 'meals' || vendor.category === 'snacks') {
+    tags.push('20% OFF • CAMPUS20');
+  } else if (vendor.category === 'fruits' || vendor.category === 'beverages') {
+    tags.push('₹10 OFF • FRUIT10');
+  } else if (vendor.category === 'late_night') {
+    tags.push('15% OFF • NIGHT15');
+  } else {
+    tags.push('₹25 OFF • FLAT25');
+  }
+  if (vendor.minOrderPaise === 0) {
+    tags.push('No min order');
+  }
+  return tags.slice(0, 2);
+}
+
 // GET /api/vendors?gate&category&q&veg&open
 publicRoutes.get('/vendors', async (c) => {
   const db = c.get('db');
@@ -106,41 +124,103 @@ publicRoutes.get('/vendors', async (c) => {
 
   const now = getRequestNow(c);
 
-  // Fetch all active gates for curfew check & alternative gate resolution
-  const allGates = await db.select().from(gates).all();
+  const [allGates, vendorList, vendorGateMappings] = await Promise.all([
+    db.select().from(gates).all(),
+    db.select().from(vendors).where(eq(vendors.status, 'active')).all(),
+    gateId ? db.select().from(vendorGates).where(eq(vendorGates.gateId, gateId)).all() : Promise.resolve([]),
+  ]);
+
   const targetGate = gateId ? allGates.find((g) => g.id === gateId) : null;
-
-  // Fetch active vendors
-  const vendorList = await db
-    .select()
-    .from(vendors)
-    .where(eq(vendors.status, 'active'))
-    .all();
-
-  // Fetch vendor-gate mappings if gate is specified
-  const vendorGateMappings = gateId
-    ? await db
-        .select()
-        .from(vendorGates)
-        .where(eq(vendorGates.gateId, gateId))
-        .all()
-    : [];
-
   const vendorGateMap = new Map(vendorGateMappings.map((vg) => [vg.vendorId, vg]));
 
+  // Batch fetch menu items once for all active vendors using idx_menu_items_vendor (no N+1)
+  const vendorIds = vendorList.map((v) => v.id);
+  const allMenuItems =
+    vendorIds.length > 0
+      ? await db
+          .select({
+            id: menuItems.id,
+            vendorId: menuItems.vendorId,
+            name: menuItems.name,
+            description: menuItems.description,
+            pricePaise: menuItems.pricePaise,
+            imageUrl: menuItems.imageUrl,
+            isVeg: menuItems.isVeg,
+            tags: menuItems.tags,
+            variantsJson: menuItems.variantsJson,
+            addonsJson: menuItems.addonsJson,
+            inStock: menuItems.inStock,
+          })
+          .from(menuItems)
+          .where(inArray(menuItems.vendorId, vendorIds))
+          .all()
+      : [];
+
+  const itemStatsByVendor = new Map<
+    string,
+    {
+      startingPricePaise: number;
+      minVegPricePaise: number | undefined;
+      hasVegItems: boolean;
+      hasNonVegItems: boolean;
+      items: typeof allMenuItems;
+    }
+  >();
+
+  for (const item of allMenuItems) {
+    const entry = itemStatsByVendor.get(item.vendorId) || {
+      startingPricePaise: 0,
+      minVegPricePaise: undefined,
+      hasVegItems: false,
+      hasNonVegItems: false,
+      items: [],
+    };
+    entry.items.push(item);
+    if (item.isVeg) entry.hasVegItems = true;
+    else entry.hasNonVegItems = true;
+
+    if (item.inStock || entry.startingPricePaise === 0) {
+      if (entry.startingPricePaise === 0 || (item.inStock && item.pricePaise < entry.startingPricePaise)) {
+        entry.startingPricePaise = item.pricePaise;
+      }
+      if (item.isVeg && item.inStock) {
+        if (entry.minVegPricePaise === undefined || item.pricePaise < entry.minVegPricePaise) {
+          entry.minVegPricePaise = item.pricePaise;
+        }
+      }
+    }
+    itemStatsByVendor.set(item.vendorId, entry);
+  }
+
   const results = [];
+  const quickPicks: Array<{
+    id: string;
+    vendorId: string;
+    vendorSlug: string;
+    vendorName: string;
+    vendorCategory: string;
+    vendorIsOpen: boolean;
+    etaMinutes: number;
+    name: string;
+    description: string;
+    pricePaise: number;
+    isVeg: boolean;
+    imageUrl?: string | null;
+    tags: string[];
+    hasCustomisation: boolean;
+  }> = [];
 
   for (const v of vendorList) {
-    // Veg only filter: exclude meat/raw chicken vendors
-    if (vegOnly && v.category === 'raw_chicken') {
+    const itemStats = itemStatsByVendor.get(v.id);
+    const hasVegItems = itemStats ? itemStats.hasVegItems : v.category !== 'raw_chicken';
+
+    if (vegOnly && (v.category === 'raw_chicken' || !hasVegItems)) {
       continue;
     }
-    // Category filter
     if (category && category !== 'all' && v.category !== category) {
       continue;
     }
 
-    // Text search filter
     if (q) {
       const matchName = v.name.toLowerCase().includes(q);
       const matchDesc = v.description.toLowerCase().includes(q);
@@ -150,7 +230,6 @@ publicRoutes.get('/vendors', async (c) => {
       }
     }
 
-    // Open filter
     if (openOnly && !v.isOpen) {
       continue;
     }
@@ -167,6 +246,11 @@ publicRoutes.get('/vendors', async (c) => {
       prepMinutes: v.prepMinutes,
       prepMaxMinutes: v.prepMaxMinutes,
       minOrderPaise: v.minOrderPaise,
+      startingPricePaise: itemStats?.startingPricePaise || 0,
+      minVegPricePaise: itemStats?.minVegPricePaise,
+      hasVegItems,
+      hasNonVegItems: itemStats?.hasNonVegItems ?? v.category === 'raw_chicken',
+      offerTags: deriveVendorOfferTags(v),
       isOpen: v.isOpen,
       busyUntil: v.busyUntil,
       nightSafe: v.nightSafe,
@@ -175,7 +259,9 @@ publicRoutes.get('/vendors', async (c) => {
       ratingCount: v.ratingCount,
     };
 
-    // Gate filtering & delivery check
+    let vendorOpenForGate = v.isOpen;
+    let resolvedEta = v.prepMinutes + (targetGate?.travelMinutes ?? 10);
+
     if (targetGate) {
       const vg = vendorGateMap.get(v.id);
       if (!vg) {
@@ -183,6 +269,8 @@ publicRoutes.get('/vendors', async (c) => {
       }
 
       const deliveryCheck = canDeliver(targetGate, v, now, vg, allGates);
+      vendorOpenForGate = deliveryCheck.ok;
+      resolvedEta = deliveryCheck.etaMinutes ?? resolvedEta;
 
       results.push({
         ...baseSummary,
@@ -191,14 +279,59 @@ publicRoutes.get('/vendors', async (c) => {
         deliveryMessage: deliveryCheck.message,
         suggestedGate: deliveryCheck.suggestedGate,
         latestOrderTime: deliveryCheck.latestOrderTime,
-        etaMinutes: deliveryCheck.etaMinutes,
+        etaMinutes: resolvedEta,
       });
     } else {
-      results.push(baseSummary);
+      results.push({ ...baseSummary, etaMinutes: resolvedEta });
+    }
+
+    // Collect Quick Picks from open, gate-reachable vendors
+    if (vendorOpenForGate && itemStats) {
+      for (const item of itemStats.items) {
+        if (!item.inStock) continue;
+        if (vegOnly && !item.isVeg) continue;
+        let parsedTags: string[] = [];
+        try {
+          parsedTags = JSON.parse(item.tags || '[]');
+        } catch {}
+        if (
+          parsedTags.includes('bestseller') ||
+          parsedTags.includes('popular') ||
+          parsedTags.includes('healthy') ||
+          parsedTags.includes('essential')
+        ) {
+          const hasVariants = item.variantsJson && item.variantsJson !== '[]';
+          const hasAddons = item.addonsJson && item.addonsJson !== '[]';
+          quickPicks.push({
+            id: item.id,
+            vendorId: v.id,
+            vendorSlug: v.slug,
+            vendorName: v.name,
+            vendorCategory: v.category,
+            vendorIsOpen: true,
+            etaMinutes: resolvedEta,
+            name: item.name,
+            description: item.description,
+            pricePaise: item.pricePaise,
+            isVeg: item.isVeg,
+            imageUrl: item.imageUrl,
+            tags: parsedTags,
+            hasCustomisation: Boolean(hasVariants || hasAddons),
+          });
+        }
+      }
     }
   }
 
-  return c.json({ ok: true, vendors: results });
+  // Sort Quick Picks putting bestsellers & fast ETH first, limit to 8
+  quickPicks.sort((a, b) => {
+    const aBest = a.tags.includes('bestseller') ? 0 : 1;
+    const bBest = b.tags.includes('bestseller') ? 0 : 1;
+    if (aBest !== bBest) return aBest - bBest;
+    return a.etaMinutes - b.etaMinutes;
+  });
+
+  return c.json({ ok: true, vendors: results, quickPicks: quickPicks.slice(0, 8) });
 });
 
 // GET /api/vendors/:id (Vendor profile by slug OR id + full categorized menu + reviews)
@@ -234,12 +367,28 @@ publicRoutes.get('/vendors/:id', async (c) => {
       .from(reviews)
       .where(eq(reviews.vendorId, vendor.id))
       .orderBy(desc(reviews.createdAt))
-      .limit(10)
+      .limit(15)
       .all(),
   ]);
 
+  // Batch lookup reviewer first names
+  const reviewerIds = Array.from(new Set(recentReviews.map((r) => r.userId)));
+  const reviewerRows =
+    reviewerIds.length > 0
+      ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, reviewerIds)).all()
+      : [];
+  const reviewerMap = new Map(
+    reviewerRows.map((u) => {
+      const parts = u.name.trim().split(/\s+/);
+      const display = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0];
+      return [u.id, display];
+    })
+  );
+
   const itemsByCategory = new Map<string, typeof items>();
+  let outOfStockCount = 0;
   for (const item of items) {
+    if (!item.inStock) outOfStockCount++;
     const list = itemsByCategory.get(item.categoryId) || [];
     list.push(item);
     itemsByCategory.set(item.categoryId, list);
@@ -253,6 +402,11 @@ publicRoutes.get('/vendors/:id', async (c) => {
       variants: JSON.parse(i.variantsJson || '[]'),
       addons: JSON.parse(i.addonsJson || '[]'),
     })),
+  }));
+
+  const enrichedReviews = recentReviews.map((r) => ({
+    ...r,
+    reviewerName: reviewerMap.get(r.userId) || 'NITP Student',
   }));
 
   return c.json({
@@ -276,8 +430,10 @@ publicRoutes.get('/vendors/:id', async (c) => {
       status: vendor.status,
       ratingAvg: vendor.ratingAvg,
       ratingCount: vendor.ratingCount,
+      outOfStockCount,
+      offerTags: deriveVendorOfferTags(vendor),
       categories: structuredCategories,
-      reviews: recentReviews,
+      reviews: enrichedReviews,
     },
     categories: structuredCategories,
   });
@@ -292,7 +448,7 @@ publicRoutes.get('/search/suggest', async (c) => {
   }
 
   const pattern = `%${q}%`;
-  const [matchingVendors, matchingItems] = await Promise.all([
+  const [matchingVendors, matchingItems, activeVendors] = await Promise.all([
     db
       .select({
         id: vendors.id,
@@ -318,9 +474,262 @@ publicRoutes.get('/search/suggest', async (c) => {
       .where(like(menuItems.name, pattern))
       .limit(6)
       .all(),
+    db
+      .select({ id: vendors.id, slug: vendors.slug, name: vendors.name })
+      .from(vendors)
+      .where(eq(vendors.status, 'active'))
+      .all(),
   ]);
 
-  return c.json({ ok: true, vendors: matchingVendors, items: matchingItems });
+  const vendorMeta = new Map(activeVendors.map((v) => [v.id, v]));
+  const enrichedItems = matchingItems
+    .filter((i) => vendorMeta.has(i.vendorId))
+    .map((i) => ({
+      ...i,
+      vendorSlug: vendorMeta.get(i.vendorId)!.slug,
+      vendorName: vendorMeta.get(i.vendorId)!.name,
+    }));
+
+  return c.json({ ok: true, vendors: matchingVendors, items: enrichedItems });
+});
+
+// GET /api/search?q&gate&category&veg&open&sort
+publicRoutes.get('/search', async (c) => {
+  const db = c.get('db');
+  const rawQ = (c.req.query('q') || '').trim();
+  const q = rawQ.toLowerCase();
+  const gateId = c.req.query('gate') || c.req.query('gateId');
+  const category = c.req.query('category');
+  const vegOnly = c.req.query('veg') === 'true' || c.req.query('veg') === '1';
+  const openOnly = c.req.query('open') === 'true' || c.req.query('open') === '1';
+  const sortBy = c.req.query('sort') || 'relevance';
+  const now = getRequestNow(c);
+
+  const [allGates, activeVendors, vendorGateMappings] = await Promise.all([
+    db.select().from(gates).all(),
+    db.select().from(vendors).where(eq(vendors.status, 'active')).all(),
+    gateId ? db.select().from(vendorGates).where(eq(vendorGates.gateId, gateId)).all() : Promise.resolve([]),
+  ]);
+
+  const targetGate = gateId ? allGates.find((g) => g.id === gateId) : null;
+  const vendorGateMap = new Map(vendorGateMappings.map((vg) => [vg.vendorId, vg]));
+  const activeVendorIds = activeVendors.map((v) => v.id);
+
+  const allItems =
+    activeVendorIds.length > 0
+      ? await db
+          .select()
+          .from(menuItems)
+          .where(inArray(menuItems.vendorId, activeVendorIds))
+          .all()
+      : [];
+
+  const vendorEvalMap = new Map<
+    string,
+    {
+      vendor: (typeof activeVendors)[number];
+      canDeliver: boolean;
+      etaMinutes: number;
+      deliveryReason?: string;
+      deliveryMessage?: string;
+      startingPricePaise: number;
+      minVegPricePaise?: number;
+      hasVegItems: boolean;
+    }
+  >();
+
+  const itemsByVendor = new Map<string, typeof allItems>();
+  for (const item of allItems) {
+    const arr = itemsByVendor.get(item.vendorId) || [];
+    arr.push(item);
+    itemsByVendor.set(item.vendorId, arr);
+  }
+
+  for (const v of activeVendors) {
+    let canDeliverToGate = v.isOpen;
+    let etaMinutes = v.prepMinutes + (targetGate?.travelMinutes ?? 10);
+    let deliveryReason: string | undefined;
+    let deliveryMessage: string | undefined;
+
+    if (targetGate) {
+      const vg = vendorGateMap.get(v.id);
+      if (!vg) continue; // unreachable for selected gate
+      const check = canDeliver(targetGate, v, now, vg, allGates);
+      canDeliverToGate = check.ok;
+      etaMinutes = check.etaMinutes ?? etaMinutes;
+      deliveryReason = check.reason;
+      deliveryMessage = check.message;
+    }
+
+    const vItems = itemsByVendor.get(v.id) || [];
+    let startingPricePaise = 0;
+    let minVegPricePaise: number | undefined;
+    let hasVegItems = false;
+
+    for (const item of vItems) {
+      if (item.isVeg) hasVegItems = true;
+      if (item.inStock || startingPricePaise === 0) {
+        if (startingPricePaise === 0 || (item.inStock && item.pricePaise < startingPricePaise)) {
+          startingPricePaise = item.pricePaise;
+        }
+        if (item.isVeg && item.inStock) {
+          if (minVegPricePaise === undefined || item.pricePaise < minVegPricePaise) {
+            minVegPricePaise = item.pricePaise;
+          }
+        }
+      }
+    }
+
+    vendorEvalMap.set(v.id, {
+      vendor: v,
+      canDeliver: canDeliverToGate,
+      etaMinutes,
+      deliveryReason,
+      deliveryMessage,
+      startingPricePaise,
+      minVegPricePaise,
+      hasVegItems: v.category !== 'raw_chicken' && (hasVegItems || vItems.length === 0),
+    });
+  }
+
+  const matchedVendors: Array<Record<string, unknown>> = [];
+  const matchedDishes: Array<Record<string, unknown>> = [];
+
+  for (const [, info] of vendorEvalMap) {
+    const v = info.vendor;
+    if (category && category !== 'all' && v.category !== category) continue;
+    if (openOnly && !info.canDeliver) continue;
+
+    // Match vendor
+    if (!vegOnly || info.hasVegItems) {
+      const vendorMatches =
+        !q ||
+        v.name.toLowerCase().includes(q) ||
+        (v.nameHi || '').toLowerCase().includes(q) ||
+        v.description.toLowerCase().includes(q) ||
+        v.category.toLowerCase().replace('_', ' ').includes(q) ||
+        (itemsByVendor.get(v.id) || []).some((it) => it.name.toLowerCase().includes(q));
+
+      if (vendorMatches) {
+        matchedVendors.push({
+          id: v.id,
+          slug: v.slug,
+          name: v.name,
+          nameHi: v.nameHi,
+          category: v.category,
+          description: v.description,
+          fssaiNo: v.fssaiNo,
+          hoursJson: v.hoursJson,
+          prepMinutes: v.prepMinutes,
+          minOrderPaise: v.minOrderPaise,
+          startingPricePaise: info.startingPricePaise,
+          minVegPricePaise: info.minVegPricePaise,
+          hasVegItems: info.hasVegItems,
+          offerTags: deriveVendorOfferTags(v),
+          isOpen: v.isOpen,
+          busyUntil: v.busyUntil,
+          nightSafe: v.nightSafe,
+          status: v.status,
+          ratingAvg: v.ratingAvg,
+          ratingCount: v.ratingCount,
+          canDeliverToGate: info.canDeliver,
+          deliveryReason: info.deliveryReason,
+          deliveryMessage: info.deliveryMessage,
+          etaMinutes: info.etaMinutes,
+        });
+      }
+    }
+
+    // Match dishes
+    const vItems = itemsByVendor.get(v.id) || [];
+    for (const item of vItems) {
+      if (vegOnly && !item.isVeg) continue;
+      let parsedTags: string[] = [];
+      try {
+        parsedTags = JSON.parse(item.tags || '[]');
+      } catch {}
+
+      const dishMatches =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        (item.nameHi || '').toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        v.name.toLowerCase().includes(q) ||
+        parsedTags.some((t) => t.toLowerCase().includes(q));
+
+      if (!dishMatches) continue;
+
+      const hasVariants = item.variantsJson && item.variantsJson !== '[]';
+      const hasAddons = item.addonsJson && item.addonsJson !== '[]';
+
+      matchedDishes.push({
+        id: item.id,
+        vendorId: v.id,
+        vendorSlug: v.slug,
+        vendorName: v.name,
+        vendorCategory: v.category,
+        vendorIsOpen: v.isOpen,
+        vendorRatingAvg: v.ratingAvg,
+        vendorNightSafe: v.nightSafe,
+        canDeliverToGate: info.canDeliver,
+        etaMinutes: info.etaMinutes,
+        name: item.name,
+        nameHi: item.nameHi,
+        description: item.description,
+        pricePaise: item.pricePaise,
+        isVeg: item.isVeg,
+        inStock: item.inStock,
+        imageUrl: item.imageUrl,
+        tags: parsedTags,
+        hasCustomisation: Boolean(hasVariants || hasAddons),
+      });
+    }
+  }
+
+  // Sorting
+  matchedVendors.sort((a, b) => {
+    const aOpen = a.canDeliverToGate !== false && a.isOpen ? 0 : 1;
+    const bOpen = b.canDeliverToGate !== false && b.isOpen ? 0 : 1;
+    if (aOpen !== bOpen) return aOpen - bOpen;
+    if (sortBy === 'eta') return Number(a.etaMinutes) - Number(b.etaMinutes);
+    if (sortBy === 'rating') return Number(b.ratingAvg) - Number(a.ratingAvg);
+    if (sortBy === 'price_asc') return Number(a.startingPricePaise || 0) - Number(b.startingPricePaise || 0);
+    if (sortBy === 'price_desc') return Number(b.startingPricePaise || 0) - Number(a.startingPricePaise || 0);
+    if (q) {
+      const aDirect = String(a.name).toLowerCase().includes(q) ? 0 : 1;
+      const bDirect = String(b.name).toLowerCase().includes(q) ? 0 : 1;
+      if (aDirect !== bDirect) return aDirect - bDirect;
+    }
+    return Number(b.ratingAvg) - Number(a.ratingAvg);
+  });
+
+  matchedDishes.sort((a, b) => {
+    const aAvail = a.canDeliverToGate && a.inStock ? 0 : 1;
+    const bAvail = b.canDeliverToGate && b.inStock ? 0 : 1;
+    if (aAvail !== bAvail) return aAvail - bAvail;
+    if (sortBy === 'eta') return Number(a.etaMinutes) - Number(b.etaMinutes);
+    if (sortBy === 'rating') return Number(b.vendorRatingAvg) - Number(a.vendorRatingAvg);
+    if (sortBy === 'price_asc') return Number(a.pricePaise) - Number(b.pricePaise);
+    if (sortBy === 'price_desc') return Number(b.pricePaise) - Number(a.pricePaise);
+    if (q) {
+      const aPrefix = String(a.name).toLowerCase().startsWith(q) ? 0 : 1;
+      const bPrefix = String(b.name).toLowerCase().startsWith(q) ? 0 : 1;
+      if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+    }
+    return Number(b.vendorRatingAvg) - Number(a.vendorRatingAvg);
+  });
+
+  return c.json({
+    ok: true,
+    query: rawQ,
+    vendors: matchedVendors,
+    dishes: matchedDishes.slice(0, 60),
+    counts: {
+      all: matchedVendors.length + Math.min(matchedDishes.length, 60),
+      vendors: matchedVendors.length,
+      dishes: Math.min(matchedDishes.length, 60),
+    },
+  });
 });
 
 // GET /api/coupons

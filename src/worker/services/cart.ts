@@ -126,53 +126,69 @@ export async function priceCart(
       );
     }
 
-    if (
-      clientItem.expectedPricePaise !== undefined &&
-      clientItem.expectedPricePaise !== dbItem.pricePaise
-    ) {
-      throw new CartConflictError(
-        'PRICE_CHANGED',
-        `Price for "${dbItem.name}" has changed from ₹${(clientItem.expectedPricePaise / 100).toFixed(2)} to ₹${(dbItem.pricePaise / 100).toFixed(2)}.`,
-        {
-          itemId: dbItem.id,
-          name: dbItem.name,
-          oldPricePaise: clientItem.expectedPricePaise,
-          newPricePaise: dbItem.pricePaise,
-        }
-      );
-    }
-
     // Resolve optional server-verified variant & addons deltas
     let variantDeltaPaise = 0;
+    let selectedVariantLabel: string | null = null;
     if (clientItem.variantId) {
       try {
         const variants = JSON.parse(dbItem.variantsJson || '[]') as Array<{
           id: string;
+          label?: string;
           priceDeltaPaise: number;
         }>;
         const foundVariant = variants.find((v) => v.id === clientItem.variantId);
-        if (foundVariant) variantDeltaPaise = foundVariant.priceDeltaPaise;
+        if (foundVariant) {
+          variantDeltaPaise = foundVariant.priceDeltaPaise;
+          if (foundVariant.label) selectedVariantLabel = foundVariant.label;
+        }
       } catch {}
     }
 
     let addonsTotalPaise = 0;
+    const selectedAddonLabels: string[] = [];
     if (clientItem.addonIds && clientItem.addonIds.length > 0) {
       try {
         const addons = JSON.parse(dbItem.addonsJson || '[]') as Array<{
           id: string;
+          label?: string;
           pricePaise: number;
         }>;
         for (const aid of clientItem.addonIds) {
           const foundAddon = addons.find((a) => a.id === aid);
-          if (foundAddon) addonsTotalPaise += foundAddon.pricePaise;
+          if (foundAddon) {
+            addonsTotalPaise += foundAddon.pricePaise;
+            if (foundAddon.label) selectedAddonLabels.push(foundAddon.label);
+          }
         }
       } catch {}
     }
 
     const effectiveUnit = dbItem.pricePaise + variantDeltaPaise + addonsTotalPaise;
+
+    if (
+      clientItem.expectedPricePaise !== undefined &&
+      clientItem.expectedPricePaise !== effectiveUnit
+    ) {
+      throw new CartConflictError(
+        'PRICE_CHANGED',
+        `Price for "${dbItem.name}" has changed from ₹${(clientItem.expectedPricePaise / 100).toFixed(2)} to ₹${(effectiveUnit / 100).toFixed(2)}.`,
+        {
+          itemId: dbItem.id,
+          name: dbItem.name,
+          oldPricePaise: clientItem.expectedPricePaise,
+          newPricePaise: effectiveUnit,
+        }
+      );
+    }
+
     const itemSubtotal = effectiveUnit * clientItem.quantity;
     const packingChargePaise = dbItem.packingChargePaise || 0;
     totalQuantity += clientItem.quantity;
+
+    const suffixes: string[] = [];
+    if (selectedVariantLabel) suffixes.push(selectedVariantLabel);
+    if (selectedAddonLabels.length > 0) suffixes.push(`+ ${selectedAddonLabels.join(', ')}`);
+    const displayName = suffixes.length > 0 ? `${dbItem.name} (${suffixes.join(' • ')})` : dbItem.name;
 
     lineInputs.push({
       itemId: dbItem.id,
@@ -185,7 +201,7 @@ export async function priceCart(
 
     pricedItems.push({
       itemId: dbItem.id,
-      name: dbItem.name,
+      name: displayName,
       pricePaise: effectiveUnit,
       packingChargePaise,
       quantity: clientItem.quantity,

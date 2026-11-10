@@ -84,6 +84,8 @@ app.get('/sitemap.xml', async (c) => {
 
   const urls = [
     `${baseUrl}/`,
+    `${baseUrl}/app`,
+    `${baseUrl}/app/search`,
     `${baseUrl}/browse`,
     `${baseUrl}/about`,
     `${baseUrl}/terms`,

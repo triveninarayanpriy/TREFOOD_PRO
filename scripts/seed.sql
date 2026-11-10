@@ -2,6 +2,7 @@
 -- All data contained in this script is SAMPLE DATA strictly for prototype, demonstration, and automated testing purposes.
 
 -- Clean existing data
+DELETE FROM vendor_applications;
 DELETE FROM audit_log;
 DELETE FROM push_subscriptions;
 DELETE FROM favorites;
@@ -305,3 +306,11 @@ INSERT INTO order_events (id, order_id, status, actor_id, at, note) VALUES
 ('ev_01_3', 'ord_01', 'out_for_delivery', 'usr_vendor', 1700101200, 'Rider departed for gate'),
 ('ev_01_4', 'ord_01', 'at_gate', 'usr_vendor', 1700101600, 'Packet arrived at Main Gate'),
 ('ev_01_5', 'ord_01', 'delivered', 'usr_student', 1700101800, 'Student matched 4-digit code and confirmed delivery');
+
+-- 12. Sample Student Reviews (Seeded Sample Data)
+INSERT INTO reviews (id, order_id, vendor_id, user_id, rating, comment, created_at) VALUES
+('rev_01', 'ord_01', 'v_ganga', 'usr_student', 5, 'Hot Paneer Butter Masala arrived in 18 mins at Main Gate with sealed 4-digit code.', 1700102400),
+('rev_02', 'ord_06', 'v_ganga', 'usr_student', 5, 'Generous portions and piping hot naans for dinner study group.', 1700153000),
+('rev_03', 'ord_02', 'v_chai', 'usr_student', 5, 'Kulhad chai did not spill a drop and Maggi came super hot.', 1700112000),
+('rev_04', 'ord_03', 'v_fruits', 'usr_student', 5, 'Fresh apples and bananas neatly packed, zero delivery fee.', 1700122200),
+('rev_05', 'ord_04', 'v_late', 'usr_student', 4, 'Quick late-night wrap handed personally at Main Gate under Night Safety.', 1700132600);
