@@ -328,3 +328,17 @@ export const VendorApplicationInputSchema = z.object({
 });
 
 export type VendorApplicationInput = z.infer<typeof VendorApplicationInputSchema>;
+
+export const PushSubscribeSchema = z.object({
+  endpoint: z.string().url('Valid push endpoint URL is required').max(1000),
+  keys: z.object({
+    p256dh: z.string().min(10).max(500),
+    auth: z.string().min(6).max(200),
+  }),
+});
+
+export const PushUnsubscribeSchema = z.object({
+  endpoint: z.string().url().max(1000),
+});
+
+export type PushSubscribeInput = z.infer<typeof PushSubscribeSchema>;

@@ -15,6 +15,7 @@ import { orderRoutes } from './routes/orders';
 import { vendorRoutes } from './routes/vendor';
 import { adminRoutes } from './routes/admin';
 import { favoritesRoutes } from './routes/favorites';
+import { pushRoutes, notificationRoutes } from './routes/push';
 import { nowUtc } from './utils/time';
 import { ulid } from './utils/ulid';
 import type { HealthResponse } from '@shared/types';
@@ -64,6 +65,8 @@ app.get('/api/health', async (c) => {
 app.route('/api/auth', authRoutes);
 app.route('/api/orders', orderRoutes);
 app.route('/api/favorites', favoritesRoutes);
+app.route('/api/push', pushRoutes);
+app.route('/api/notifications', notificationRoutes);
 app.route('/api/vendor', vendorRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api', publicRoutes); // /api/gates, /api/vendors, /api/cart/quote, /api/announcements

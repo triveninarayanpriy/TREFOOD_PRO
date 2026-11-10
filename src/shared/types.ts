@@ -169,17 +169,50 @@ export interface CouponSummary {
   newUsersOnly: boolean;
 }
 
+export interface OrderItemLine {
+  id: string;
+  orderId: string;
+  itemId: string;
+  name: string;
+  pricePaise: number;
+  packingChargePaise?: number;
+  quantity: number;
+  notes?: string | null;
+}
+
 export interface OrderSummary {
   id: string;
   publicNo: string;
   vendorId: string;
+  vendorSlug?: string;
   vendorName: string;
   gateId: string;
   gateName: string;
   status: 'placed' | 'accepted' | 'out_for_delivery' | 'at_gate' | 'delivered' | 'cancelled' | 'expired';
+  subtotalPaise?: number;
+  packingTotalPaise?: number;
+  discountPaise?: number;
   totalPaise: number;
   handoverCode: string;
+  etaAt?: number | null;
+  atGateAt?: number | null;
+  deliveredAt?: number | null;
+  cancelledAt?: number | null;
   createdAt: number;
+  hasReview?: boolean;
+  items?: OrderItemLine[];
+}
+
+export interface OrderNotificationItem {
+  id: string;
+  orderId: string;
+  publicNo: string;
+  vendorName: string;
+  gateName: string;
+  status: string;
+  title: string;
+  summary: string;
+  at: number;
 }
 
 export interface CampusSummaryResponse {

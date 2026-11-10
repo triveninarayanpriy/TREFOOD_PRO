@@ -17,6 +17,7 @@ import { nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
 import { VendorRejectSchema } from '@shared/schemas';
 import { z } from 'zod';
+import { dispatchWebPushForUser } from '../utils/webpush';
 
 export const vendorRoutes = new Hono<{ Bindings: Env }>();
 
@@ -80,13 +81,15 @@ const UpdateOrderStatusSchema = z.object({
 
 async function transitionVendorOrder(params: {
   db: ReturnType<typeof import('../db').getDb>;
+  env?: Env;
+  ctx?: { waitUntil: (promise: Promise<unknown>) => void };
   user: { id: string; role: 'student' | 'vendor' | 'admin'; vendorId?: string | null };
   orderId: string;
   targetStatus: 'accepted' | 'out_for_delivery' | 'at_gate' | 'cancelled';
   prepMinutes?: number;
   cancelReason?: string;
 }) {
-  const { db, user, orderId, targetStatus, prepMinutes, cancelReason } = params;
+  const { db, env, ctx, user, orderId, targetStatus, prepMinutes, cancelReason } = params;
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
   if (!order) {
     return { error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' }, httpStatus: 404 as const };
@@ -135,6 +138,15 @@ async function transitionVendorOrder(params: {
     note: cancelReason || `Status updated to ${targetStatus} by vendor`,
   });
 
+  if (env) {
+    const pushPromise = dispatchWebPushForUser({ db, env, userId: order.userId }).catch(() => undefined);
+    if (ctx) {
+      ctx.waitUntil(pushPromise);
+    } else {
+      await pushPromise;
+    }
+  }
+
   return { ok: true as const, status: targetStatus, updatedAt: now };
 }
 
@@ -148,8 +160,17 @@ vendorRoutes.patch('/orders/:id/status', async (c) => {
     );
   }
 
+  let execCtx: { waitUntil: (promise: Promise<unknown>) => void } | undefined;
+  try {
+    execCtx = c.executionCtx;
+  } catch {
+    execCtx = undefined;
+  }
+
   const result = await transitionVendorOrder({
     db: c.get('db'),
+    env: c.env,
+    ctx: execCtx,
     user: c.get('user')!,
     orderId: c.req.param('id'),
     targetStatus: parseResult.data.status,
@@ -165,8 +186,16 @@ vendorRoutes.patch('/orders/:id/status', async (c) => {
 vendorRoutes.post('/orders/:id/accept', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { prepMinutes?: number };
   const prepMinutes = typeof body.prepMinutes === 'number' && body.prepMinutes > 0 ? body.prepMinutes : undefined;
+  let execCtx: { waitUntil: (promise: Promise<unknown>) => void } | undefined;
+  try {
+    execCtx = c.executionCtx;
+  } catch {
+    execCtx = undefined;
+  }
   const result = await transitionVendorOrder({
     db: c.get('db'),
+    env: c.env,
+    ctx: execCtx,
     user: c.get('user')!,
     orderId: c.req.param('id'),
     targetStatus: 'accepted',
@@ -186,8 +215,16 @@ vendorRoutes.post('/orders/:id/reject', async (c) => {
       400
     );
   }
+  let execCtx: { waitUntil: (promise: Promise<unknown>) => void } | undefined;
+  try {
+    execCtx = c.executionCtx;
+  } catch {
+    execCtx = undefined;
+  }
   const result = await transitionVendorOrder({
     db: c.get('db'),
+    env: c.env,
+    ctx: execCtx,
     user: c.get('user')!,
     orderId: c.req.param('id'),
     targetStatus: 'cancelled',
@@ -199,8 +236,16 @@ vendorRoutes.post('/orders/:id/reject', async (c) => {
 
 // POST /api/vendor/orders/:id/ready (mark out_for_delivery -> ready for dispatch/gate)
 vendorRoutes.post('/orders/:id/ready', async (c) => {
+  let execCtx: { waitUntil: (promise: Promise<unknown>) => void } | undefined;
+  try {
+    execCtx = c.executionCtx;
+  } catch {
+    execCtx = undefined;
+  }
   const result = await transitionVendorOrder({
     db: c.get('db'),
+    env: c.env,
+    ctx: execCtx,
     user: c.get('user')!,
     orderId: c.req.param('id'),
     targetStatus: 'out_for_delivery',

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import type { Env } from '../types';
 import {
   orders,
@@ -266,7 +266,7 @@ orderRoutes.post('/', async (c) => {
   );
 });
 
-// GET /api/orders (History for logged in customer)
+// GET /api/orders (History & Active orders for logged-in customer — batched, zero N+1)
 orderRoutes.get('/', async (c) => {
   const db = c.get('db');
   const user = c.get('user')!;
@@ -284,10 +284,31 @@ orderRoutes.get('/', async (c) => {
     .orderBy(desc(orders.createdAt))
     .all();
 
+  if (userOrders.length === 0) {
+    return c.json({ ok: true, orders: [] });
+  }
+
+  const orderIds = userOrders.map((r) => r.order.id);
+  const [allItems, allReviews] = await Promise.all([
+    db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds)).all(),
+    db.select().from(reviews).where(inArray(reviews.orderId, orderIds)).all(),
+  ]);
+
+  const itemsByOrder = new Map<string, typeof allItems>();
+  for (const item of allItems) {
+    const arr = itemsByOrder.get(item.orderId) || [];
+    arr.push(item);
+    itemsByOrder.set(item.orderId, arr);
+  }
+  const reviewedOrderIds = new Set(allReviews.map((r) => r.orderId));
+
   const formatted = userOrders.map(({ order, vendor, gate }) => ({
     ...order,
     vendorName: vendor.name,
+    vendorSlug: vendor.slug,
     gateName: gate.name,
+    items: itemsByOrder.get(order.id) || [],
+    hasReview: reviewedOrderIds.has(order.id),
   }));
 
   return c.json({ ok: true, orders: formatted });
@@ -326,22 +347,26 @@ orderRoutes.get('/:id', async (c) => {
     return c.json({ error: { code: 'FORBIDDEN', message: 'You are not allowed to view this order.' } }, 403);
   }
 
-  // Calculate ETag from order status, eta, and timestamps
-  const etagSource = `${order.id}:${order.status}:${order.etaAt}:${order.deliveredAt || order.cancelledAt || order.atGateAt || order.placedAt}`;
+  const [items, events, existingReview, existingIssue] = await Promise.all([
+    db.select().from(orderItems).where(eq(orderItems.orderId, order.id)).all(),
+    db
+      .select()
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, order.id))
+      .orderBy(desc(orderEvents.at))
+      .all(),
+    db.select().from(reviews).where(eq(reviews.orderId, order.id)).get(),
+    db.select().from(issues).where(eq(issues.orderId, order.id)).orderBy(desc(issues.createdAt)).get(),
+  ]);
+
+  // Calculate ETag from order status, attempts, eta, review/issue, and timestamps
+  const etagSource = `${order.id}:${order.status}:${order.codeAttempts || 0}:${order.etaAt}:${order.deliveredAt || order.cancelledAt || order.atGateAt || order.outForDeliveryAt || order.acceptedAt || order.placedAt}:${existingReview ? 'r1' : 'r0'}:${existingIssue?.id || 'i0'}`;
   const etag = `"${await sha256(etagSource)}"`;
 
   const ifNoneMatch = c.req.header('if-none-match');
   if (ifNoneMatch && ifNoneMatch === etag) {
     return new Response(null, { status: 304, headers: { ETag: etag } });
   }
-
-  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id)).all();
-  const events = await db
-    .select()
-    .from(orderEvents)
-    .where(eq(orderEvents.orderId, order.id))
-    .orderBy(desc(orderEvents.at))
-    .all();
 
   c.header('ETag', etag);
 
@@ -350,8 +375,15 @@ orderRoutes.get('/:id', async (c) => {
     order: {
       ...order,
       vendorName: vendor.name,
+      vendorSlug: vendor.slug,
       vendorPhone: vendor.phone,
       gateName: gate.name,
+      gateCurfewTime: gate.curfewTime,
+      gateIs24x7: gate.is24x7,
+      remainingAttempts: Math.max(0, 5 - (order.codeAttempts || 0)),
+      hasReview: Boolean(existingReview),
+      existingReview: existingReview || null,
+      existingIssue: existingIssue || null,
       items,
       events,
     },
