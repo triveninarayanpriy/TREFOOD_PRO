@@ -8,17 +8,18 @@ This report records the verification metrics, accessibility audits, performance 
 
 | Metric Category | Target Budget | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **First Load JavaScript Bundle** | < 150.0 kB gzip | **146.60 kB gzip** | Passed |
-| **Vendor Console Lazy Chunk** | Isolated chunk | **6.47 kB gzip** | Passed |
-| **Admin Console Lazy Chunk** | Isolated chunk | **6.06 kB gzip** | Passed |
-| **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **6.14 kB gzip** | Passed |
+| **First Load JavaScript Bundle** | < 150.0 kB gzip | **144.43 kB gzip** | Passed |
+| **Vendor Console Lazy Chunk** | Isolated chunk | **6.50 kB gzip** | Passed |
+| **Admin Console Lazy Chunk** | Isolated chunk | **6.09 kB gzip** | Passed |
+| **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **5.93 kB gzip** | Passed |
 | **Legal Pages Lazy Chunk** | Isolated chunk | **3.10 kB gzip** | Passed |
-| **Vitest Worker & Domain Tests** | 100% passing | **29 / 29 passed (6 files)** | Passed |
-| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **16 / 16 passed (20.4s)** | Passed |
+| **Sign-In (`/signin`) Lazy Chunk** | Isolated chunk | **4.59 kB gzip** | Passed |
+| **Vitest Worker & Domain Tests** | 100% passing | **30 / 30 passed (6 files)** | Passed |
+| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **22 / 22 passed (30.0s)** | Passed |
 | **TypeScript Strict Compilation** | 0 errors | **0 errors** | Passed |
-| **ESLint Static Code Analysis** | 0 errors | **0 errors (37 warnings)** | Passed |
+| **ESLint Static Code Analysis** | 0 errors | **0 errors (33 warnings)** | Passed |
 | **Axe Accessibility Audit (Light & Dark)** | 0 critical / serious | **0 violations** | Passed |
-| **Lighthouse Mobile (`/`, Prod Build)** | >= 90 all 4 categories | **98 Perf / 100 A11y / 100 BP / 100 SEO** | Passed |
+| **Lighthouse Mobile (`/`, Prod Build)** | >= 90 all 4 categories | **91 Perf / 100 A11y / 100 BP / 100 SEO** | Passed |
 | **Edge Security Headers** | CSP, HSTS, Secure Cookies | **100% enforced** | Passed |
 
 ---
@@ -30,23 +31,26 @@ The Cloudflare Workers free plan requires lean client bundles for ultra-fast TTF
 ### Production Build Distribution (`dist/client/assets`)
 
 ```
-dist/trefood_prototype/index.js                               426.91 kB (SSR/Worker bundle)
+dist/trefood_prototype/index.js                               440.96 kB (SSR/Worker bundle)
 dist/client/index.html                                          3.73 kB │ gzip:   1.31 kB
-dist/client/assets/index-DgZdX-yf.css                          72.07 kB │ gzip:  14.76 kB
-dist/client/assets/InstallAppModal-BFaqwk-J.js                  3.38 kB │ gzip:   1.16 kB (Lazy Chunk)
-dist/client/assets/SignInModal-DKssy6hk.js                      4.09 kB │ gzip:   1.83 kB (Lazy Chunk)
-dist/client/assets/LegalPages-DxaUGWah.js                       7.86 kB │ gzip:   3.10 kB (Lazy Chunk)
-dist/client/assets/AdminConsolePage-BiAI-oyP.js                23.25 kB │ gzip:   6.06 kB (Lazy Chunk)
-dist/client/assets/DevKitPage-DkbWKej5.js                      19.73 kB │ gzip:   6.14 kB (Lazy Chunk)
-dist/client/assets/VendorConsolePage-DqRVYLec.js               27.04 kB │ gzip:   6.47 kB (Lazy Chunk)
-dist/client/assets/OrderDetailPage-DWa_S2lH.js                 15.53 kB │ gzip:   4.95 kB (Lazy Chunk)
-dist/client/assets/VendorPage-BsppgVAc.js                      10.82 kB │ gzip:   3.71 kB (Lazy Chunk)
-dist/client/assets/BrowsePage-CYTZdREI.js                       7.16 kB │ gzip:   2.73 kB (Lazy Chunk)
-dist/client/assets/index-D4w_jfcj.js                          494.71 kB │ gzip: 146.60 kB (Main Student Bundle)
+dist/client/assets/index-vUT7hoY6.css                          76.88 kB │ gzip:  15.39 kB
+dist/client/assets/InstallAppModal-BwUCx-ea.js                  3.42 kB │ gzip:   1.18 kB (Lazy Chunk)
+dist/client/assets/GatePicker-DHvJX8A1.js                       6.06 kB │ gzip:   2.29 kB (Lazy Chunk)
+dist/client/assets/CheckoutModal-BUbGbSpP.js                    9.48 kB │ gzip:   3.50 kB (Lazy Chunk)
+dist/client/assets/SignInPage-DNA6B3ZY.js                      12.73 kB │ gzip:   4.59 kB (Lazy Chunk)
+dist/client/assets/FavoritesPage-c2c7zFmI.js                    2.83 kB │ gzip:   1.35 kB (Lazy Chunk)
+dist/client/assets/LegalPages-C3PyulNQ.js                       7.86 kB │ gzip:   3.10 kB (Lazy Chunk)
+dist/client/assets/AdminConsolePage-Dz_etaK4.js                23.31 kB │ gzip:   6.09 kB (Lazy Chunk)
+dist/client/assets/DevKitPage-bibfzDZ1.js                      19.43 kB │ gzip:   5.93 kB (Lazy Chunk)
+dist/client/assets/VendorConsolePage-BuUYYT4H.js               27.11 kB │ gzip:   6.50 kB (Lazy Chunk)
+dist/client/assets/OrderDetailPage-CevaR77F.js                 15.60 kB │ gzip:   4.98 kB (Lazy Chunk)
+dist/client/assets/VendorPage-Bbp1m_mi.js                      12.25 kB │ gzip:   4.17 kB (Lazy Chunk)
+dist/client/assets/BrowsePage-kCw7PJ9C.js                       8.25 kB │ gzip:   3.12 kB (Lazy Chunk)
+dist/client/assets/index-Bg1Q50kP.js                          484.35 kB │ gzip: 144.43 kB (Main Student Bundle)
 ```
 
-- **Student Bundle Gzip**: `146.60 kB` (Under the strict 150 kB budget; Zod remains server-only on `/api/*` and lazy chunks).
-- **Separation of Concerns**: Route-level `React.lazy` splits ensure vendor console, admin portal, `/dev/ui`, legal pages, modals, and secondary views load on demand.
+- **Student Bundle Gzip**: `144.43 kB` (Under the strict 150 kB budget; `GatePicker`, `CheckoutModal`, `SignInPage`, `FavoritesPage`, and `Zod` schemas are separated cleanly).
+- **Separation of Concerns**: Route-level `React.lazy` splits ensure vendor console, admin portal, `/dev/ui`, `/signin`, `/favorites`, legal pages, modals, and secondary views load on demand.
 - **Font Optimization**: Self-hosted WOFF2 fonts (Inter and Plus Jakarta Sans) are served directly from Cloudflare Static Assets with immutable 1-year cache headers (`Cache-Control: public, max-age=31536000, immutable`).
 
 ---
@@ -57,7 +61,7 @@ Latest Lighthouse `13.6.0` mobile audit executed directly against the production
 
 | Route | Performance | Accessibility | Best Practices | SEO | FCP | LCP | CLS | TBT |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Landing Page (`/`, Current Build)** | **98** | **100** | **100** | **100** | **1.0s** | **1.0s** | **0** | **170ms** |
+| **Landing Page (`/`, Current Build)** | **91** | **100** | **100** | **100** | **1.0s** | **1.0s** | **0.029** | **360ms** |
 
 *Prior baseline pass (pre-landing upgrade, Slow 4G simulation on secondary routes):*
 
@@ -133,8 +137,9 @@ Playwright tests run across Chromium Desktop (`1280x800` + `1440x900`) and Chrom
 3. **`vendor-admin.spec.ts`** (Desktop & Mobile): Vendor (`/v`) 4-column board + Admin (`/admin`) metrics/chart/curfews.
 4. **`design-system.spec.ts`** (Desktop & Mobile): Light & Dark `/dev/ui` `@axe-core/playwright` + 1440px/390px nav & zero overflow.
 5. **`landing.spec.ts`** (Desktop & Mobile): Hero guest gate picker & search, live stats, curfew mini-demo, D1 onboarding form, sample testimonials/FAQ 11+ items, light & dark `axe-core`, draft `/terms`, `/sitemap.xml`, `/robots.txt`, and `320px`/`1440px` zero horizontal overflow.
+6. **`auth-gates.spec.ts`** (Desktop & Mobile): First-visit splash (`1.5s`, 44px Skip, suppressed on reload & deep links), persistent `Deliver to:` header, mobile bottom-sheet vs desktop popover Gate Picker + 1-tap closed gate alternative switch, `/signin` mock Google chooser, OTP dev toast fallback, Demo Role Switcher, guest-to-sign-in `returnTo` flow, and refresh persistence.
 
-**Total Execution Time**: 20.4 seconds, 16 tests passed, 0 failures, 0 retries.
+**Total Execution Time**: 30.0 seconds, 22 tests passed, 0 failures, 0 retries.
 
 ---
 

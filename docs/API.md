@@ -80,21 +80,33 @@ Verifies the 6-digit OTP and establishes an authenticated 30-day sliding session
   }
   ```
 
+### `GET /api/auth/providers`
+Returns enabled authentication providers and feature flags (`demoMode`, `googleOAuthEnabled`, `mockGoogleEnabled`, `turnstileEnabled`, `turnstileSiteKey`).
+
+### `POST /api/auth/google/mock`
+Prototype mock Google account chooser login (`{ "email": "aarav.ug24@nitp.ac.in", "name": "Aarav Verma", "turnstileToken"? }`). Available when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are omitted or `DEMO_MODE=true`. Sets `SESSION_KV`-backed `httpOnly` cookie.
+
+### `GET /api/auth/google/start` & `GET /api/auth/google/callback`
+Live Google OAuth 2.0 Authorization Code flow when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured, persisting CSRF `state` and sanitized `returnTo` in `SESSION_KV`.
+
 ### `POST /api/auth/demo/:role`
 One-tap login for rapid evaluation in prototype environments.
 - **Param:** `:role` (`student`, `vendor`, `admin`)
 - **Note:** Exclusively available when `DEMO_MODE=true`. Returns `404` when disabled.
 
 ### `GET /api/auth/me`
-Returns current session profile.
-- **Auth:** Optional / Authenticated
-- **Response `200 OK`**:
-  ```json
-  { "ok": true, "user": { "id": "...", "email": "...", "role": "student" } }
-  ```
+Returns current session profile (validated via Workers KV `SESSION_KV` with D1 fallback).
 
 ### `POST /api/auth/logout`
-Destroys session in D1 and invalidates cookie.
+Destroys session in `SESSION_KV` and D1, invalidating the cookie.
+
+---
+
+## 2b. Student Favourites (`/api/favorites`)
+*All favourite endpoints require authentication (`401 UNAUTHORIZED` for guests).*
+- `GET /api/favorites`: Lists saved vendor IDs and summaries for the signed-in student (`idx_favorites_user`).
+- `POST /api/favorites/:vendorId`: Idempotently saves a vendor to favourites.
+- `DELETE /api/favorites/:vendorId`: Removes a vendor from favourites.
 
 ---
 

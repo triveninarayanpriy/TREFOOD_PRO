@@ -4,6 +4,18 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Authentication (/signin), KV Sessions, Turnstile Flag, Gate Picker & Splash
+- **Authentication & Role Switcher (`/signin`)**:
+  - Built `/signin` (`src/client/pages/SignInPage.tsx`) featuring **Sign in with Google** (mock NIT Patna Google Account Chooser by default; real Google OAuth 2.0 Authorization Code flow when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are configured), **Email OTP fallback** displaying dev codes cleanly in toast notifications, and **Prominent Demo Mode** buttons (`Continue as Student`, `Continue as Vendor`, `Continue as Admin`).
+  - Migrated session storage to Cloudflare Workers KV (`SESSION_KV`, SHA-256 hashed 30-day `httpOnly` cookies) with D1 fallback and full logout/erasure cleanup.
+  - Added Cloudflare Turnstile server verification (`src/worker/auth/turnstile.ts`) and client explicit widget (`src/client/components/auth/TurnstileWidget.tsx`) gated cleanly behind `TURNSTILE_ENABLED`.
+  - Added protected Favourites endpoints (`/api/favorites`), `/favorites` page, and heart toggles on vendor cards/pages; guests browse freely everywhere while Checkout, Favourites, and Orders prompt sign-in and redirect cleanly via `returnTo`.
+- **Header, Responsive Gate Picker & First-Visit Splash**:
+  - Updated `TopBar` to always show `Deliver to: <gate>` with a live status line (`Open 24x7`, `Open until 19:30`, `Closed`, and countdown e.g. `closes in 45 min`).
+  - Built responsive `GatePicker` rendering as a **bottom sheet on mobile** and an **anchored popover on desktop**; selecting a closed gate explains why and offers a 1-tap switch to the nearest open gate while persisting choices in `localStorage`.
+  - Added first-visit `SplashScreen` shown once per device on `/` with 1.5s auto-advance and a `>= 44px` Skip button, suppressed for returning visitors and deep links.
+  - Added gate logic unit tests for **18:45, 19:15, and 19:45 IST** (`tests/worker/curfew.test.ts`), KV/Google mock/favorites/Turnstile worker tests (`tests/worker/api.test.ts`), and Playwright E2E tests (`e2e/auth-gates.spec.ts`).
+
 ### Added - Public Landing Page (/), Legal Routes, SEO & Lighthouse Hardening
 - **Public Landing Experience (`/`)**:
   - Updated sticky landing navbar with logo, section anchors (`How it works`, `For vendors`, `Safety`, `FAQ`), `Browse menus`, `Install App` (`beforeinstallprompt` hook + iOS Safari/Android fallback modal), `ThemeToggle`, `Sign in` OTP/Demo modal, and collapsible mobile menu fitting cleanly down to `320px`.

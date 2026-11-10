@@ -118,5 +118,6 @@ Unless a gate is marked `is24x7`, if $\text{Estimated Arrival} > \text{Gate Curf
 
 - **Stateless Zero-Trust Middleware**: Every request checks user roles (`student`, `vendor`, `admin`) in server middleware (`src/worker/middleware.ts`). Client state is never trusted.
 - **Constant-Time Cryptography**: Passwords, OTP peppers, and secret hashes are evaluated using WebCrypto `crypto.subtle.timingSafeEqual` to eliminate side-channel timing leaks.
-- **Session Security**: Session tokens are 256-bit cryptographically random strings; only their SHA-256 hash is stored in D1. Production uses `__Host-` prefixed cookies with `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- **Session Security**: Session tokens are 256-bit cryptographically random strings; SHA-256 hashes back `HttpOnly`, `SameSite=Lax`, `__Host-`-prefixed cookies stored primarily in Cloudflare Workers KV (`SESSION_KV`, 30-day TTL) with D1 persistence and explicit invalidation on logout or account deletion.
+- **Bot Protection Hook**: `verifyTurnstileToken()` (`src/worker/auth/turnstile.ts`) integrates Cloudflare Turnstile `/siteverify` on `/signin` and OTP endpoints behind the `TURNSTILE_ENABLED` feature flag.
 - **Right to Erasure (GDPR)**: `DELETE /api/auth/delete-account` completely purges active sessions, clears student credentials, and anonymizes historical order references.

@@ -145,25 +145,36 @@ describe('Curfew and Delivery Service', () => {
     const t1915 = baseIstMidnightUtc + 19 * 3600 + 15 * 60;
     const t1945 = baseIstMidnightUtc + 19 * 3600 + 45 * 60;
 
-    // 18:45 IST -> arrives 19:10 + 15m window = 19:25 <= 19:30 -> allowed
+    // 18:45 IST -> arrives 19:10 + 15m window = 19:25 <= 19:30 -> allowed; closes in 45 min
+    const s1845 = getGateCurfewStatus(gateBoysHostel, t1845);
+    expect(s1845.isOpen).toBe(true);
+    expect(s1845.statusText).toBe('Open until 19:30');
+    expect(s1845.countdownText).toBe('closes in 45 min');
     const r1845 = canDeliver(gateBoysHostel, vendorFast, t1845, vgBoys, [gateMain24x7, gateBoysHostel]);
     expect(r1845.ok).toBe(true);
     expect(r1845.latestOrderTime).toBe('18:50');
 
-    // 19:15 IST -> misses 19:30 with 15m window -> rejected with Main Gate 24x7 alternative
+    // 19:15 IST -> closes in 15 min physically, misses 19:30 with 15m window -> rejected with Main Gate 24x7 alternative
+    const s1915 = getGateCurfewStatus(gateBoysHostel, t1915);
+    expect(s1915.isOpen).toBe(true);
+    expect(s1915.statusText).toBe('Open until 19:30');
+    expect(s1915.countdownText).toBe('closes in 15 min');
     const r1915 = canDeliver(gateBoysHostel, vendorFast, t1915, vgBoys, [gateMain24x7, gateBoysHostel]);
     expect(r1915.ok).toBe(false);
     expect(r1915.reason).toBe('too_late');
     expect(r1915.alternativeGates?.some((g) => g.gateId === 'gate_main' && g.is24x7)).toBe(true);
 
-    // 19:45 IST -> Boys Hostel closed -> Main Gate 24x7 still accepts!
+    // 19:45 IST -> Boys Hostel status is Closed -> Main Gate 24x7 still accepts!
+    const s1945Boys = getGateCurfewStatus(gateBoysHostel, t1945);
+    expect(s1945Boys.isOpen).toBe(false);
+    expect(s1945Boys.statusText).toBe('Closed');
     const r1945Boys = canDeliver(gateBoysHostel, vendorFast, t1945, vgBoys, [gateMain24x7, gateBoysHostel]);
     expect(r1945Boys.ok).toBe(false);
     expect(r1945Boys.reason).toBe('too_late');
 
     const r1945Main = canDeliver(gateMain24x7, vendorFast, t1945, vgMain, [gateMain24x7, gateBoysHostel]);
     expect(r1945Main.ok).toBe(true);
-    expect(getGateCurfewStatus(gateMain24x7, t1945).label).toBe('Open 24x7');
+    expect(getGateCurfewStatus(gateMain24x7, t1945).statusText).toBe('Open 24x7');
   });
 
   it('activates Campus Night Safety automatically at and after 19:00 IST', () => {

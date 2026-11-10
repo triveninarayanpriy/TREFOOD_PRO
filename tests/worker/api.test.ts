@@ -4,6 +4,7 @@ import worker, { expireOldPlacedOrders } from '@worker/index';
 import { getDb } from '@worker/db';
 import { orders, vendors, gates, users } from '@worker/db/schema';
 import { createSession, buildSetCookieHeader } from '@worker/auth/session';
+import { verifyTurnstileToken } from '@worker/auth/turnstile';
 import { eq } from 'drizzle-orm';
 import { ulid } from '@worker/utils/ulid';
 
@@ -472,5 +473,96 @@ describe('Worker Full API Integration Tests', () => {
     const robotsTxt = await robotsRes.text();
     expect(robotsTxt).toContain('Disallow: /admin');
     expect(robotsTxt).toContain('Sitemap:');
+  });
+
+  it('supports KV-backed Google mock auth, auth providers flags, favorites protection, and Turnstile hook', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    // Auth provider flags
+    const provRes = await exec(new Request('http://localhost/api/auth/providers'));
+    expect(provRes.status).toBe(200);
+    const provBody = (await provRes.json()) as {
+      ok: boolean;
+      demoMode: boolean;
+      mockGoogleEnabled: boolean;
+      turnstileEnabled: boolean;
+    };
+    expect(provBody.ok).toBe(true);
+    expect(provBody.demoMode).toBe(true);
+    expect(provBody.mockGoogleEnabled).toBe(true);
+    expect(provBody.turnstileEnabled).toBe(false);
+
+    // Guest favorites blocked with 401
+    expect((await exec(new Request('http://localhost/api/favorites'))).status).toBe(401);
+
+    // Mock Google chooser sign-in sets httpOnly cookie backed by SESSION_KV
+    const googleRes = await exec(
+      new Request('http://localhost/api/auth/google/mock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'aarav.ug24@nitp.ac.in', name: 'Aarav Verma' }),
+      })
+    );
+    expect(googleRes.status).toBe(200);
+    const setCookie = googleRes.headers.get('set-cookie') || '';
+    expect(setCookie).toContain('HttpOnly');
+    const cookiePair = setCookie.split(';')[0];
+
+    // Confirm session validates across requests (backed by KV / D1)
+    const meRes = await exec(
+      new Request('http://localhost/api/auth/me', { headers: { Cookie: cookiePair } })
+    );
+    expect(meRes.status).toBe(200);
+    const meBody = (await meRes.json()) as { ok: boolean; user: { email: string } };
+    expect(meBody.ok).toBe(true);
+    expect(meBody.user.email).toBe('aarav.ug24@nitp.ac.in');
+
+    // Add, read, and remove favourite vendor
+    expect(
+      (
+        await exec(
+          new Request('http://localhost/api/favorites/v_ganga', {
+            method: 'POST',
+            headers: { Cookie: cookiePair },
+          })
+        )
+      ).status
+    ).toBe(201);
+
+    const favListRes = await exec(
+      new Request('http://localhost/api/favorites', { headers: { Cookie: cookiePair } })
+    );
+    expect(favListRes.status).toBe(200);
+    const favBody = (await favListRes.json()) as { vendorIds: string[] };
+    expect(favBody.vendorIds).toContain('v_ganga');
+
+    expect(
+      (
+        await exec(
+          new Request('http://localhost/api/favorites/v_ganga', {
+            method: 'DELETE',
+            headers: { Cookie: cookiePair },
+          })
+        )
+      ).status
+    ).toBe(200);
+
+    // Turnstile feature flag unit check: skipped when false, rejected when enabled without token
+    const skipped = await verifyTurnstileToken({ enabled: 'false', token: null });
+    expect(skipped.ok).toBe(true);
+    expect(skipped.skipped).toBe(true);
+
+    const rejected = await verifyTurnstileToken({
+      enabled: 'true',
+      secretKey: 'test-secret',
+      token: '',
+    });
+    expect(rejected.ok).toBe(false);
+    expect(rejected.errorCodes).toContain('missing-input-response');
   });
 });
