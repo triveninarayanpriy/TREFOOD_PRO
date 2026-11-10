@@ -2,3 +2,13 @@
 DEMO_MODE=true
 ALLOWED_EMAIL_DOMAINS=nitp.ac.in
 TIMEZONE=Asia/Kolkata
+
+# Optional Cloudflare Turnstile feature flag & keys
+TURNSTILE_ENABLED=false
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# Optional real Google OAuth credentials (omit to use mock account chooser)
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/google/callback

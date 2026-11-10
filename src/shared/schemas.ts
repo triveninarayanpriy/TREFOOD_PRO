@@ -18,6 +18,7 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 // ==========================================
 export const RequestOtpSchema = z.object({
   email: z.string().trim().toLowerCase().email('Please enter a valid email address'),
+  turnstileToken: z.string().optional(),
 });
 
 export type RequestOtpInput = z.infer<typeof RequestOtpSchema>;
@@ -25,9 +26,16 @@ export type RequestOtpInput = z.infer<typeof RequestOtpSchema>;
 export const VerifyOtpSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   code: z.string().trim().length(6, 'OTP must be 6 digits'),
+  turnstileToken: z.string().optional(),
 });
 
 export type VerifyOtpInput = z.infer<typeof VerifyOtpSchema>;
+
+export const MockGoogleLoginSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  name: z.string().trim().min(2).max(80),
+  turnstileToken: z.string().optional(),
+});
 
 export const UserSchema = z.object({
   id: z.string(),

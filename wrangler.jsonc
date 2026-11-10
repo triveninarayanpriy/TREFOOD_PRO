@@ -17,6 +17,12 @@
       "database_id": "32e25eab-fd65-4479-b80d-3c358ba36eb0"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSION_KV",
+      "id": "de2256e9754b48bd8d2e4da2e2ee6f4a"
+    }
+  ],
   "observability": {
     "enabled": true
   },
@@ -26,6 +32,7 @@
   "vars": {
     "DEMO_MODE": "true",
     "ALLOWED_EMAIL_DOMAINS": "nitp.ac.in",
-    "TIMEZONE": "Asia/Kolkata"
+    "TIMEZONE": "Asia/Kolkata",
+    "TURNSTILE_ENABLED": "false"
   }
 }

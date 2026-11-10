@@ -14,6 +14,7 @@ import { publicRoutes } from './routes/public';
 import { orderRoutes } from './routes/orders';
 import { vendorRoutes } from './routes/vendor';
 import { adminRoutes } from './routes/admin';
+import { favoritesRoutes } from './routes/favorites';
 import { nowUtc } from './utils/time';
 import { ulid } from './utils/ulid';
 import type { HealthResponse } from '@shared/types';
@@ -62,6 +63,7 @@ app.get('/api/health', async (c) => {
 // 5. Mount API route groups
 app.route('/api/auth', authRoutes);
 app.route('/api/orders', orderRoutes);
+app.route('/api/favorites', favoritesRoutes);
 app.route('/api/vendor', vendorRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api', publicRoutes); // /api/gates, /api/vendors, /api/cart/quote, /api/announcements

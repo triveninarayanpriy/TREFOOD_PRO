@@ -288,6 +288,8 @@ export interface GateCurfewStatus {
   minutesRemaining: number | null;
   isNearingCurfew: boolean;
   label: string;
+  statusText: string;
+  countdownText: string | null;
   latestOrderTime: string | null;
 }
 
@@ -303,6 +305,8 @@ export function getGateCurfewStatus(
       minutesRemaining: 0,
       isNearingCurfew: false,
       label: 'Gate closed',
+      statusText: 'Closed',
+      countdownText: 'Temporarily closed',
       latestOrderTime: null,
     };
   }
@@ -314,6 +318,8 @@ export function getGateCurfewStatus(
       minutesRemaining: null,
       isNearingCurfew: false,
       label: 'Open 24x7',
+      statusText: 'Open 24x7',
+      countdownText: null,
       latestOrderTime: null,
     };
   }
@@ -337,11 +343,15 @@ export function getGateCurfewStatus(
       minutesRemaining: 0,
       isNearingCurfew: false,
       label: `Closed • Curfew ${gate.curfewTime}`,
+      statusText: 'Closed',
+      countdownText: `Curfew passed (${gate.curfewTime} IST)`,
       latestOrderTime,
     };
   }
 
   const canAcceptNewOrders = remaining > samplePrepAndTravelMinutes + gate.bufferMinutes;
+  const countdownText =
+    remaining <= 180 ? `closes in ${remaining} min` : `until ${gate.curfewTime} IST`;
 
   return {
     isOpen: true,
@@ -350,8 +360,10 @@ export function getGateCurfewStatus(
     isNearingCurfew: remaining <= 60 || !canAcceptNewOrders,
     label:
       remaining <= 90
-        ? `Closes in ${remaining}m (${gate.curfewTime})`
+        ? `Open until ${gate.curfewTime} • closes in ${remaining} min`
         : `Open until ${gate.curfewTime}`,
+    statusText: `Open until ${gate.curfewTime}`,
+    countdownText,
     latestOrderTime,
   };
 }

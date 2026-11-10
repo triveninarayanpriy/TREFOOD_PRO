@@ -16,6 +16,13 @@ export interface AuthenticatedUser {
   vendorId?: string | null;
 }
 
+interface KvSessionPayload {
+  user: AuthenticatedUser;
+  expiresAt: number;
+}
+
+const KV_KEY_PREFIX = 'sess:';
+
 export function getSessionCookieName(requestUrl: string): string {
   try {
     const url = new URL(requestUrl);
@@ -68,12 +75,36 @@ export function buildClearCookieHeader(cookieName: string): string {
 
 export async function createSession(
   db: Database,
-  userId: string
+  userId: string,
+  sessionKV?: KVNamespace,
+  knownUser?: AuthenticatedUser
 ): Promise<{ token: string; expiresAt: number }> {
   const token = generateRandomToken(32);
   const tokenHash = await sha256(token);
   const now = nowUtc();
   const expiresAt = now + SESSION_DURATION_SECONDS;
+
+  let authUser = knownUser;
+  if (!authUser) {
+    const dbUser = await db.select().from(users).where(eq(users.id, userId)).get();
+    if (dbUser) {
+      authUser = {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        role: dbUser.role as 'student' | 'vendor' | 'admin',
+        campusId: dbUser.campusId,
+        vendorId: dbUser.vendorId,
+      };
+    }
+  }
+
+  if (sessionKV && authUser) {
+    const payload: KvSessionPayload = { user: authUser, expiresAt };
+    await sessionKV.put(`${KV_KEY_PREFIX}${tokenHash}`, JSON.stringify(payload), {
+      expirationTtl: SESSION_DURATION_SECONDS,
+    });
+  }
 
   await db.insert(sessions).values({
     id: ulid(),
@@ -88,11 +119,37 @@ export async function createSession(
 
 export async function validateSession(
   db: Database,
-  token: string
+  token: string,
+  sessionKV?: KVNamespace
 ): Promise<AuthenticatedUser | null> {
   const tokenHash = await sha256(token);
   const now = nowUtc();
 
+  // Fast path: Cloudflare Workers KV session store
+  if (sessionKV) {
+    const kvRecord = await sessionKV.get<KvSessionPayload>(`${KV_KEY_PREFIX}${tokenHash}`, 'json');
+    if (kvRecord) {
+      if (kvRecord.expiresAt <= now) {
+        await sessionKV.delete(`${KV_KEY_PREFIX}${tokenHash}`);
+        await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+        return null;
+      }
+
+      // Refresh sliding KV TTL if more than 1 day elapsed
+      if (kvRecord.expiresAt - now < SESSION_DURATION_SECONDS - 86400) {
+        const nextExpiry = now + SESSION_DURATION_SECONDS;
+        await sessionKV.put(
+          `${KV_KEY_PREFIX}${tokenHash}`,
+          JSON.stringify({ user: kvRecord.user, expiresAt: nextExpiry }),
+          { expirationTtl: SESSION_DURATION_SECONDS }
+        );
+      }
+
+      return kvRecord.user;
+    }
+  }
+
+  // Fallback & backfill from D1
   const result = await db
     .select({
       session: sessions,
@@ -105,21 +162,12 @@ export async function validateSession(
 
   if (!result || result.session.expiresAt <= now) {
     if (result) {
-      // Clean up expired session
       await db.delete(sessions).where(eq(sessions.id, result.session.id));
     }
     return null;
   }
 
-  // Sliding session: extend expiry if more than 1 day has elapsed
-  if (result.session.expiresAt - now < SESSION_DURATION_SECONDS - 86400) {
-    await db
-      .update(sessions)
-      .set({ expiresAt: now + SESSION_DURATION_SECONDS })
-      .where(eq(sessions.id, result.session.id));
-  }
-
-  return {
+  const authUser: AuthenticatedUser = {
     id: result.user.id,
     email: result.user.email,
     name: result.user.name,
@@ -127,9 +175,52 @@ export async function validateSession(
     campusId: result.user.campusId,
     vendorId: result.user.vendorId,
   };
+
+  let nextExpiry = result.session.expiresAt;
+  if (result.session.expiresAt - now < SESSION_DURATION_SECONDS - 86400) {
+    nextExpiry = now + SESSION_DURATION_SECONDS;
+    await db
+      .update(sessions)
+      .set({ expiresAt: nextExpiry })
+      .where(eq(sessions.id, result.session.id));
+  }
+
+  if (sessionKV) {
+    const remainingTtl = Math.max(60, nextExpiry - now);
+    await sessionKV.put(
+      `${KV_KEY_PREFIX}${tokenHash}`,
+      JSON.stringify({ user: authUser, expiresAt: nextExpiry }),
+      { expirationTtl: remainingTtl }
+    );
+  }
+
+  return authUser;
 }
 
-export async function destroySession(db: Database, token: string): Promise<void> {
+export async function destroySession(
+  db: Database,
+  token: string,
+  sessionKV?: KVNamespace
+): Promise<void> {
   const tokenHash = await sha256(token);
+  if (sessionKV) {
+    await sessionKV.delete(`${KV_KEY_PREFIX}${tokenHash}`);
+  }
   await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+}
+
+export async function destroyAllUserSessions(
+  db: Database,
+  userId: string,
+  sessionKV?: KVNamespace
+): Promise<void> {
+  if (sessionKV) {
+    const existing = await db
+      .select({ tokenHash: sessions.tokenHash })
+      .from(sessions)
+      .where(eq(sessions.userId, userId))
+      .all();
+    await Promise.all(existing.map((s) => sessionKV.delete(`${KV_KEY_PREFIX}${s.tokenHash}`)));
+  }
+  await db.delete(sessions).where(eq(sessions.userId, userId));
 }

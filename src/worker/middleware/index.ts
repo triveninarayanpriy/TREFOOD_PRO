@@ -31,7 +31,7 @@ export const securityHeadersMiddleware = createMiddleware<{ Bindings: Env }>(asy
   await next();
   c.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'none';"
   );
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
@@ -80,7 +80,7 @@ export const sessionAuthMiddleware = createMiddleware<{ Bindings: Env }>(async (
     const db = c.get('db');
     if (db) {
       try {
-        const user = await validateSession(db, token);
+        const user = await validateSession(db, token, c.env.SESSION_KV);
         if (user) {
           c.set('user', user);
           c.set('sessionToken', token);
