@@ -973,4 +973,160 @@ describe('Worker Full API Integration Tests', () => {
     );
     expect(unsubRes.status).toBe(200);
   });
+
+  it('supports /api/vendor accept, reject with reason, ready, prep adjust, stock/price edit, night-safety toggle, and insights', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    const studentLogin = await exec(
+      new Request('http://localhost/api/auth/demo/student', { method: 'POST' })
+    );
+    const studentCookie = (studentLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    const vendorLogin = await exec(
+      new Request('http://localhost/api/auth/demo/vendor', { method: 'POST' })
+    );
+    const vendorCookie = (vendorLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    const ts1400Ist = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
+
+    // Place 2 orders for Ganga Dhaba
+    const placeOrder = async (keySuffix: string) => {
+      const r = await exec(
+        new Request('http://localhost/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: studentCookie,
+            'Idempotency-Key': `vendor-test-${keySuffix}-${ulid()}`,
+            'x-mock-time': ts1400Ist,
+          },
+          body: JSON.stringify({
+            vendorId: 'v_ganga',
+            gateId: 'gate_main',
+            items: [{ itemId: 'it_g1', quantity: 1 }],
+          }),
+        })
+      );
+      expect(r.status).toBe(201);
+      return ((await r.json()) as { order: { id: string } }).order.id;
+    };
+
+    const orderAcceptId = await placeOrder('acc');
+    const orderRejectId = await placeOrder('rej');
+
+    // 1. Accept with prepMinutes -> adjust prep time -> ready -> at_gate -> assist complete
+    const acceptRes = await exec(
+      new Request(`http://localhost/api/vendor/orders/${orderAcceptId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ prepMinutes: 20 }),
+      })
+    );
+    expect(acceptRes.status).toBe(200);
+
+    const adjustRes = await exec(
+      new Request(`http://localhost/api/vendor/orders/${orderAcceptId}/prep-time`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ prepMinutes: 25 }),
+      })
+    );
+    expect(adjustRes.status).toBe(200);
+
+    const readyRes = await exec(
+      new Request(`http://localhost/api/vendor/orders/${orderAcceptId}/ready`, {
+        method: 'POST',
+        headers: { Cookie: vendorCookie },
+      })
+    );
+    expect(readyRes.status).toBe(200);
+
+    // 2. Reject second order with reason
+    const rejectRes = await exec(
+      new Request(`http://localhost/api/vendor/orders/${orderRejectId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ reason: 'Out of stock ingredient' }),
+      })
+    );
+    expect(rejectRes.status).toBe(200);
+    expect(((await rejectRes.json()) as { status: string }).status).toBe('cancelled');
+
+    // 3. Stock toggle + price edit
+    const stockOff = await exec(
+      new Request('http://localhost/api/vendor/menu/item/it_g1/stock', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ inStock: false }),
+      })
+    );
+    expect(stockOff.status).toBe(200);
+    expect(((await stockOff.json()) as { inStock: boolean }).inStock).toBe(false);
+
+    const priceEdit = await exec(
+      new Request('http://localhost/api/vendor/menu/item/it_g1', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ pricePaise: 9500, inStock: true }),
+      })
+    );
+    expect(priceEdit.status).toBe(200);
+    expect(((await priceEdit.json()) as { item: { pricePaise: number; inStock: boolean } }).item.pricePaise).toBe(9500);
+
+    // Restore original price 9000
+    await exec(
+      new Request('http://localhost/api/vendor/menu/item/it_g1', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ pricePaise: 9000 }),
+      })
+    );
+
+    // 4. Night safety, open/closed, busy toggles & default prep time
+    const statusRes = await exec(
+      new Request('http://localhost/api/vendor/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ isOpen: true, busyMinutes: 15, nightSafe: false }),
+      })
+    );
+    expect(statusRes.status).toBe(200);
+    expect(((await statusRes.json()) as { vendor: { nightSafe: boolean } }).vendor.nightSafe).toBe(false);
+
+    // Restore defaults
+    await exec(
+      new Request('http://localhost/api/vendor/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ isOpen: true, busyMinutes: 0, nightSafe: true }),
+      })
+    );
+
+    // 5. Settlement & Insights payload
+    const insightsRes = await exec(
+      new Request('http://localhost/api/vendor/settlement', {
+        headers: { Cookie: vendorCookie },
+      })
+    );
+    expect(insightsRes.status).toBe(200);
+    const insightsBody = (await insightsRes.json()) as {
+      ok: boolean;
+      insights: {
+        todayOrdersCount: number;
+        avgPrepMinutes: number;
+        promisedPrepMinutes: number;
+        topItems: unknown[];
+        hourlyBuckets: unknown[];
+      };
+    };
+    expect(insightsBody.ok).toBe(true);
+    expect(insightsBody.insights.todayOrdersCount).toBeGreaterThanOrEqual(1);
+    expect(insightsBody.insights.hourlyBuckets).toHaveLength(12);
+    expect(Array.isArray(insightsBody.insights.topItems)).toBe(true);
+  });
 });

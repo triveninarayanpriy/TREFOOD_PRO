@@ -4,6 +4,20 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Tablet-First Vendor Console (/vendor, /v Alias, Board, Controls & Insights)
+- **Order Board & Handover Assist (`src/client/pages/vendor/VendorConsolePage.tsx`)**:
+  - Mounted `/vendor` (keeping `/v` working cleanly) with responsive tablet grids fitting **768px portrait** and **1024px landscape** without horizontal overflow and **`>= 56px` touch targets** across controls.
+  - Updated board columns to **New Orders**, **Preparing**, **Ready** (`On Route` / `At Gate (Handover)`), and **Handed over** (sorted by most recent `deliveredAt`).
+  - Added persisted **Sound + Vibration Mute** toggle, live **Gate Windows Countdown Strip** (`getGateCurfewStatus`), adjustable prep-time steppers before and after acceptance (`PATCH /api/vendor/orders/:id/prep-time`), structured **Reject** modal with required reason (`POST /api/vendor/orders/:id/reject`), **Mark Ready • Send to Gate**, **Arrived at Gate**, 15-minute packet window timer, and **Handover Assist** controls (`Unlock Retry` / `Assist & Hand Over`) when a student locks out (`5/5` failed tries).
+- **Controls, Stock Search & Price Editor (`src/client/components/vendor/VendorMenuTab.tsx`, `src/worker/routes/vendor.ts`)**:
+  - Synced D1-backed **Store Open/Closed**, **Busy 30m / Clear**, **Night Safety Staff On Duty**, and **Stay Awake** toggles in the counter toolbar, plus batched `orderItems` hydration in `GET /api/vendor/orders`.
+  - Added dish search + category filter pills, 1-tap `In Stock / Sold Out` toggles, inline rupee price editor (`PATCH /api/vendor/menu/item/:id` + audit logging), and Default Promised Prep Time stepper (`PATCH /api/vendor/prep-time`).
+- **Insights & Daily Settlement (`src/client/components/vendor/VendorInsightsTab.tsx`, `GET /api/vendor/settlement`)**:
+  - Added Today's Orders, Today's Revenue (Pay at Gate vs UPI split), Avg Prep vs Promised comparison, Top Selling Items leaderboard, hand-written IST Peak Hours SVG chart, and Daily Settlement packets log with **Export CSV** download.
+- **Notifications Feed Refinement (`src/worker/routes/push.ts`)**:
+  - Scoped `GET /api/notifications` to return the latest concise status card per order across up to 40 recent orders (`idx_orders_user_created`).
+- **Verification**: Kept main student bundle at **145.23 kB gzip** (`< 150 KB` budget), **38 / 38 Vitest tests** passing, and **32 / 32 Playwright tests** passing (including portrait `768x1024` & landscape `1024x768` coverage + `@axe-core/playwright` audit in `e2e/vendor-console.spec.ts`).
+
 ### Added - Order Tracking (/orders, /orders/:id), Code Handover, Web Push & PWA Shell
 - **Live Tracker & 4-Digit Handover (`src/client/pages/OrderDetailPage.tsx`, `src/client/components/ui/StatusTimeline.tsx`)**:
   - Upgraded `StatusTimeline` to display all 6 steps (`Placed`, `Accepted`, `Preparing`, `Out for delivery`, `At your gate`, `Delivered`) with IST step timestamps, ETA badge, `aria-live="polite"`, and Campus Night Safety notice.

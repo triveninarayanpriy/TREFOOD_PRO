@@ -8,24 +8,24 @@ This report records the verification metrics, accessibility audits, performance 
 
 | Metric Category | Target Budget | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **First Load JavaScript Bundle** | < 150.0 kB gzip | **145.16 kB gzip** | Passed |
-| **Customer Home (`/app`) Lazy Chunk** | Isolated chunk | **6.44 kB gzip** | Passed |
+| **First Load JavaScript Bundle** | < 150.0 kB gzip | **145.23 kB gzip** | Passed |
+| **Customer Home (`/app`) Lazy Chunk** | Isolated chunk | **6.37 kB gzip** | Passed |
 | **Search Results (`/app/search`) Lazy Chunk** | Isolated chunk | **4.76 kB gzip** | Passed |
 | **Vendor Page (`/vendor/:slug`) Lazy Chunk** | Isolated chunk | **8.55 kB gzip** | Passed |
-| **Cart Drawer Lazy Chunk** | Isolated chunk | **4.50 kB gzip** | Passed |
+| **Cart Drawer Lazy Chunk** | Isolated chunk | **4.49 kB gzip** | Passed |
 | **Checkout Modal Lazy Chunk** | Isolated chunk | **6.15 kB gzip** | Passed |
 | **Orders List (`/orders`) Lazy Chunk** | Isolated chunk | **3.13 kB gzip** | Passed |
-| **Order Detail (`/orders/:id`) Lazy Chunk** | Isolated chunk | **6.69 kB gzip** | Passed |
+| **Order Detail (`/orders/:id`) Lazy Chunk** | Isolated chunk | **6.57 kB gzip** | Passed |
 | **Notification Centre & Review Sheet** | Isolated chunks | **2.60 kB + 1.51 kB gzip** | Passed |
-| **Vendor Console Lazy Chunk** | Isolated chunk | **6.47 kB gzip** | Passed |
-| **Admin Console Lazy Chunk** | Isolated chunk | **6.47 kB gzip** | Passed |
+| **Vendor Console (`/vendor`, `/v`) Lazy Chunk** | Isolated chunk | **11.86 kB gzip** | Passed |
+| **Admin Console Lazy Chunk** | Isolated chunk | **6.41 kB gzip** | Passed |
 | **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **5.63 kB gzip** | Passed |
 | **Legal Pages Lazy Chunk** | Isolated chunk | **3.10 kB gzip** | Passed |
 | **Sign-In (`/signin`) Lazy Chunk** | Isolated chunk | **4.61 kB gzip** | Passed |
-| **Vitest Worker & Domain Tests** | 100% passing | **37 / 37 passed (7 files)** | Passed |
-| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **30 / 30 passed** | Passed |
+| **Vitest Worker & Domain Tests** | 100% passing | **38 / 38 passed (7 files)** | Passed |
+| **Playwright Full Regression** | 320px, 390px, 768px, 1024px, 1280px, 1440px | **32 / 32 passed** | Passed |
 | **TypeScript Strict Compilation** | 0 errors | **0 errors** | Passed |
-| **ESLint Static Code Analysis** | 0 errors | **0 errors (24 warnings)** | Passed |
+| **ESLint Static Code Analysis** | 0 errors | **0 errors (15 warnings)** | Passed |
 | **Axe Accessibility Audit (Light & Dark)** | 0 critical / serious | **0 violations** | Passed |
 | **Lighthouse Mobile (`/`, Prod Build)** | >= 90 all 4 categories | **91 Perf / 100 A11y / 100 BP / 100 SEO** | Passed |
 | **Edge Security Headers** | CSP, HSTS, Secure Cookies | **100% enforced** | Passed |

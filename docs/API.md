@@ -288,17 +288,19 @@ Reports an order issue (`wrong_item`, `missing_item`, `quality`, `late`, `not_at
 ## 5. Vendor Console (`/api/vendor`)
 *All vendor endpoints require authentication and `vendor` or `admin` role.*
 
-- `GET /api/vendor/orders?since=`: Polls the live order board incrementally via `since` timestamp.
+- `GET /api/vendor/orders?since=`: Polls the live order board incrementally (batched `orderItems` hydration, `vendor` status metadata, and active `gates` curfew data).
 - `PATCH /api/vendor/orders/:id/status`: Advances order status (`accepted`, `out_for_delivery`, `at_gate`, `cancelled`).
 - `POST /api/vendor/orders/:id/accept`: One-tap order acceptance with optional `{ "prepMinutes": 20 }`.
+- `PATCH /api/vendor/orders/:id/prep-time`: Adjusts an active order's prep duration and recomputes `etaAt`.
 - `POST /api/vendor/orders/:id/reject`: Cancels/rejects order with required `{ "reason": "..." }`.
 - `POST /api/vendor/orders/:id/ready`: Advances accepted order to `out_for_delivery`.
 - `POST /api/vendor/orders/:id/handover-assist`: Resets 5-attempt handover lock (and optionally completes delivery with audit log).
 - `PATCH /api/vendor/prep-time`: Updates default prep time window (`prepMinutes`, `prepMaxMinutes`).
-- `GET /api/vendor/menu`: Retrieves vendor categories and items.
+- `GET /api/vendor/menu`: Retrieves vendor profile, categories, and items.
 - `PATCH /api/vendor/menu/item/:id/stock`: One-tap stock toggle (`{ "inStock": false }`).
-- `PATCH /api/vendor/status`: Toggles store open/busy status (`{ "isOpen": true, "busyMinutes": 15 }`).
-- `GET /api/vendor/settlement`: Calculates daily settlement summary and pay-at-gate totals.
+- `PATCH /api/vendor/menu/item/:id`: Edits menu item `pricePaise`, `packingChargePaise`, or `inStock` with audit logging.
+- `PATCH /api/vendor/status`: Toggles store open/busy status or night-safety staff duty (`{ "isOpen": true, "busyMinutes": 15, "nightSafe": true }`).
+- `GET /api/vendor/settlement`: Returns daily settlement totals, packet log, and `insights` (`todayOrdersCount`, `todayRevenuePaise`, `avgPrepMinutes`, `promisedPrepMinutes`, `topItems[]`, `hourlyBuckets[]`).
 
 ---
 
