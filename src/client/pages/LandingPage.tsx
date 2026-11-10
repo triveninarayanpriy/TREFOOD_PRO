@@ -472,7 +472,7 @@ export function LandingPage() {
                       key={s.key}
                       type="button"
                       onClick={() => setDemoStatusIdx(idx)}
-                      className={`min-h-[44px] rounded-xl text-[11px] font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
+                      className={`min-h-[44px] rounded-xl text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
                         demoStatusIdx === idx
                           ? 'bg-[#830020] text-white'
                           : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'

@@ -9,7 +9,7 @@ import { OfflineBanner } from './components/ui/OfflineBanner';
 import { TopBar } from './components/ui/TopBar';
 import { BottomNav } from './components/ui/BottomNav';
 import { DesktopNavRail } from './components/ui/DesktopNavRail';
-import { GatePicker } from './components/ui/GatePicker';
+import { SplashScreen } from './components/ui/SplashScreen';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { LandingPage } from './pages/LandingPage';
@@ -18,14 +18,11 @@ import { EmptyState } from './components/ui/EmptyState';
 import { AlertCircle } from 'lucide-react';
 import type { Gate } from '@shared/schemas';
 
-const SignInModal = lazy(() =>
-  import('./components/auth/SignInModal').then((m) => ({ default: m.SignInModal }))
-);
 const InstallAppModal = lazy(() =>
   import('./components/ui/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
 );
 
-// Lazy-load secondary routes so first load stays lean (<145 KB gzip) for hostel WiFi
+// Lazy-load secondary routes so first load stays lean (<150 KB gzip) for hostel WiFi
 const BrowsePage = lazy(() =>
   import('./pages/BrowsePage').then((m) => ({ default: m.BrowsePage }))
 );
@@ -37,6 +34,12 @@ const OrderDetailPage = lazy(() =>
 );
 const OrdersPage = lazy(() =>
   import('./pages/OrdersPage').then((m) => ({ default: m.OrdersPage }))
+);
+const FavoritesPage = lazy(() =>
+  import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage }))
+);
+const SignInPage = lazy(() =>
+  import('./pages/SignInPage').then((m) => ({ default: m.SignInPage }))
 );
 const AccountPage = lazy(() =>
   import('./pages/AccountPage').then((m) => ({ default: m.AccountPage }))
@@ -68,7 +71,6 @@ function AppShell() {
   const { selectedGateId, setSelectedGateId, itemCount } = useCart();
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
   const { modalOpen: installModalOpen, setModalOpen: setInstallModalOpen, triggerInstall } =
     usePwaInstall();
 
@@ -81,7 +83,8 @@ function AppShell() {
     staleTime: 60000,
   });
 
-  const currentGate = gatesData?.gates?.find((g) => g.id === selectedGateId) || null;
+  const gatesList = gatesData?.gates || [];
+  const currentGate = gatesList.find((g) => g.id === selectedGateId) || gatesList[0] || null;
 
   const isVendorRoute = location.pathname.startsWith('/v');
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -91,18 +94,22 @@ function AppShell() {
 
   return (
     <div className="min-h-screen overflow-x-clip flex flex-col bg-[var(--color-surface-sunken)] text-[var(--color-text)] transition-colors">
+      <SplashScreen />
       <OfflineBanner />
 
       {/* TopBar on customer & design system routes */}
       {!isDedicatedConsole && (
         <TopBar
+          gates={gatesList}
           currentGate={currentGate}
-          onOpenGatePicker={() => setGatePickerOpen(true)}
+          selectedGateId={selectedGateId}
+          onSelectGate={setSelectedGateId}
+          gatePickerOpen={gatePickerOpen}
+          onToggleGatePicker={setGatePickerOpen}
           cartCount={itemCount}
           onOpenCart={() => setCartDrawerOpen(true)}
           showDesktopLinks={isLandingRoute}
           onInstallApp={triggerInstall}
-          onOpenSignIn={() => setSignInOpen(true)}
         />
       )}
 
@@ -124,8 +131,10 @@ function AppShell() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/browse" element={<BrowsePage />} />
               <Route path="/vendor/:slug" element={<VendorPage />} />
+              <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route path="/signin" element={<SignInPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/terms" element={<TermsPage />} />
@@ -157,24 +166,11 @@ function AppShell() {
       {/* Bottom Navigation on mobile (< md) */}
       {!isDedicatedConsole && <BottomNav />}
 
-      {/* Global Gate Picker Sheet */}
-      <GatePicker
-        open={gatePickerOpen}
-        onClose={() => setGatePickerOpen(false)}
-        currentGateId={selectedGateId}
-        onSelectGate={(gate: Gate | string) => {
-          const id = typeof gate === 'string' ? gate : gate.id;
-          setSelectedGateId(id);
-          setGatePickerOpen(false);
-        }}
-      />
-
       {/* Global Cart Drawer */}
       <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
 
-      {/* Lazy Sign In & Install App Modals */}
+      {/* Lazy Install App Modal */}
       <Suspense fallback={null}>
-        {signInOpen && <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />}
         {installModalOpen && (
           <InstallAppModal open={installModalOpen} onClose={() => setInstallModalOpen(false)} />
         )}

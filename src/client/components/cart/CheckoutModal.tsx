@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -15,6 +15,7 @@ export interface CheckoutModalProps {
 
 export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, requestOtp, verifyOtp, loginAsDemo } = useAuth();
   const { vendor, items, selectedGateId, quote, quoteLoading, refetchQuote, clearCart } = useCart();
   const { showToast } = useToast();
@@ -71,8 +72,10 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
       setResendTimer(60);
       if (res.demoCode) {
         setDemoOtpHint(res.demoCode);
+        showToast(`Dev OTP for ${cleanEmail}: ${res.demoCode}`, 'info');
+      } else {
+        showToast('Verification code sent to your email', 'info');
       }
-      showToast('Verification code sent to your email', 'info');
     } else {
       setEmailError(res.error || 'Failed to send OTP');
     }
@@ -228,6 +231,20 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
               className="mt-3 w-full border-amber-300 bg-white hover:bg-amber-50 text-amber-950 font-semibold"
             >
               Continue as Demo Student (student@demo.trefood.test)
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full text-xs font-bold text-[#830020] dark:text-[#FFB400]"
+              onClick={() => {
+                onClose();
+                const sep = location.search ? '&' : '?';
+                const returnTo = `${location.pathname}${location.search}${location.search.includes('checkout=1') ? '' : `${sep}checkout=1`}`;
+                navigate(`/signin?returnTo=${encodeURIComponent(returnTo)}&reason=checkout`);
+              }}
+            >
+              Sign in with Google or Role Switcher (/signin)
             </Button>
           </div>
 

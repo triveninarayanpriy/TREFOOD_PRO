@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import {
   ShoppingBag,
   MapPin,
@@ -10,22 +10,30 @@ import {
   Menu,
   X,
   UserCheck,
+  Heart,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Gate } from '@shared/schemas';
 import { getGateCurfewStatus } from '@shared/curfew';
 import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 
+const GatePicker = lazy(() =>
+  import('./GatePicker').then((m) => ({ default: m.GatePicker }))
+);
+
 export interface TopBarProps {
+  gates?: Gate[];
   currentGate: Gate | null;
-  onOpenGatePicker: () => void;
+  selectedGateId: string;
+  onSelectGate: (gateId: string) => void;
+  gatePickerOpen: boolean;
+  onToggleGatePicker: (open: boolean) => void;
   cartCount: number;
   onOpenCart: () => void;
   showDesktopLinks?: boolean;
   onInstallApp?: () => void;
-  onOpenSignIn?: () => void;
 }
 
 const LANDING_ANCHORS = [
@@ -36,16 +44,21 @@ const LANDING_ANCHORS = [
 ];
 
 export function TopBar({
+  gates = [],
   currentGate,
-  onOpenGatePicker,
+  selectedGateId,
+  onSelectGate,
+  gatePickerOpen,
+  onToggleGatePicker,
   cartCount,
   onOpenCart,
   showDesktopLinks = false,
   onInstallApp,
-  onOpenSignIn,
 }: TopBarProps) {
   const { i18n } = useTranslation();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const toggleLanguage = () => {
@@ -57,78 +70,105 @@ export function TopBar({
   };
 
   const gateStatus = currentGate ? getGateCurfewStatus(currentGate) : null;
+  const gateShortName = currentGate ? currentGate.name.split('/')[0].split('(')[0].trim() : 'Choose Gate';
+  const signInUrl = `/signin?returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 sm:px-4 py-2">
-        {/* Brand Logo */}
-        <Link
-          to="/"
-          className="flex items-center gap-2 group rounded-xl shrink-0 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
-        >
-          <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-[#830020] text-[#FFB400] shadow-xs transition-transform group-hover:scale-105 shrink-0">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 14C4 9.58 7.58 6 12 6C16.42 6 20 9.58 20 14H4Z" fill="#FFB400" />
-              <path d="M3 16.5H21C21 18.7 19.2 20.5 17 20.5H7C4.8 20.5 3 18.7 3 16.5Z" fill="#FFFFFF" />
-              <circle cx="12" cy="4" r="1.5" fill="#FFB400" />
-            </svg>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1 leading-none">
-              <span className="font-display text-lg sm:text-xl font-extrabold tracking-tight text-[#830020] dark:text-[#FFB400]">
+    <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2">
+        {/* Left: Brand + Persistent "Deliver to: gate" Picker with Desktop Popover */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 lg:flex-initial">
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 sm:gap-2 group rounded-xl shrink-0 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+          >
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-[#830020] text-[#FFB400] shadow-xs transition-transform group-hover:scale-105 shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 14C4 9.58 7.58 6 12 6C16.42 6 20 9.58 20 14H4Z" fill="#FFB400" />
+                <path d="M3 16.5H21C21 18.7 19.2 20.5 17 20.5H7C4.8 20.5 3 18.7 3 16.5Z" fill="#FFFFFF" />
+                <circle cx="12" cy="4" r="1.5" fill="#FFB400" />
+              </svg>
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="font-display text-base sm:text-lg font-extrabold tracking-tight text-[#830020] dark:text-[#FFB400]">
                 TreFood
               </span>
-              <span className="hidden sm:inline-block rounded bg-[#FEF3C7] px-1.5 py-0.5 text-[10px] font-bold text-[#78350F] dark:bg-[#331F04] dark:text-[#FDE68A]">
-                NITP
+              <span className="text-[10px] sm:text-[11px] font-medium text-[var(--color-text-muted)]">
+                NIT Patna
               </span>
             </div>
-            <span className="block text-[11px] font-medium text-[var(--color-text-muted)]">
-              NIT Patna<span className="hidden sm:inline"> • ₹0 Delivery Fee</span>
-            </span>
+          </Link>
+
+          {/* Persistent "Deliver to: gate" button + anchored popover on desktop */}
+          <div className="relative flex-1 min-w-0 max-w-[175px] sm:max-w-[240px]">
+            <button
+              type="button"
+              onClick={() => onToggleGatePicker(!gatePickerOpen)}
+              aria-expanded={gatePickerOpen}
+              aria-haspopup="dialog"
+              className="flex w-full min-h-[44px] min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-2.5 sm:px-3 py-1 text-left text-xs transition-colors hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+            >
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[11px] sm:text-xs font-bold text-[var(--color-text)] leading-tight">
+                  <span className="sr-only sm:not-sr-only sm:font-medium sm:text-[var(--color-text-muted)]">Deliver to: </span>
+                  <span>{gateShortName}</span>
+                </div>
+                <div
+                  className={`flex items-center gap-1 truncate text-[10px] font-semibold leading-tight ${
+                    gateStatus && !gateStatus.isOpen
+                      ? 'text-red-700 dark:text-red-400'
+                      : gateStatus?.isNearingCurfew
+                      ? 'text-amber-800 dark:text-[#FFB400]'
+                      : 'text-[var(--color-text-muted)]'
+                  }`}
+                >
+                  <Clock className="h-2.5 w-2.5 shrink-0 hidden sm:inline" aria-hidden="true" />
+                  <span className="truncate">
+                    {gateStatus ? gateStatus.statusText : 'Checking gate'}
+                    {gateStatus?.countdownText && !gateStatus.is24x7 ? ` • ${gateStatus.countdownText}` : ''}
+                  </span>
+                </div>
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
+            </button>
+
+            {gatePickerOpen && (
+              <Suspense fallback={null}>
+                <GatePicker
+                  open={gatePickerOpen}
+                  onClose={() => onToggleGatePicker(false)}
+                  gates={gates}
+                  currentGateId={selectedGateId}
+                  onSelectGate={(gateOrId) =>
+                    onSelectGate(typeof gateOrId === 'string' ? gateOrId : gateOrId.id)
+                  }
+                  variant="popover"
+                />
+              </Suspense>
+            )}
           </div>
-        </Link>
+        </div>
 
         {/* Sticky Landing Navigation Links (Desktop >= 1024px) */}
-        {showDesktopLinks ? (
+        {showDesktopLinks && (
           <nav aria-label="Landing navigation" className="hidden lg:flex items-center gap-0.5">
             {LANDING_ANCHORS.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 xl:px-3 text-xs xl:text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
               >
                 {item.label}
               </a>
             ))}
             <Link
               to="/browse"
-              className="inline-flex min-h-[44px] items-center rounded-xl px-3 text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 xl:px-3 text-xs xl:text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
             >
               Browse menus
             </Link>
           </nav>
-        ) : (
-          /* Gate Picker Slot on internal campus app routes */
-          <button
-            type="button"
-            onClick={onOpenGatePicker}
-            className="flex min-h-[44px] min-w-0 max-w-[132px] sm:max-w-[260px] items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-2.5 sm:px-3 py-1.5 text-left text-xs transition-colors hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
-            aria-label="Select delivery hostel gate"
-          >
-            <MapPin className="h-4 w-4 shrink-0 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-bold text-[var(--color-text)] leading-tight">
-                {currentGate ? currentGate.name.split('(')[0].trim() : 'Choose Gate'}
-              </div>
-              {gateStatus && (
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-[var(--color-text-muted)] truncate">
-                  <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
-                  <span>{gateStatus.label}</span>
-                </div>
-              )}
-            </div>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
-          </button>
         )}
 
         {/* Right Actions */}
@@ -137,7 +177,7 @@ export function TopBar({
             <button
               type="button"
               onClick={onInstallApp}
-              className="hidden sm:inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              className="hidden sm:inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
             >
               <Download className="h-3.5 w-3.5 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
               <span>Install App</span>
@@ -147,16 +187,25 @@ export function TopBar({
           <ThemeToggle />
 
           {!showDesktopLinks && (
-            <button
-              type="button"
-              onClick={toggleLanguage}
-              className="hidden sm:inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
-              aria-label="Switch language between English and Hindi"
-              title="Switch Language (English / हिन्दी)"
-            >
-              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{i18n.language === 'en' ? 'हिन्दी' : 'EN'}</span>
-            </button>
+            <>
+              <Link
+                to="/favorites"
+                aria-label="Saved Favourites"
+                className="hidden sm:inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              >
+                <Heart className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+              </Link>
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="hidden sm:inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                aria-label="Switch language between English and Hindi"
+                title="Switch Language (English / हिन्दी)"
+              >
+                <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{i18n.language === 'en' ? 'हिन्दी' : 'EN'}</span>
+              </button>
+            </>
           )}
 
           {showDesktopLinks ? (
@@ -164,16 +213,16 @@ export function TopBar({
               {user ? (
                 <Link
                   to="/account"
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#830020] px-3 text-xs font-bold text-white shadow-xs hover:bg-[#6a001a] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                  className="hidden sm:inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#830020] px-3 text-xs font-bold text-white shadow-xs hover:bg-[#6a001a] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
                 >
                   <UserCheck className="h-4 w-4 text-[#FFB400]" aria-hidden="true" />
-                  <span className="max-w-[72px] truncate">{user.name?.split(' ')[0] || 'Account'}</span>
+                  <span className="max-w-[76px] truncate">{user.name?.split(' ')[0] || 'Account'}</span>
                 </Link>
               ) : (
                 <button
                   type="button"
-                  onClick={onOpenSignIn}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[#830020] px-3 text-xs font-bold text-white shadow-xs transition-colors hover:bg-[#6a001a] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                  onClick={() => navigate(signInUrl)}
+                  className="hidden sm:inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#830020] px-3 text-xs font-bold text-white shadow-xs transition-colors hover:bg-[#6a001a] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
                 >
                   <LogIn className="h-3.5 w-3.5 text-[#FFB400]" aria-hidden="true" />
                   <span>Sign in</span>
@@ -209,7 +258,7 @@ export function TopBar({
         </div>
       </div>
 
-      {/* Collapsible Mobile Menu Drawer for Landing Page (supports 320px–1023px) */}
+      {/* Collapsible Mobile Menu Drawer for Landing Page */}
       {showDesktopLinks && mobileMenuOpen && (
         <nav
           id="landing-mobile-menu"
@@ -246,6 +295,14 @@ export function TopBar({
               <span>Install App</span>
             </button>
           )}
+          <Link
+            to={user ? '/account' : signInUrl}
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[#830020] px-3 text-sm font-bold text-white"
+          >
+            <LogIn className="h-4 w-4 text-[#FFB400]" aria-hidden="true" />
+            <span>{user ? `Signed in (${user.name})` : 'Sign in'}</span>
+          </Link>
         </nav>
       )}
     </header>

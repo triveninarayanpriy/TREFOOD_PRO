@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { QtyStepper } from '../ui/QtyStepper';
 import { EmptyState } from '../ui/EmptyState';
 import { useCart } from '../../context/CartContext';
 import { ShoppingBag, Trash2, AlertCircle, ArrowRight, Clock } from 'lucide-react';
-import { CheckoutModal } from './CheckoutModal';
+
+const CheckoutModal = lazy(() =>
+  import('./CheckoutModal').then((m) => ({ default: m.CheckoutModal }))
+);
 
 export interface CartDrawerProps {
   open: boolean;
@@ -13,6 +17,7 @@ export interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     vendor,
     items,
@@ -27,6 +32,20 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('checkout') === '1' && items.length > 0) {
+      setCheckoutOpen(true);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('checkout');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [searchParams, setSearchParams, items.length]);
 
   const handleCheckoutClick = () => {
     setCheckoutOpen(true);
@@ -190,7 +209,11 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         )}
       </Sheet>
 
-      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      {checkoutOpen && (
+        <Suspense fallback={null}>
+          <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 }

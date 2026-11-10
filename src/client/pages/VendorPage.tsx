@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
@@ -10,6 +11,7 @@ import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CartDrawer } from '../components/cart/CartDrawer';
 import { SeoHead } from '../components/seo/SeoHead';
+import { useToast } from '../components/ui/Toast';
 import { isNightSafetyActive } from '@shared/curfew';
 import {
   Clock,
@@ -18,12 +20,16 @@ import {
   ArrowLeft,
   ShoppingBag,
   Sparkles,
+  Heart,
 } from 'lucide-react';
 import type { VendorDetail, MenuItem } from '@shared/types';
 
 export function VendorPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const {
     vendor: currentCartVendor,
     items: cartItems,
@@ -56,6 +62,41 @@ export function VendorPage() {
   });
 
   const vendor = vendorData?.vendor;
+
+  const { data: favData } = useQuery<{ ok: boolean; vendorIds: string[] }>({
+    queryKey: ['favorites', user?.id],
+    queryFn: async () => {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) return { ok: false, vendorIds: [] };
+      return res.json();
+    },
+    enabled: Boolean(user),
+  });
+
+  const isFavorite = Boolean(vendor && favData?.vendorIds?.includes(vendor.id));
+
+  const favMutation = useMutation({
+    mutationFn: async (vId: string) => {
+      const res = await fetch(`/api/favorites/${vId}`, {
+        method: isFavorite ? 'DELETE' : 'POST',
+      });
+      if (!res.ok) throw new Error('Could not update favourite');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      showToast(isFavorite ? 'Removed from saved favourites' : 'Saved to favourites', 'success');
+    },
+  });
+
+  const handleFavoriteToggle = () => {
+    if (!vendor) return;
+    if (!user) {
+      navigate(`/signin?returnTo=${encodeURIComponent(`/vendor/${vendor.slug}`)}&reason=favorites`);
+      return;
+    }
+    favMutation.mutate(vendor.id);
+  };
 
   if (isLoading) {
     return (
@@ -149,6 +190,19 @@ export function VendorPage() {
               </div>
 
               <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleFavoriteToggle}
+                  aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+                  aria-pressed={isFavorite}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                >
+                  <Heart
+                    className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
+                    aria-hidden="true"
+                  />
+                  <span>{isFavorite ? 'Saved' : 'Save'}</span>
+                </button>
                 {!vendor.isOpen ? (
                   <Badge variant="closed">Closed</Badge>
                 ) : isBusy ? (

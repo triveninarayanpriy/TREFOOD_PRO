@@ -1,4 +1,4 @@
-import { Clock, Star, ChevronRight, Bell } from 'lucide-react';
+import { Clock, Star, ChevronRight, Bell, Heart } from 'lucide-react';
 import { Badge } from './Badge';
 import type { VendorSummary } from '@shared/types';
 import { isNightSafetyActive } from '@shared/curfew';
@@ -31,6 +31,8 @@ export interface VendorCardProps {
   onClick?: () => void;
   variant?: 'open' | 'closed';
   onNotify?: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 export function VendorCard({
@@ -38,6 +40,8 @@ export function VendorCard({
   onClick,
   variant,
   onNotify,
+  isFavorite = false,
+  onToggleFavorite,
 }: VendorCardProps) {
   const isBusy = Boolean(vendor.busyUntil && vendor.busyUntil > Math.floor(Date.now() / 1000));
   const resolvedVariant =
@@ -55,10 +59,10 @@ export function VendorCard({
     }
   }
 
-  // Compact horizontal card for closed vendors so open vendors aren't pushed off-screen
+  // Compact horizontal card for closed vendors
   if (resolvedVariant === 'closed') {
     return (
-      <div
+      <article
         className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-[var(--shadow-card)]"
         data-vendor-variant="closed"
       >
@@ -85,6 +89,20 @@ export function VendorCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={onToggleFavorite}
+              aria-label={isFavorite ? `Remove ${vendor.name} from favourites` : `Save ${vendor.name} to favourites`}
+              aria-pressed={isFavorite}
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+            >
+              <Heart
+                className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+          )}
           {onNotify && (
             <button
               type="button"
@@ -106,30 +124,25 @@ export function VendorCard({
             </button>
           )}
         </div>
-      </div>
+      </article>
     );
   }
 
   return (
-    <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && onClick) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
+    <article
       data-vendor-variant="open"
-      className="flex flex-col justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] transition-all hover:border-[#830020] hover:shadow-[var(--shadow-raised)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+      className="relative flex flex-col justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] transition-all hover:border-[#830020] hover:shadow-[var(--shadow-raised)]"
     >
       <div>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <button
+            type="button"
+            onClick={onClick}
+            className="flex flex-1 min-w-0 items-center gap-3 text-left focus:outline-none focus:ring-2 focus:ring-[#FFB400] rounded-xl"
+          >
             <img
               src={getVendorImageUrl(vendor.category)}
-              alt={vendor.name}
+              alt=""
               width={56}
               height={56}
               loading="lazy"
@@ -151,17 +164,31 @@ export function VendorCard({
                 )}
               </div>
             </div>
-          </div>
+          </button>
 
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            {isBusy ? (
-              <Badge variant="warning">Busy</Badge>
-            ) : (
-              <Badge variant="success">Open</Badge>
-            )}
-            {nightSafe && nightNow && (
-              <Badge variant="night_safe">Night Safe</Badge>
-            )}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5">
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={onToggleFavorite}
+                  aria-label={isFavorite ? `Remove ${vendor.name} from favourites` : `Save ${vendor.name} to favourites`}
+                  aria-pressed={isFavorite}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                >
+                  <Heart
+                    className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              )}
+              {isBusy ? (
+                <Badge variant="warning">Busy</Badge>
+              ) : (
+                <Badge variant="success">Open</Badge>
+              )}
+            </div>
+            {nightSafe && nightNow && <Badge variant="night_safe">Night Safe</Badge>}
           </div>
         </div>
 
@@ -172,7 +199,11 @@ export function VendorCard({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-3 mt-3 text-xs text-[var(--color-text-muted)]">
+      <button
+        type="button"
+        onClick={onClick}
+        className="mt-3 flex min-h-[44px] w-full items-center justify-between border-t border-[var(--color-border-subtle)] pt-3 text-xs text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FFB400] rounded-b-xl"
+      >
         <div className="flex items-center gap-1.5 font-medium">
           <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>~{vendor.etaMinutes ?? vendor.prepMinutes + 10} min to gate</span>
@@ -181,7 +212,7 @@ export function VendorCard({
           <span>View Menu</span>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </div>
-      </div>
-    </div>
+      </button>
+    </article>
   );
 }

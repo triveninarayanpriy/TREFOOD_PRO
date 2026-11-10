@@ -1,4 +1,4 @@
-import { Home, Compass, Receipt, User } from 'lucide-react';
+import { Home, Compass, Receipt, User, Heart } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ export function BottomNav() {
   const links = [
     { to: '/', label: t('nav.home', 'Home'), icon: Home },
     { to: '/browse', label: t('nav.browse', 'Browse'), icon: Compass },
+    { to: '/favorites', label: t('nav.favorites', 'Saved'), icon: Heart },
     { to: '/orders', label: t('nav.orders', 'Orders'), icon: Receipt },
     { to: '/account', label: t('nav.account', 'Account'), icon: User },
   ];

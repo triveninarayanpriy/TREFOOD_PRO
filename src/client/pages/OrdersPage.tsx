@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
@@ -7,7 +6,6 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
-import { CheckoutModal } from '../components/cart/CheckoutModal';
 import { useSeoHead } from '../components/seo/SeoHead';
 import {
   ShoppingBag,
@@ -26,7 +24,6 @@ export function OrdersPage() {
   });
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [signInOpen, setSignInOpen] = useState(false);
 
   const {
     data: ordersData,
@@ -47,13 +44,12 @@ export function OrdersPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-16">
         <EmptyState
-          icon={<LogIn className="h-8 w-8 text-stone-400" />}
+          icon={<LogIn className="h-8 w-8 text-[#830020] dark:text-[#FFB400]" />}
           title="Sign in to view your orders"
           description="Track active deliveries, view packet handover codes, and review your campus order history."
           actionLabel="Sign In with Campus Account"
-          onAction={() => setSignInOpen(true)}
+          onAction={() => navigate('/signin?returnTo=/orders&reason=orders')}
         />
-        <CheckoutModal open={signInOpen} onClose={() => setSignInOpen(false)} />
       </div>
     );
   }

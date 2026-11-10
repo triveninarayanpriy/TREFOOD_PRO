@@ -9,31 +9,75 @@ export interface User {
   vendorId?: string | null;
 }
 
+export interface AuthProvidersInfo {
+  demoMode: boolean;
+  googleOAuthEnabled: boolean;
+  mockGoogleEnabled: boolean;
+  turnstileEnabled: boolean;
+  turnstileSiteKey: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  requestOtp: (email: string) => Promise<{ ok: boolean; demoCode?: string; message?: string; error?: string }>;
-  verifyOtp: (email: string, code: string) => Promise<{ ok: boolean; user?: User; error?: string }>;
-  loginAsDemo: (role: 'student' | 'vendor' | 'admin') => Promise<{ ok: boolean; user?: User; error?: string }>;
+  providers: AuthProvidersInfo;
+  requestOtp: (
+    email: string,
+    turnstileToken?: string
+  ) => Promise<{ ok: boolean; demoCode?: string; message?: string; error?: string }>;
+  verifyOtp: (
+    email: string,
+    code: string,
+    turnstileToken?: string
+  ) => Promise<{ ok: boolean; user?: User; error?: string }>;
+  loginWithMockGoogle: (
+    profile: { email: string; name: string },
+    turnstileToken?: string
+  ) => Promise<{ ok: boolean; user?: User; error?: string }>;
+  loginAsDemo: (
+    role: 'student' | 'vendor' | 'admin'
+  ) => Promise<{ ok: boolean; user?: User; error?: string }>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<boolean>;
   refreshUser: () => Promise<void>;
 }
+
+const DEFAULT_PROVIDERS: AuthProvidersInfo = {
+  demoMode: true,
+  googleOAuthEnabled: false,
+  mockGoogleEnabled: true,
+  turnstileEnabled: false,
+  turnstileSiteKey: null,
+};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [providers, setProviders] = useState<AuthProvidersInfo>(DEFAULT_PROVIDERS);
 
   const fetchMe = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
-      const data = (await res.json()) as any;
-      if (res.ok && data.ok && data.user) {
+      const [meRes, provRes] = await Promise.all([
+        fetch('/api/auth/me'),
+        fetch('/api/auth/providers').catch(() => null),
+      ]);
+      const data = (await meRes.json()) as { ok?: boolean; user?: User | null };
+      if (meRes.ok && data.ok && data.user) {
         setUser(data.user);
       } else {
         setUser((prev) => (prev ? prev : null));
+      }
+      if (provRes && provRes.ok) {
+        const provData = (await provRes.json()) as Partial<AuthProvidersInfo>;
+        setProviders({
+          demoMode: provData.demoMode ?? true,
+          googleOAuthEnabled: provData.googleOAuthEnabled ?? false,
+          mockGoogleEnabled: provData.mockGoogleEnabled ?? true,
+          turnstileEnabled: provData.turnstileEnabled ?? false,
+          turnstileSiteKey: provData.turnstileSiteKey ?? null,
+        });
       }
     } catch {
       setUser((prev) => (prev ? prev : null));
@@ -46,32 +90,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchMe();
   }, [fetchMe]);
 
-  const requestOtp = async (email: string) => {
+  const requestOtp = async (email: string, turnstileToken?: string) => {
     try {
       const res = await fetch('/api/auth/otp/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as {
+        previewCode?: string;
+        demoCode?: string;
+        message?: string;
+        error?: { message?: string };
+      };
       if (!res.ok) {
         return { ok: false, error: data.error?.message || 'Failed to send OTP' };
       }
-      return { ok: true, demoCode: data.demoCode, message: data.message };
+      return {
+        ok: true,
+        demoCode: data.previewCode ?? data.demoCode,
+        message: data.message,
+      };
     } catch {
       return { ok: false, error: 'Network error requesting OTP' };
     }
   };
 
-  const verifyOtp = async (email: string, code: string) => {
+  const verifyOtp = async (email: string, code: string, turnstileToken?: string) => {
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify({ email, code, turnstileToken }),
       });
-      const data = (await res.json()) as any;
-      if (!res.ok) {
+      const data = (await res.json()) as { user?: User; error?: { message?: string } };
+      if (!res.ok || !data.user) {
         return { ok: false, error: data.error?.message || 'Invalid or expired OTP' };
       }
       setUser(data.user);
@@ -81,13 +134,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithMockGoogle = async (
+    profile: { email: string; name: string },
+    turnstileToken?: string
+  ) => {
+    try {
+      const res = await fetch('/api/auth/google/mock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...profile, turnstileToken }),
+      });
+      const data = (await res.json()) as { user?: User; error?: { message?: string } };
+      if (!res.ok || !data.user) {
+        return { ok: false, error: data.error?.message || 'Google sign-in failed' };
+      }
+      setUser(data.user);
+      return { ok: true, user: data.user };
+    } catch {
+      return { ok: false, error: 'Network error during Google sign-in' };
+    }
+  };
+
   const loginAsDemo = async (role: 'student' | 'vendor' | 'admin') => {
     try {
       const res = await fetch(`/api/auth/demo/${role}`, {
         method: 'POST',
       });
-      const data = (await res.json()) as any;
-      if (!res.ok) {
+      const data = (await res.json()) as { user?: User; error?: { message?: string } };
+      if (!res.ok || !data.user) {
         return { ok: false, error: data.error?.message || 'Demo login failed' };
       }
       setUser(data.user);
@@ -123,8 +197,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        providers,
         requestOtp,
         verifyOtp,
+        loginWithMockGoogle,
         loginAsDemo,
         logout,
         deleteAccount,
@@ -137,9 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
 }

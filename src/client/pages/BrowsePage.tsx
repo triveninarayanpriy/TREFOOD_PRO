@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { Input } from '../components/ui/Input';
 import { Chip, Badge } from '../components/ui/Badge';
 import { VendorCard } from '../components/ui/VendorCard';
@@ -21,7 +22,42 @@ export function BrowsePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { selectedGateId, setSelectedGateId } = useCart();
+  const { user } = useAuth();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: favData } = useQuery<{ ok: boolean; vendorIds: string[] }>({
+    queryKey: ['favorites', user?.id],
+    queryFn: async () => {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) return { ok: false, vendorIds: [] };
+      return res.json();
+    },
+    enabled: Boolean(user),
+  });
+
+  const favMutation = useMutation({
+    mutationFn: async ({ vendorId, isFav }: { vendorId: string; isFav: boolean }) => {
+      const res = await fetch(`/api/favorites/${vendorId}`, {
+        method: isFav ? 'DELETE' : 'POST',
+      });
+      if (!res.ok) throw new Error('Failed updating favourite');
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      showToast(vars.isFav ? 'Removed from favourites' : 'Saved to favourites', 'success');
+    },
+  });
+
+  const handleToggleFavorite = (vendorId: string) => {
+    if (!user) {
+      navigate('/signin?returnTo=/browse&reason=favorites');
+      return;
+    }
+    const isFav = Boolean(favData?.vendorIds?.includes(vendorId));
+    favMutation.mutate({ vendorId, isFav });
+  };
 
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -267,6 +303,8 @@ export function BrowsePage() {
                     key={vendor.id}
                     vendor={vendor}
                     variant="open"
+                    isFavorite={Boolean(favData?.vendorIds?.includes(vendor.id))}
+                    onToggleFavorite={() => handleToggleFavorite(vendor.id)}
                     onClick={() => navigate(`/vendor/${vendor.slug}`)}
                   />
                 ))}
@@ -285,6 +323,8 @@ export function BrowsePage() {
                     key={vendor.id}
                     vendor={vendor}
                     variant="closed"
+                    isFavorite={Boolean(favData?.vendorIds?.includes(vendor.id))}
+                    onToggleFavorite={() => handleToggleFavorite(vendor.id)}
                     onClick={() => navigate(`/vendor/${vendor.slug}`)}
                     onNotify={() =>
                       showToast(`We will notify you when ${vendor.name} opens for your gate.`, 'success')

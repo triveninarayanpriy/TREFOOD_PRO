@@ -175,16 +175,30 @@ export function AccountPage() {
 
       {/* Privacy and Account Actions */}
       <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden dark:border-stone-800 dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800">
+        {!user && (
+          <ListRow
+            title="Sign In Options (/signin)"
+            subtitle="Google campus chooser, Email OTP fallback, or Demo roles"
+            onClick={() => navigate('/signin?returnTo=/account')}
+            showChevron
+          />
+        )}
+        <ListRow
+          title="Saved Favourites"
+          subtitle="Quickly view your pinned NIT Patna canteens"
+          onClick={() => navigate('/favorites')}
+          showChevron
+        />
         <ListRow
           title="Design System & UI Kit"
           subtitle="Explore all components, tokens and states"
-          onClick={() => navigate('/dev/kit')}
+          onClick={() => navigate('/dev/ui')}
           showChevron
         />
         <ListRow
           title="Terms & Privacy"
           subtitle="NIT Patna campus delivery guidelines"
-          onClick={() => showToast('NIT Patna campus zero-fee delivery terms')}
+          onClick={() => navigate('/terms')}
           showChevron
         />
         {user && (
