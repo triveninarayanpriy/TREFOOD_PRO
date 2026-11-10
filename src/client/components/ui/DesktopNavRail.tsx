@@ -26,7 +26,7 @@ export function DesktopNavRail() {
   ];
 
   const toolLinks = [
-    { to: '/v', label: 'Vendor Tablet', icon: Store },
+    { to: '/vendor', label: 'Vendor Tablet', icon: Store },
     { to: '/admin', label: 'Campus Admin', icon: ShieldAlert },
     { to: '/dev/ui', label: 'UI Kit (/dev/ui)', icon: Palette },
   ];

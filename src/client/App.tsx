@@ -100,7 +100,11 @@ function AppShell() {
   const gatesList = gatesData?.gates || [];
   const currentGate = gatesList.find((g) => g.id === selectedGateId) || gatesList[0] || null;
 
-  const isVendorRoute = location.pathname === '/v' || location.pathname.startsWith('/v/');
+  const isVendorRoute =
+    location.pathname === '/v' ||
+    location.pathname.startsWith('/v/') ||
+    location.pathname === '/vendor' ||
+    location.pathname.startsWith('/vendor/');
   const isAdminRoute = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
   const isLandingRoute = location.pathname === '/';
   const isDedicatedConsole = isVendorRoute || isAdminRoute;
@@ -162,6 +166,7 @@ function AppShell() {
               <Route path="/dev/ui" element={<DevKitPage />} />
               <Route path="/dev/kit" element={<DevKitPage />} />
               <Route path="/v" element={<VendorConsolePage />} />
+              <Route path="/vendor" element={<VendorConsolePage />} />
               <Route path="/admin" element={<AdminConsolePage />} />
               <Route
                 path="*"
