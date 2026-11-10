@@ -358,3 +358,28 @@ export const VendorMenuItemUpdateSchema = z.object({
 export const VendorOrderPrepAdjustSchema = z.object({
   prepMinutes: z.number().int().min(5).max(120),
 });
+
+export const AdminVendorGatesUpdateSchema = z.object({
+  gates: z.array(
+    z.object({
+      gateId: z.string().min(1),
+      extraMinutes: z.number().int().min(0).max(60).default(0),
+    })
+  ),
+});
+
+export const AdminApplicationActionSchema = z.object({
+  status: z.enum(['reviewed', 'approved']),
+  category: z.string().min(2).max(40).optional(),
+  prepMinutes: z.number().int().min(5).max(90).optional(),
+});
+
+export const AdminGateUpdateSchema = z.object({
+  curfewTime: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM').optional(),
+  bufferMinutes: z.number().int().min(0).max(60).optional(),
+  travelMinutes: z.number().int().min(0).max(60).optional(),
+  active: z.boolean().optional(),
+  is24x7: z.boolean().optional(),
+  broadcastBanner: z.boolean().optional(),
+  bannerMessage: z.string().min(5).max(300).optional(),
+});
