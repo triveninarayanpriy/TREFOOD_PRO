@@ -8,17 +8,19 @@ This report records the verification metrics, accessibility audits, performance 
 
 | Metric Category | Target Budget | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **First Load JavaScript Bundle** | < 150.0 kB gzip | **145.42 kB gzip** | Passed |
-| **Customer Home (`/app`) Lazy Chunk** | Isolated chunk | **6.30 kB gzip** | Passed |
-| **Search Results (`/app/search`) Lazy Chunk** | Isolated chunk | **4.58 kB gzip** | Passed |
-| **Vendor Page (`/vendor/:slug`) Lazy Chunk** | Isolated chunk | **8.48 kB gzip** | Passed |
-| **Vendor Console Lazy Chunk** | Isolated chunk | **6.44 kB gzip** | Passed |
-| **Admin Console Lazy Chunk** | Isolated chunk | **5.98 kB gzip** | Passed |
-| **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **5.93 kB gzip** | Passed |
+| **First Load JavaScript Bundle** | < 150.0 kB gzip | **144.53 kB gzip** | Passed |
+| **Customer Home (`/app`) Lazy Chunk** | Isolated chunk | **6.44 kB gzip** | Passed |
+| **Search Results (`/app/search`) Lazy Chunk** | Isolated chunk | **4.76 kB gzip** | Passed |
+| **Vendor Page (`/vendor/:slug`) Lazy Chunk** | Isolated chunk | **8.66 kB gzip** | Passed |
+| **Cart Drawer Lazy Chunk** | Isolated chunk | **4.49 kB gzip** | Passed |
+| **Checkout Modal Lazy Chunk** | Isolated chunk | **6.13 kB gzip** | Passed |
+| **Vendor Console Lazy Chunk** | Isolated chunk | **6.46 kB gzip** | Passed |
+| **Admin Console Lazy Chunk** | Isolated chunk | **6.02 kB gzip** | Passed |
+| **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **6.02 kB gzip** | Passed |
 | **Legal Pages Lazy Chunk** | Isolated chunk | **3.10 kB gzip** | Passed |
-| **Sign-In (`/signin`) Lazy Chunk** | Isolated chunk | **4.59 kB gzip** | Passed |
-| **Vitest Worker & Domain Tests** | 100% passing | **34 / 34 passed (7 files)** | Passed |
-| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **26 / 26 passed (33.8s)** | Passed |
+| **Sign-In (`/signin`) Lazy Chunk** | Isolated chunk | **4.61 kB gzip** | Passed |
+| **Vitest Worker & Domain Tests** | 100% passing | **36 / 36 passed (7 files)** | Passed |
+| **Playwright Full Regression** | 320px, 390px, 1280px, 1440px | **28 / 28 passed** | Passed |
 | **TypeScript Strict Compilation** | 0 errors | **0 errors** | Passed |
 | **ESLint Static Code Analysis** | 0 errors | **0 errors (33 warnings)** | Passed |
 | **Axe Accessibility Audit (Light & Dark)** | 0 critical / serious | **0 violations** | Passed |
@@ -142,8 +144,9 @@ Playwright tests run across Chromium Desktop (`1280x800` + `1440x900`) and Chrom
 5. **`landing.spec.ts`** (Desktop & Mobile): Hero guest gate picker & search, live stats, curfew mini-demo, D1 onboarding form, sample testimonials/FAQ 11+ items, light & dark `axe-core`, draft `/terms`, `/sitemap.xml`, `/robots.txt`, and `320px`/`1440px` zero horizontal overflow.
 6. **`auth-gates.spec.ts`** (Desktop & Mobile): First-visit splash (`1.5s`, 44px Skip, suppressed on reload & deep links), persistent `Deliver to:` header, mobile bottom-sheet vs desktop popover Gate Picker + 1-tap closed gate alternative switch, `/signin` mock Google chooser, OTP dev toast fallback, Demo Role Switcher, guest-to-sign-in `returnTo` flow, and refresh persistence.
 7. **`customer-app.spec.ts`** (Desktop & Mobile): `/app` mobile-first & `1280px` two-column home (`320px` zero overflow), promotions carousel, Quick picks, Popular vendors, Open-first ordering, Slim closed list (`Opens at`, `Notify me`, `Pre-order`), zero-result category chip guard, `ETA`/`Rating`/`Price` sorting, search suggestions + recent searches -> `/app/search`, `/vendor/:slug` Call/Save/Reviews summary tab & `ItemOptionsSheet` variants/add-ons, plus `@axe-core/playwright` audits on `/app`, `/app/search`, and `/vendor/:slug`.
+8. **`cart-checkout.spec.ts`** (Desktop & Mobile): Zustand offline persistence, `"Start a new cart with X?"` conflict dialog, minimum-order progress bar + 1-tap suggested add-ons, coupon list eligibility & itemised bill (items, packing, discount, FREE delivery, total), curfew alert + 1-tap alternative gate switch, Schedule for later slots bounded by vendor/gate hours, contact phone + delivery note, simulated UPI decline recovery & confirmation -> `/orders/:id`, plus `@axe-core/playwright` audit.
 
-**Total Execution Time**: 33.8 seconds, 26 tests passed, 0 failures, 0 retries.
+**Total Suite Coverage**: 28 tests passed, 0 failures, 0 retries.
 
 ---
 

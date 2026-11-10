@@ -663,4 +663,189 @@ describe('Worker Full API Integration Tests', () => {
     expect(quoteBody.packingTotalPaise).toBe(1000);
     expect(quoteBody.totalPaise).toBe(45000);
   });
+
+  it('enforces minimum order shortfall + suggestedAddons, coupon validation, curfew refusal + alternative gates, UPI simulation & double-submit idempotency', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    const baseIstMidnightUtc = Math.floor(Date.UTC(2026, 10, 9, 18, 30, 0) / 1000);
+    const ts1400Ist = (baseIstMidnightUtc + 14 * 3600).toString();
+    const ts1920Ist = (baseIstMidnightUtc + 19 * 3600 + 20 * 60).toString();
+
+    const studentLogin = await exec(
+      new Request('http://localhost/api/auth/demo/student', { method: 'POST' })
+    );
+    const cookie = (studentLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    // 1. Minimum order shortfall (Sone Valley minOrder = 7900, it_s7 Boondi Raita = 2500 -> short by 5400 + returns suggestedAddons)
+    const minQuoteRes = await exec(
+      new Request('http://localhost/api/cart/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-mock-time': ts1400Ist },
+        body: JSON.stringify({
+          vendorId: 'v_sone',
+          gateId: 'gate_main',
+          items: [{ itemId: 'it_s7', quantity: 1 }],
+        }),
+      })
+    );
+    expect(minQuoteRes.status).toBe(200);
+    const minQuote = (await minQuoteRes.json()) as {
+      meetsMinOrder: boolean;
+      shortfallPaise: number;
+      minOrderPaise: number;
+      suggestedAddons: Array<{ id: string; pricePaise: number }>;
+    };
+    expect(minQuote.meetsMinOrder).toBe(false);
+    expect(minQuote.minOrderPaise).toBe(7900);
+    expect(minQuote.shortfallPaise).toBe(5400);
+    expect(minQuote.suggestedAddons.length).toBeGreaterThan(0);
+
+    // Placing below minimum order rejected with 409 MIN_ORDER_NOT_MET
+    const shortOrderRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          'Idempotency-Key': `min-err-${ulid()}`,
+          'x-mock-time': ts1400Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_sone',
+          gateId: 'gate_main',
+          items: [{ itemId: 'it_s7', quantity: 1 }],
+        }),
+      })
+    );
+    expect(shortOrderRes.status).toBe(409);
+    const shortErr = (await shortOrderRes.json()) as { error: { code: string } };
+    expect(shortErr.error.code).toBe('MIN_ORDER_NOT_MET');
+
+    // 2. Ineligible coupon rejected with 409 COUPON_NOT_ELIGIBLE (FLAT25 min order 14900, item 9500)
+    const badCouponRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          'Idempotency-Key': `cpn-err-${ulid()}`,
+          'x-mock-time': ts1400Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_sone',
+          gateId: 'gate_main',
+          couponCode: 'FLAT25',
+          items: [{ itemId: 'it_s3', quantity: 1 }], // 9500 >= 7900 vendor min, < 14900 FLAT25 min
+        }),
+      })
+    );
+    expect(badCouponRes.status).toBe(409);
+    expect(((await badCouponRes.json()) as { error: { code: string } }).error.code).toBe(
+      'COUPON_NOT_ELIGIBLE'
+    );
+
+    // 3. Curfew refusal at 19:20 IST on Boys Hostel (19:30 curfew + 15m window) suggests Main Gate 24x7
+    const curfewOrderRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          'Idempotency-Key': `curfew-err-${ulid()}`,
+          'x-mock-time': ts1920Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_h5',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      })
+    );
+    expect(curfewOrderRes.status).toBe(400);
+    const curfewBody = (await curfewOrderRes.json()) as {
+      error: {
+        code: string;
+        suggestedGate?: { gateId: string };
+        alternativeGates?: Array<{ gateId: string }>;
+      };
+    };
+    expect(curfewBody.error.code).toBe('too_late');
+    expect(curfewBody.error.alternativeGates?.some((g) => g.gateId === 'gate_main')).toBe(true);
+
+    // 4. Simulated UPI decline returns 402 PAYMENT_FAILED without storing an order
+    const upiFailKey = `upi-fail-${ulid()}`;
+    const upiFailRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          'Idempotency-Key': upiFailKey,
+          'x-mock-time': ts1400Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          paymentMethod: 'upi_simulated',
+          upiSimulateResult: 'failed',
+          contactPhone: '9876543210',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      })
+    );
+    expect(upiFailRes.status).toBe(402);
+    expect(((await upiFailRes.json()) as { error: { code: string } }).error.code).toBe(
+      'PAYMENT_FAILED'
+    );
+
+    // 5. Simulated UPI success + contactPhone + double-submit prevention with identical Idempotency-Key
+    const idempKey = `upi-ok-${ulid()}`;
+    const reqInit = () =>
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookie,
+          'Idempotency-Key': idempKey,
+          'x-mock-time': ts1400Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          paymentMethod: 'upi_simulated',
+          upiSimulateResult: 'success',
+          paymentRef: 'UPI-TEST-123',
+          contactPhone: '9876543210',
+          note: 'Call near guard desk',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      });
+
+    const firstPlace = await exec(reqInit());
+    expect(firstPlace.status).toBe(201);
+    const firstOrder = (await firstPlace.json()) as {
+      ok: boolean;
+      order: { id: string; handoverCode: string; paymentMethod: string; paymentStatus: string; contactPhone: string };
+    };
+    expect(firstOrder.order.paymentMethod).toBe('upi_simulated');
+    expect(firstOrder.order.paymentStatus).toBe('paid');
+    expect(firstOrder.order.contactPhone).toBe('9876543210');
+    expect(firstOrder.order.handoverCode).toMatch(/^\d{4}$/);
+
+    // Duplicate click replay returns original order safely (200 OK, replayed: true)
+    const replayPlace = await exec(reqInit());
+    expect(replayPlace.status).toBe(200);
+    const replayBody = (await replayPlace.json()) as {
+      replayed: boolean;
+      order: { id: string; handoverCode: string };
+    };
+    expect(replayBody.replayed).toBe(true);
+    expect(replayBody.order.id).toBe(firstOrder.order.id);
+    expect(replayBody.order.handoverCode).toBe(firstOrder.order.handoverCode);
+  });
 });

@@ -118,5 +118,45 @@ describe('Pricing & Cart Service', () => {
     expect(eligible.packingTotalPaise).toBe(1000);
     expect(eligible.discountPaise).toBe(6000);
     expect(eligible.totalPaise).toBe(15000);
+
+    // Returning user rejected on newUsersOnly coupon
+    const returningUserEval = calculateCartPricing({
+      items: [{ itemId: 'a', quantity: 2, unitPricePaise: 10000 }],
+      coupon,
+      isNewUser: false,
+    });
+    expect(returningUserEval.discountPaise).toBe(0);
+    expect(returningUserEval.couponError).toContain('first orders only');
+
+    // Expired and inactive coupons rejected cleanly
+    const expiredCoupon: CouponRule = {
+      ...coupon,
+      code: 'OLD20',
+      newUsersOnly: false,
+      expiresAt: 1700000000,
+    };
+    const expiredEval = calculateCartPricing({
+      items: [{ itemId: 'a', quantity: 2, unitPricePaise: 10000 }],
+      coupon: expiredCoupon,
+      isNewUser: true,
+      nowUtcSeconds: 1800000000,
+    });
+    expect(expiredEval.discountPaise).toBe(0);
+    expect(expiredEval.couponError).toContain('expired');
+
+    const flatCoupon: CouponRule = {
+      code: 'FLAT25',
+      discountType: 'flat',
+      discountValue: 2500,
+      minOrderPaise: 14900,
+      active: true,
+    };
+    const flatEval = calculateCartPricing({
+      items: [{ itemId: 'a', quantity: 1, unitPricePaise: 15000, packingChargePaise: 500 }],
+      coupon: flatCoupon,
+      isNewUser: false,
+    });
+    expect(flatEval.discountPaise).toBe(2500);
+    expect(flatEval.totalPaise).toBe(13000); // 15000 + 500 - 2500
   });
 });

@@ -48,4 +48,5 @@ This document records architectural choices and the rationale for every dependen
 | `wrangler` | Cloudflare developer platform CLI for local simulation, D1, and deployments. |
 | `i18next` | Internationalization framework for multi-language support (English and Hindi). |
 | `react-i18next` | React integration hooks and components for i18next. |
+| `zustand` (`5.1.0`) | Tiny persisted client cart store (`~1.2 KB` gzip) for offline-safe cart, coupons, and checkout preferences. |
 | `@axe-core/playwright` | Dev-only automated WCAG AA & contrast auditing inside Playwright E2E tests (0 bytes in client bundle). |

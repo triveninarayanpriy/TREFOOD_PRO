@@ -160,14 +160,16 @@ Combined vendor and dish search endpoint powered by indexed batch D1 queries (`i
 Returns active, unexpired campus coupons configured for NIT Patna.
 
 ### `POST /api/cart/quote`
-Recalculates cart totals from server truth, verifies item availability, and validates curfew arrival time.
+Recalculates cart totals from server truth (items, packing charges, variant deltas, add-ons, coupon discount), verifies stock & minimum order, computes schedule slots (`availableSlots`), suggests in-stock add-ons (`suggestedAddons`) when short of vendor minimum order, and validates curfew arrival time with `latestOrderTime` & `alternativeGates`.
 - **Body**:
   ```json
   {
     "vendorId": "v_ganga",
     "gateId": "gate_main",
+    "couponCode": "CAMPUS20",
+    "scheduledFor": 1700055000,
     "items": [
-      { "itemId": "it_g1", "quantity": 2, "expectedPricePaise": 16000 }
+      { "itemId": "it_g1", "quantity": 2, "variantId": "full", "expectedPricePaise": 24000 }
     ]
   }
   ```
@@ -175,14 +177,23 @@ Recalculates cart totals from server truth, verifies item availability, and vali
   ```json
   {
     "ok": true,
-    "subtotalPaise": 32000,
+    "subtotalPaise": 48000,
+    "packingTotalPaise": 0,
+    "discountPaise": 4000,
     "deliveryFeePaise": 0,
-    "totalPaise": 32000,
+    "totalPaise": 44000,
     "totalQuantity": 2,
+    "minOrderPaise": 0,
+    "meetsMinOrder": true,
+    "shortfallPaise": 0,
+    "suggestedAddons": [],
     "canDeliver": true,
     "etaMinutes": 30,
     "etaAt": 1700059500,
-    "estimatedArrivalIst": "20:45"
+    "estimatedArrivalIst": "20:45",
+    "latestOrderTime": "18:45",
+    "alternativeGates": [],
+    "availableSlots": []
   }
   ```
 - **Response `409 Conflict`**: Returned if an item went out of stock (`ITEM_OUT_OF_STOCK`) or its price changed (`PRICE_CHANGED`).
@@ -199,14 +210,21 @@ Public vendor onboarding form submission stored in D1 `vendor_applications` (`st
 
 ## 4. Student Orders (`/api/orders`)
 ### `POST /api/orders`
-Places a new order.
+Places a new order after server re-validation of item prices, stock, coupon eligibility (`409 COUPON_NOT_ELIGIBLE`), minimum order (`409 MIN_ORDER_NOT_MET`), curfew / scheduled time slot (`400 too_late` + `alternativeGates` or `INVALID_SCHEDULE_SLOT`), and simulated UPI status (`402 PAYMENT_FAILED`).
 - **Auth:** Student or Admin
-- **Header:** `Idempotency-Key` (Required)
+- **Header:** `Idempotency-Key` (Required; replays return existing order idempotently with `replayed: true`)
 - **Body**:
   ```json
   {
     "vendorId": "v_ganga",
     "gateId": "gate_main",
+    "couponCode": "CAMPUS20",
+    "paymentMethod": "pay_at_gate",
+    "upiSimulateResult": "success",
+    "paymentRef": "UPI-123456-ABC",
+    "contactPhone": "9876543210",
+    "scheduledFor": 1700055000,
+    "note": "Call near Main Gate security desk",
     "items": [
       { "itemId": "it_g1", "quantity": 1, "expectedPricePaise": 16000, "notes": "Medium spicy" }
     ]
@@ -221,8 +239,12 @@ Places a new order.
       "publicNo": "TF-4821",
       "status": "placed",
       "subtotalPaise": 16000,
-      "totalPaise": 16000,
+      "packingTotalPaise": 0,
+      "discountPaise": 3200,
+      "totalPaise": 12800,
       "paymentMethod": "pay_at_gate",
+      "paymentStatus": "pending",
+      "contactPhone": "9876543210",
       "handoverCode": "4729"
     }
   }

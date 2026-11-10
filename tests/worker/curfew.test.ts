@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { canDeliver, type GateRecord, type VendorRecord, type VendorGateRecord } from '@worker/services/delivery';
 import { parseTimeToMinutes } from '@worker/utils/time';
-import { isNightSafetyActive, getGateCurfewStatus } from '@shared/curfew';
+import {
+  isNightSafetyActive,
+  getGateCurfewStatus,
+  getAvailableScheduleSlots,
+  evaluateCanDeliver,
+} from '@shared/curfew';
 
 describe('Curfew and Delivery Service', () => {
   const gateMain: GateRecord = {
@@ -182,5 +187,52 @@ describe('Curfew and Delivery Service', () => {
     expect(isNightSafetyActive(baseIstMidnightUtc + 18 * 3600 + 59 * 60)).toBe(false);
     expect(isNightSafetyActive(baseIstMidnightUtc + 19 * 3600)).toBe(true);
     expect(isNightSafetyActive(baseIstMidnightUtc + 22 * 3600 + 30 * 60)).toBe(true);
+  });
+
+  it('constrains scheduled delivery slots strictly to both vendor hours and gate curfew', () => {
+    const baseIstMidnightUtc = Math.floor(Date.UTC(2026, 10, 9, 18, 30, 0) / 1000);
+    const t1800 = baseIstMidnightUtc + 18 * 3600; // 18:00 IST
+
+    const closedMorningVendor: VendorRecord = {
+      id: 'v_tiffin',
+      name: 'Mithila Tiffin',
+      hoursJson: JSON.stringify({ open: '09:00', close: '21:00' }),
+      prepMinutes: 15,
+      isOpen: false, // currently closed, but accepts scheduled slots inside hours
+      busyUntil: null,
+      status: 'active',
+    };
+
+    const hostelGate: GateRecord = {
+      id: 'gate_h5',
+      name: 'Boys Hostel Gate',
+      curfewTime: '19:30',
+      bufferMinutes: 15,
+      travelMinutes: 10,
+      active: true,
+      is24x7: false,
+    };
+
+    const vg: VendorGateRecord = {
+      vendorId: 'v_tiffin',
+      gateId: 'gate_h5',
+      extraMinutes: 0,
+    };
+
+    // Scheduled check bypasses instant isOpen=false when slot falls inside open hours & curfew
+    const scheduled1845 = t1800 + 45 * 60; // 18:45 IST -> arrival 19:10 + 15m = 19:25 <= 19:30
+    const res1845 = evaluateCanDeliver(closedMorningVendor, hostelGate, scheduled1845, vg, [], {
+      isScheduled: true,
+    });
+    expect(res1845.ok).toBe(true);
+
+    // Slots at 18:00 IST -> today slots capped before 19:30 curfew, tomorrow slots start at 09:00 IST
+    const slots = getAvailableScheduleSlots(closedMorningVendor, hostelGate, t1800, vg, 10);
+    expect(slots.length).toBeGreaterThan(0);
+    // Today 18:15 (arr 18:40), 18:30 (arr 18:55), 18:45 (arr 19:10), 19:00 (arr 19:25 -> 19:40 > 19:30 rejected!)
+    const todaySlots = slots.filter((s) => s.dayLabel === 'Today');
+    expect(todaySlots.every((s) => s.orderTimeIst <= '18:50')).toBe(true);
+    const tomorrowFirst = slots.find((s) => s.dayLabel === 'Tomorrow');
+    expect(tomorrowFirst?.orderTimeIst).toBe('09:00');
   });
 });

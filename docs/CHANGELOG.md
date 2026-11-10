@@ -4,6 +4,17 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Zustand Cart & Checkout (Coupons, Min-Order Add-ons, Schedule, UPI Sim & Idempotency)
+- **Zustand Persisted Cart (`src/client/store/cartStore.ts`) & Offline Mode**:
+  - Installed `zustand` (`5.1.0`, documented in `docs/DECISIONS.md`) with `localStorage` persistence (`trefood_cart_v1`) so cart items, variants/add-ons, special instructions, coupons, contact phone, delivery instructions, and offline subtotal estimates work offline across reloads.
+  - Standardized single-vendor conflict prompts to `"Start a new cart with <Vendor>?"`, and lazy-loaded `CartDrawer` (`App.tsx`) to keep the first-load client bundle at **144.53 kB gzip**.
+- **Cart Drawer (`src/client/components/cart/CartDrawer.tsx`) & Quote API**:
+  - Added coupon input field + visible list of campus coupons (`GET /api/coupons`) showing live eligibility and shortfall hints, full itemised bill (items subtotal, packing charges, coupon discount, FREE delivery, total), **Minimum-order progress bar** with 1-tap vendor `suggestedAddons[]` when short, and gate/ETA summary showing `latestOrderTime` + curfew alert banner with 1-tap `alternativeGates` switching.
+- **Checkout Modal (`src/client/components/cart/CheckoutModal.tsx`) & Orders API (`src/worker/routes/orders.ts`)**:
+  - Added gate confirmation, 10-digit `contactPhone` validation (`migrations/0004_flimsy_sasquatch.sql` -> `orders.contact_phone`), delivery instruction (`note`), **Schedule for later** slot picker constrained by both vendor operating hours and gate curfew (`getAvailableScheduleSlots` in `src/shared/curfew.ts`), and payment choice between **Pay at gate** and **Pay now with UPI (Simulated)** behind a pluggable gateway adapter (`src/client/services/paymentAdapter.ts`) supporting success & recoverable decline paths.
+  - Enforced server re-validation of price, stock, coupon eligibility (`409 COUPON_NOT_ELIGIBLE`), minimum order (`409 MIN_ORDER_NOT_MET`), scheduled slot curfew (`400`), UPI failure (`402 PAYMENT_FAILED`), and `Idempotency-Key` double-submit prevention (`replayed: true`), rendering the full itemised breakdown and payment status on `/orders/:id` (`OrderDetailPage.tsx`).
+  - Expanded tests in `tests/worker/curfew.test.ts`, `tests/worker/pricing.test.ts`, `tests/worker/api.test.ts` (`36 / 36` Vitest tests) and added Playwright E2E `e2e/cart-checkout.spec.ts` (`28 / 28` tests across mobile & desktop).
+
 ### Added - Customer Experience (/app, /app/search, /vendor/:slug)
 - **Customer Home (`/app`, `/browse` alias, mobile-first & two-column desktop)**:
   - Built mobile-first / two-column desktop storefront (`src/client/pages/CustomerHomePage.tsx`) featuring a persistent right-column `DesktopPacketSidebar` (`lg:col-span-4 lg:sticky`), `AppSearchBar` with live vendor/dish suggestions and `localStorage` recent searches, `PromotionCarousel` fed by live `/api/coupons` and `/api/announcements` with 1-tap coupon application, **Quick picks** shelf, **Popular vendors**, **Open Now** sorted first, and a slim **Closed** list displaying `Opens at` time, `Notify me` reminder toggle, and `Pre-order` action (no large dimmed photos).
