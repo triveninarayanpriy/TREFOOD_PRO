@@ -11,13 +11,21 @@ import { BottomNav } from './components/ui/BottomNav';
 import { DesktopNavRail } from './components/ui/DesktopNavRail';
 import { GatePicker } from './components/ui/GatePicker';
 import { CartDrawer } from './components/cart/CartDrawer';
+import { usePwaInstall } from './hooks/usePwaInstall';
 import { LandingPage } from './pages/LandingPage';
 import { Skeleton } from './components/ui/Skeleton';
 import { EmptyState } from './components/ui/EmptyState';
 import { AlertCircle } from 'lucide-react';
 import type { Gate } from '@shared/schemas';
 
-// Lazy-load secondary routes so first load stays lean (<140 KB gzip) for hostel WiFi
+const SignInModal = lazy(() =>
+  import('./components/auth/SignInModal').then((m) => ({ default: m.SignInModal }))
+);
+const InstallAppModal = lazy(() =>
+  import('./components/ui/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
+);
+
+// Lazy-load secondary routes so first load stays lean (<145 KB gzip) for hostel WiFi
 const BrowsePage = lazy(() =>
   import('./pages/BrowsePage').then((m) => ({ default: m.BrowsePage }))
 );
@@ -42,12 +50,27 @@ const AdminConsolePage = lazy(() =>
 const DevKitPage = lazy(() =>
   import('./pages/DevKitPage').then((m) => ({ default: m.DevKitPage }))
 );
+const AboutPage = lazy(() =>
+  import('./pages/LegalPages').then((m) => ({ default: m.AboutPage }))
+);
+const TermsPage = lazy(() =>
+  import('./pages/LegalPages').then((m) => ({ default: m.TermsPage }))
+);
+const PrivacyPage = lazy(() =>
+  import('./pages/LegalPages').then((m) => ({ default: m.PrivacyPage }))
+);
+const RefundsPage = lazy(() =>
+  import('./pages/LegalPages').then((m) => ({ default: m.RefundsPage }))
+);
 
 function AppShell() {
   const location = useLocation();
   const { selectedGateId, setSelectedGateId, itemCount } = useCart();
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const { modalOpen: installModalOpen, setModalOpen: setInstallModalOpen, triggerInstall } =
+    usePwaInstall();
 
   const { data: gatesData } = useQuery<{ ok: boolean; gates: Gate[] }>({
     queryKey: ['gates'],
@@ -78,6 +101,8 @@ function AppShell() {
           cartCount={itemCount}
           onOpenCart={() => setCartDrawerOpen(true)}
           showDesktopLinks={isLandingRoute}
+          onInstallApp={triggerInstall}
+          onOpenSignIn={() => setSignInOpen(true)}
         />
       )}
 
@@ -102,6 +127,10 @@ function AppShell() {
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/refunds" element={<RefundsPage />} />
               <Route path="/dev/ui" element={<DevKitPage />} />
               <Route path="/dev/kit" element={<DevKitPage />} />
               <Route path="/v" element={<VendorConsolePage />} />
@@ -142,6 +171,14 @@ function AppShell() {
 
       {/* Global Cart Drawer */}
       <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
+
+      {/* Lazy Sign In & Install App Modals */}
+      <Suspense fallback={null}>
+        {signInOpen && <SignInModal open={signInOpen} onClose={() => setSignInOpen(false)} />}
+        {installModalOpen && (
+          <InstallAppModal open={installModalOpen} onClose={() => setInstallModalOpen(false)} />
+        )}
+      </Suspense>
     </div>
   );
 }

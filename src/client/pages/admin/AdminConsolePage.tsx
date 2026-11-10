@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/ui/Toast';
+import { useSeoHead } from '../../components/seo/SeoHead';
 import {
   ShieldAlert,
   BarChart3,
@@ -80,6 +81,12 @@ function OrdersPerHourSvgChart({ data }: { data: number[] }) {
 }
 
 export function AdminConsolePage() {
+  useSeoHead({
+    title: 'Campus Admin Console (/admin) | TreFood NIT Patna',
+    description: 'Campus operations dashboard for gate curfews, vendor approvals, reports, and audit logs.',
+    path: '/admin',
+    noIndex: true,
+  });
   const { user, loginAsDemo, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 

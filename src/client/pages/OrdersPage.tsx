@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { CheckoutModal } from '../components/cart/CheckoutModal';
+import { useSeoHead } from '../components/seo/SeoHead';
 import {
   ShoppingBag,
   Clock,
@@ -17,6 +18,12 @@ import {
 import type { OrderSummary } from '@shared/types';
 
 export function OrdersPage() {
+  useSeoHead({
+    title: 'Your Campus Orders & Handover Codes | TreFood NIT Patna',
+    description: 'Track live NIT Patna hostel gate deliveries, handover codes, and past campus orders.',
+    path: '/orders',
+    noIndex: true,
+  });
   const navigate = useNavigate();
   const { user } = useAuth();
   const [signInOpen, setSignInOpen] = useState(false);

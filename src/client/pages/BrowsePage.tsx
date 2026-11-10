@@ -10,6 +10,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { GatePicker } from '../components/ui/GatePicker';
 import { CurfewBanner } from '../components/ui/CurfewBanner';
+import { SeoHead } from '../components/seo/SeoHead';
 import { useToast } from '../components/ui/Toast';
 import { getGateCurfewStatus, isNightSafetyActive } from '@shared/curfew';
 import { Search, MapPin, ShieldCheck } from 'lucide-react';
@@ -121,6 +122,11 @@ export function BrowsePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 space-y-5">
+      <SeoHead
+        title="Browse NIT Patna Canteens & Campus Stores | TreFood"
+        description="Browse open NIT Patna campus meals, snacks, fruits, groceries, vegetables, and raw chicken filtered live by gate reachability and hostel curfews."
+        path="/browse"
+      />
       {/* Gate & Curfew Strip */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-3 min-w-0">

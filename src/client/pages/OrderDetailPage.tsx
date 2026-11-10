@@ -9,6 +9,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { ErrorState } from '../components/ui/ErrorState';
 import { useToast } from '../components/ui/Toast';
 import { useCart } from '../context/CartContext';
+import { useSeoHead } from '../components/seo/SeoHead';
 import {
   CheckCircle2,
   ArrowLeft,
@@ -21,6 +22,12 @@ import type { OrderDetail } from '@shared/types';
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  useSeoHead({
+    title: 'Live Handover Ticket & Tracker | TreFood NIT Patna',
+    description: 'Track your campus order status in real time and confirm the 4-digit packet code at your gate.',
+    path: `/orders/${id || ''}`,
+    noIndex: true,
+  });
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { addItem, clearCart } = useCart();

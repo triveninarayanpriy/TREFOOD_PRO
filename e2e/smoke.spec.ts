@@ -11,7 +11,7 @@ test.describe('TreFood App Shell Smoke Test', () => {
 
     // Check hero headline
     await expect(
-      page.getByRole('heading', { name: /NIT Patna food & essentials/i })
+      page.getByRole('heading', { name: /Delivered to your NIT Patna gate/i })
     ).toBeVisible();
 
     // Check signature HandoverTicket demo

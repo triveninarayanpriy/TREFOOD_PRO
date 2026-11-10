@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
 import { useToast } from '../../components/ui/Toast';
+import { useSeoHead } from '../../components/seo/SeoHead';
 import {
   Bell,
   Clock,
@@ -76,6 +77,12 @@ function playOrderChime() {
 }
 
 export function VendorConsolePage() {
+  useSeoHead({
+    title: 'Vendor Counter Tablet Console (/v) | TreFood NIT Patna',
+    description: 'Manage live gate orders, kitchen prep timers, stock toggles, and daily settlements.',
+    path: '/v',
+    noIndex: true,
+  });
   const { user, loginAsDemo, loading: authLoading } = useAuth();
   const { showToast } = useToast();
 

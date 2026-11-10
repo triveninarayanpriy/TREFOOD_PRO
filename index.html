@@ -14,29 +14,67 @@
 
     <!-- Open Graph & Social Cards -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TreFood NIT Patna" />
     <meta property="og:title" content="TreFood | NIT Patna Campus Delivery" />
     <meta
       property="og:description"
-      content="Zero delivery fee, pay at the hostel gate, 4-digit packet code verification."
+      content="Order meals, snacks, fruits, groceries, and raw chicken at NIT Patna. Zero delivery fee, pay at gate, 4-digit handover code verification."
     />
     <meta property="og:image" content="/og-image.png" />
+    <meta property="og:url" content="https://trefood-prototype.technicaltriveniyt.workers.dev/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="TreFood | NIT Patna Campus Delivery" />
     <meta
       name="twitter:description"
       content="Zero delivery fee, pay at the hostel gate, 4-digit packet code verification."
     />
+    <meta name="twitter:image" content="/og-image.png" />
 
-    <!-- JSON-LD Structured Data for Campus Food Platform -->
+    <!-- JSON-LD Structured Data (Organization & LocalBusiness) -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "TreFood",
-        "url": "https://trefood-prototype.technicaltriveniyt.workers.dev",
-        "logo": "https://trefood-prototype.technicaltriveniyt.workers.dev/icon-512.png",
-        "description": "Hyperlocal campus delivery for NIT Patna.",
-        "areaServed": "National Institute of Technology Patna"
+        "@graph": [
+          {
+            "@type": "Organization",
+            "name": "TreFood",
+            "url": "https://trefood-prototype.technicaltriveniyt.workers.dev",
+            "logo": "https://trefood-prototype.technicaltriveniyt.workers.dev/icon-512.png",
+            "description": "Hyperlocal campus delivery platform for NIT Patna.",
+            "areaServed": {
+              "@type": "EducationalOrganization",
+              "name": "National Institute of Technology Patna"
+            },
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "support@trefood.in"
+            }
+          },
+          {
+            "@type": "LocalBusiness",
+            "name": "TreFood NIT Patna",
+            "url": "https://trefood-prototype.technicaltriveniyt.workers.dev",
+            "image": "https://trefood-prototype.technicaltriveniyt.workers.dev/og-image.png",
+            "priceRange": "₹0 Delivery Fee",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Ashok Rajpath, Mahendru",
+              "addressLocality": "Patna",
+              "addressRegion": "BR",
+              "postalCode": "800005",
+              "addressCountry": "IN"
+            },
+            "openingHoursSpecification": [
+              {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                "opens": "00:00",
+                "closes": "23:59"
+              }
+            ]
+          }
+        ]
       }
     </script>
   </head>

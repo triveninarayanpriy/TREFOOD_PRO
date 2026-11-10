@@ -4,7 +4,7 @@
   "description": "Hyperlocal Campus Delivery for NIT Patna. Zero Delivery Fee, Pay at Gate, Curfew Aware.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAFAF9",
+  "background_color": "#FBF8F3",
   "theme_color": "#830020",
   "orientation": "portrait-primary",
   "icons": [

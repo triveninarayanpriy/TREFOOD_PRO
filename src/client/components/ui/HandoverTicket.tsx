@@ -35,9 +35,13 @@ export function HandoverTicket({
 }: HandoverTicketProps) {
   const displayEta = eta || (etaMinutes ? `${etaMinutes} mins` : undefined);
 
-  // Gentle vibration on packet arrival at gate
+  // Gentle vibration on packet arrival at gate (only after user interaction per browser intervention policy)
   useEffect(() => {
-    if (status === 'at_gate' && showVibrate && typeof window !== 'undefined' && 'vibrate' in navigator) {
+    const canVibrate =
+      typeof navigator !== 'undefined' &&
+      'vibrate' in navigator &&
+      (!('userActivation' in navigator) || navigator.userActivation?.hasBeenActive);
+    if (status === 'at_gate' && showVibrate && canVibrate) {
       try {
         navigator.vibrate([120, 80, 120]);
       } catch {

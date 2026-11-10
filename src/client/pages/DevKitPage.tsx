@@ -20,6 +20,7 @@ import { StatusTimeline } from '../components/ui/StatusTimeline';
 import { CodeDisplay } from '../components/ui/CodeDisplay';
 import { HandoverTicket, type TicketStatus } from '../components/ui/HandoverTicket';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { SeoHead } from '../components/seo/SeoHead';
 import { useTheme } from '../context/ThemeContext';
 import { ShoppingBag, Heart, Bell, ShieldCheck } from 'lucide-react';
 import type { VendorSummary } from '@shared/types';
@@ -74,6 +75,11 @@ export function DevKitPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-10">
+      <SeoHead
+        title="Design System & UI Component Kit (/dev/ui) | TreFood"
+        description="TreFood NIT Patna design tokens, dark/light themes, HandoverTicket, VendorCard, MenuItemRow, and WCAG AA component showcase."
+        path="/dev/ui"
+      />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border)] pb-5">
         <div>

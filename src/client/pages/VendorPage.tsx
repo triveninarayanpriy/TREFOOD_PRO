@@ -9,6 +9,7 @@ import { MenuItemRow } from '../components/ui/MenuItemRow';
 import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CartDrawer } from '../components/cart/CartDrawer';
+import { SeoHead } from '../components/seo/SeoHead';
 import { isNightSafetyActive } from '@shared/curfew';
 import {
   Clock,
@@ -99,6 +100,18 @@ export function VendorPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-5 pb-28 space-y-6">
+      <SeoHead
+        title={`${vendor.name} Menu | TreFood NIT Patna`}
+        description={vendor.description || `Order online from ${vendor.name} at NIT Patna with ₹0 delivery fee and 4-digit gate handover verification.`}
+        path={`/vendor/${vendor.slug}`}
+        jsonLd={{
+          '@type': 'LocalBusiness',
+          name: vendor.name,
+          description: vendor.description,
+          servesCuisine: vendor.category,
+          priceRange: '₹',
+        }}
+      />
       <button
         type="button"
         onClick={() => navigate('/browse')}

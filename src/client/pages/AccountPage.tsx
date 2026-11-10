@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { ListRow } from '../components/ui/ListRow';
 import { Dialog } from '../components/ui/Dialog';
 import { useToast } from '../components/ui/Toast';
+import { useSeoHead } from '../components/seo/SeoHead';
 import { useTranslation } from 'react-i18next';
 import {
   Globe,
@@ -16,6 +17,12 @@ import {
 } from 'lucide-react';
 
 export function AccountPage() {
+  useSeoHead({
+    title: 'Campus Account & Preferences | TreFood NIT Patna',
+    description: 'Manage campus session profile, language preferences, theme, and privacy deletion.',
+    path: '/account',
+    noIndex: true,
+  });
   const navigate = useNavigate();
   const { user, loginAsDemo, logout, deleteAccount } = useAuth();
   const { showToast } = useToast();
