@@ -4,6 +4,21 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Order Tracking (/orders, /orders/:id), Code Handover, Web Push & PWA Shell
+- **Live Tracker & 4-Digit Handover (`src/client/pages/OrderDetailPage.tsx`, `src/client/components/ui/StatusTimeline.tsx`)**:
+  - Upgraded `StatusTimeline` to display all 6 steps (`Placed`, `Accepted`, `Preparing`, `Out for delivery`, `At your gate`, `Delivered`) with IST step timestamps, ETA badge, `aria-live="polite"`, and Campus Night Safety notice.
+  - Added visible freshness badge (`"Updated just now"` / relative seconds) + manual `Refresh` button, direct `tel:` vendor contact button, `Cancel Order` (`placed` only), ETag-backed 5s polling with exponential backoff up to 20s paused while hidden, and a live **15-minute gate window countdown** (`MM:SS`) on `at_gate` arrival.
+  - Replaced checkbox confirmation with strict server-verified 4-digit handover code input submitting to `POST /api/orders/:id/confirm-handover` with attempts-remaining feedback and 5-attempt lockout handling (`HTTP 423`).
+  - Fixed problem reporting payload (`{ reason, description }` to `POST /api/orders/:id/report`), adding `not_at_gate` alongside `wrong_item`, `missing_item`, `late`, `quality`, and `other`, plus a new **Reports** queue tab in `AdminConsolePage.tsx` wired to `GET /api/admin/reports` & `PATCH /api/admin/reports/:id`.
+- **Orders Hub & Review Sheet (`src/client/pages/OrdersPage.tsx`, `src/client/components/orders/RateReviewSheet.tsx`)**:
+  - Added **Active / Past tabs** with live counts backed by batch-hydrated `GET /api/orders` (including `items[]`, `vendorSlug`, `hasReview`, zero N+1), 1-tap **Reorder** repopulating `CartContext`, and accessible modal `RateReviewSheet` (`min-h-[44px]` star buttons).
+- **Web Push, Notification Centre & iOS-Only Install Guide (`src/worker/utils/webpush.ts`, `src/worker/routes/push.ts`, `src/client/components/notifications/NotificationCentre.tsx`, `src/client/components/ui/InstallAppModal.tsx`)**:
+  - Implemented zero-dependency WebCrypto VAPID JWT push dispatch (`POST /api/push/subscribe`, `DELETE /api/push/subscribe`, `GET /api/push/vapid-public-key`) triggered on vendor order transitions (`src/worker/routes/vendor.ts`).
+  - Added in-app `NotificationCentreDrawer` (`GET /api/notifications` status cards, triggered via lazy bell icon in `TopBar.tsx`), compact `OrderPushStatusCard`, and iOS-only Safari home-screen instructions (`src/client/utils/platform.ts`) in both `InstallAppModal` and push status cards.
+- **PWA Offline Shell (`public/sw.js`, `public/offline.html`, `src/client/main.tsx`)**:
+  - Registered `/sw.js` Service Worker caching core shell assets, push status alerts, and serving an informative standalone `/offline.html` fallback screen when campus connectivity drops.
+- **Verification**: Kept initial first-load bundle at **145.16 kB gzip** (`< 150 KB` budget), **37 / 37 Vitest tests** passing, and **30 / 30 Playwright tests** passing (including new multi-context `e2e/orders-handover.spec.ts` + `@axe-core/playwright` contrast fix).
+
 ### Added - Zustand Cart & Checkout (Coupons, Min-Order Add-ons, Schedule, UPI Sim & Idempotency)
 - **Zustand Persisted Cart (`src/client/store/cartStore.ts`) & Offline Mode**:
   - Installed `zustand` (`5.1.0`, documented in `docs/DECISIONS.md`) with `localStorage` persistence (`trefood_cart_v1`) so cart items, variants/add-ons, special instructions, coupons, contact phone, delivery instructions, and offline subtotal estimates work offline across reloads.

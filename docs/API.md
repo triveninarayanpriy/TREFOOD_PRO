@@ -251,10 +251,10 @@ Places a new order after server re-validation of item prices, stock, coupon elig
   ```
 
 ### `GET /api/orders`
-Retrieves past and active orders for the authenticated customer.
+Retrieves past and active orders for the authenticated customer, batch-hydrated with `items[]`, `vendorSlug`, and `hasReview`.
 
 ### `GET /api/orders/:id`
-Order status tracker with HTTP 304 ETag support for efficient polling on 2 bars of network.
+Order status tracker with HTTP 304 ETag support (covering status, attempt count, ETA, and events) for efficient polling on 2 bars of network. Includes `vendorSlug`, `vendorPhone`, `gateCurfewTime`, `gateIs24x7`, `remainingAttempts`, and `existingIssue`.
 - **Headers:** `If-None-Match: "<etag>"`
 - **Response `200 OK`** or `304 Not Modified`.
 
@@ -273,7 +273,15 @@ Strict 4-digit handover code verification with brute-force protection.
 Submits a 1-5 star rating and optional feedback for a delivered order.
 
 ### `POST /api/orders/:id/issue` & `POST /api/orders/:id/report`
-Reports an order issue (`wrong_item`, `missing_item`, `quality`, `late`, `other`).
+Reports an order issue (`wrong_item`, `missing_item`, `quality`, `late`, `not_at_gate`, `other`) directly to the Admin Reports Queue (`/api/admin/reports`).
+
+---
+
+## 4B. Web Push & Order Notification Centre (`/api/push`, `/api/notifications`)
+- `GET /api/push/vapid-public-key`: Returns `{ supported, publicKey, fallbackMode }` (`web_push` or `in_app_status_card`).
+- `POST /api/push/subscribe`: Registers an authenticated user's browser PushSubscription (`endpoint`, `keys.p256dh`, `keys.auth`).
+- `DELETE /api/push/subscribe`: Unregisters a PushSubscription endpoint for the signed-in user.
+- `GET /api/notifications?limit=12`: Authenticated feed of concise order status cards synthesized from recent `order_events` for the in-app Notification Centre fallback and Service Worker push enrichment.
 
 ---
 

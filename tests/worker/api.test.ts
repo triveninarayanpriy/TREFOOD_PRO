@@ -848,4 +848,129 @@ describe('Worker Full API Integration Tests', () => {
     expect(replayBody.order.id).toBe(firstOrder.order.id);
     expect(replayBody.order.handoverCode).toBe(firstOrder.order.handoverCode);
   });
+
+  it('supports Web Push subscriptions, in-app notification status cards, enriched order lists, and gate issue reports', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    const studentLogin = await exec(
+      new Request('http://localhost/api/auth/demo/student', { method: 'POST' })
+    );
+    const studentCookie = (studentLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    const adminLogin = await exec(
+      new Request('http://localhost/api/auth/demo/admin', { method: 'POST' })
+    );
+    const adminCookie = (adminLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    // 1. VAPID public key config + fallback indicator
+    const cfgRes = await exec(new Request('http://localhost/api/push/vapid-public-key'));
+    expect(cfgRes.status).toBe(200);
+    const cfgBody = (await cfgRes.json()) as { ok: boolean; fallbackMode: string };
+    expect(cfgBody.ok).toBe(true);
+    expect(['web_push', 'in_app_status_card']).toContain(cfgBody.fallbackMode);
+
+    // 2. Push subscribe requires auth & valid Zod payload
+    const unauthSub = await exec(
+      new Request('http://localhost/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: 'https://push.example/sub1', keys: { p256dh: 'abcdefghij1234', auth: 'auth123456' } }),
+      })
+    );
+    expect(unauthSub.status).toBe(401);
+
+    const endpoint = `https://push.example/nitp-${ulid()}`;
+    const subRes = await exec(
+      new Request('http://localhost/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({
+          endpoint,
+          keys: { p256dh: 'BOr9x_valid_p256dh_key_value_for_testing', auth: 'valid_auth_123' },
+        }),
+      })
+    );
+    expect(subRes.status).toBe(201);
+
+    // 3. Place an order at 14:00 IST -> verify /api/orders returns batched items + vendorSlug, and /api/notifications returns status card
+    const ts1400Ist = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
+    const createRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: studentCookie,
+          'Idempotency-Key': `notif-${ulid()}`,
+          'x-mock-time': ts1400Ist,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const { order } = (await createRes.json()) as {
+      order: { id: string; publicNo: string; handoverCode: string };
+    };
+
+    const listRes = await exec(
+      new Request('http://localhost/api/orders', { headers: { Cookie: studentCookie } })
+    );
+    expect(listRes.status).toBe(200);
+    const listBody = (await listRes.json()) as {
+      orders: Array<{ id: string; vendorSlug?: string; items?: unknown[] }>;
+    };
+    const found = listBody.orders.find((o) => o.id === order.id);
+    expect(found).toBeDefined();
+    expect(found?.vendorSlug).toBe('ganga-dhaba');
+    expect((found?.items || []).length).toBeGreaterThan(0);
+
+    const notifRes = await exec(
+      new Request('http://localhost/api/notifications', { headers: { Cookie: studentCookie } })
+    );
+    expect(notifRes.status).toBe(200);
+    const notifBody = (await notifRes.json()) as {
+      notifications: Array<{ orderId: string; title: string; summary: string }>;
+    };
+    expect(notifBody.notifications.some((n) => n.orderId === order.id)).toBe(true);
+
+    // 4. Student reports not_at_gate -> visible in Admin Reports queue
+    const reportRes = await exec(
+      new Request(`http://localhost/api/orders/${order.id}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({ reason: 'not_at_gate', description: 'Waiting at Main Gate bench, partner not spotted yet' }),
+      })
+    );
+    expect(reportRes.status).toBe(200);
+    const { issueId } = (await reportRes.json()) as { issueId: string };
+
+    const adminReportsRes = await exec(
+      new Request('http://localhost/api/admin/reports', { headers: { Cookie: adminCookie } })
+    );
+    expect(adminReportsRes.status).toBe(200);
+    const adminReportsBody = (await adminReportsRes.json()) as {
+      reports: Array<{ id: string; reason: string; orderId: string }>;
+    };
+    expect(adminReportsBody.reports.some((r) => r.id === issueId && r.reason === 'not_at_gate')).toBe(
+      true
+    );
+
+    // 5. Unsubscribe cleans up push endpoint
+    const unsubRes = await exec(
+      new Request('http://localhost/api/push/subscribe', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({ endpoint }),
+      })
+    );
+    expect(unsubRes.status).toBe(200);
+  });
 });
