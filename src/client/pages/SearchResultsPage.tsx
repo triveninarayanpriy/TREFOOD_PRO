@@ -533,8 +533,8 @@ export function SearchResultsPage() {
       <Dialog
         open={Boolean(pendingVendorSwitch)}
         onClose={cancelVendorSwitch}
-        title="Replace items in packet?"
-        description="Your campus packet holds items from one vendor at a time."
+        title={`Start a new cart with ${pendingVendorSwitch?.vendor.name || 'this vendor'}?`}
+        description="Your campus cart holds items from one vendor at a time."
       >
         <p className="text-xs text-[var(--color-text-muted)] pt-1 pb-4">
           Start a fresh packet with <strong>{pendingVendorSwitch?.item.name}</strong> from{' '}

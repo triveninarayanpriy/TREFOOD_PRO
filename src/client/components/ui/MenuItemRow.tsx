@@ -45,6 +45,7 @@ export function MenuItemRow({
 
   return (
     <div
+      data-menu-item={name}
       className="flex flex-wrap sm:flex-nowrap items-start justify-between gap-3 sm:gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)]"
     >
       <div className="flex items-start gap-3 min-w-0 flex-1">

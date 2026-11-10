@@ -141,6 +141,12 @@ export function DesktopPacketSidebar({
                   {quoteLoading ? '...' : `₹${((quote?.subtotalPaise || 0) / 100).toFixed(2)}`}
                 </span>
               </div>
+              <div className="flex justify-between text-[var(--color-text-muted)]">
+                <span>Packing charges</span>
+                <span className="font-mono">
+                  {quoteLoading ? '...' : `₹${((quote?.packingTotalPaise || 0) / 100).toFixed(2)}`}
+                </span>
+              </div>
               {(quote?.discountPaise ?? 0) > 0 && (
                 <div className="flex justify-between font-semibold text-[#15803D] dark:text-[#86EFAC]">
                   <span>Offer ({quote?.couponApplied})</span>
@@ -152,17 +158,27 @@ export function DesktopPacketSidebar({
                 <span className="font-bold text-[#15803D] dark:text-[#86EFAC]">FREE</span>
               </div>
               <div className="flex justify-between pt-1.5 text-sm font-extrabold text-[var(--color-text)]">
-                <span>Pay at Gate</span>
+                <span>Total to Pay</span>
                 <span className="font-mono text-[#830020] dark:text-[#FFB400]">
                   {quoteLoading ? '...' : `₹${((quote?.totalPaise || 0) / 100).toFixed(2)}`}
                 </span>
               </div>
             </div>
 
+            {quote?.meetsMinOrder === false && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                Add ₹{Math.ceil((quote.shortfallPaise || 0) / 100)} more to meet vendor minimum order.
+              </div>
+            )}
+
             <Button
               type="button"
               variant="primary"
-              disabled={Boolean(quoteError) || items.length === 0}
+              disabled={
+                Boolean(quoteError) ||
+                items.length === 0 ||
+                quote?.meetsMinOrder === false
+              }
               onClick={() => setCheckoutOpen(true)}
               className="w-full min-h-[48px]"
             >

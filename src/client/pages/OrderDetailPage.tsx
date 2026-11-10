@@ -467,15 +467,47 @@ export function OrderDetailPage() {
 
         <div className="border-t border-stone-100 pt-3 dark:border-stone-800 space-y-1.5 text-xs">
           <div className="flex justify-between text-stone-600 dark:text-stone-400">
-            <span>Subtotal</span>
+            <span>Items subtotal</span>
             <span className="font-mono">₹{(order.subtotalPaise / 100).toFixed(2)}</span>
           </div>
+          {(order.packingTotalPaise ?? 0) > 0 && (
+            <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <span>Packing charges</span>
+              <span className="font-mono">₹{((order.packingTotalPaise || 0) / 100).toFixed(2)}</span>
+            </div>
+          )}
+          {(order.discountPaise ?? 0) > 0 && (
+            <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-semibold">
+              <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+              <span className="font-mono">-₹{((order.discountPaise || 0) / 100).toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-stone-600 dark:text-stone-400">
             <span>Delivery Fee</span>
             <span className="font-bold text-emerald-600">FREE</span>
           </div>
+          <div className="flex justify-between text-stone-600 dark:text-stone-400">
+            <span>Payment</span>
+            <span className="font-semibold text-stone-900 dark:text-stone-100">
+              {order.paymentMethod === 'upi_simulated'
+                ? 'Paid via UPI (Simulated)'
+                : 'Pay at Gate (Cash or UPI)'}
+            </span>
+          </div>
+          {order.note && (
+            <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <span>Delivery instruction</span>
+              <span className="font-medium text-right max-w-[200px] truncate">{order.note}</span>
+            </div>
+          )}
+          {order.contactPhone && (
+            <div className="flex justify-between text-stone-600 dark:text-stone-400">
+              <span>Contact</span>
+              <span className="font-mono">{order.contactPhone}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-1 font-bold text-sm text-stone-900 dark:text-stone-100">
-            <span>Total Collected</span>
+            <span>{order.paymentMethod === 'upi_simulated' ? 'Total Paid' : 'Total to Collect'}</span>
             <span className="font-mono text-[#830020] dark:text-amber-400">
               ₹{(order.totalPaise / 100).toFixed(2)}
             </span>

@@ -430,12 +430,8 @@ export function VendorPage() {
           </div>
 
           {/* Menu vs Reviews Primary Tabs */}
-          <div
-            role="tablist"
-            aria-label="Vendor sections"
-            className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5"
-          >
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+            <div role="tablist" aria-label="Vendor sections" className="flex items-center gap-1.5">
               <button
                 type="button"
                 role="tab"
@@ -841,7 +837,7 @@ export function VendorPage() {
       <Dialog
         open={!!pendingVendorSwitch}
         onClose={cancelVendorSwitch}
-        title="Start a new packet?"
+        title={`Start a new cart with ${pendingVendorSwitch?.vendor.name || 'this vendor'}?`}
         description={`Your cart currently contains items from "${currentCartVendor?.name}". Each order is delivered from one campus vendor.`}
       >
         <p className="text-xs text-[var(--color-text-muted)] pt-1 pb-4">

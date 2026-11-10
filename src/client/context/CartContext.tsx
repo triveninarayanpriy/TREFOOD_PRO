@@ -1,33 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import {
+  useCartStore,
+  buildCartLineKey,
+  type CartItem,
+  type CartVendor,
+  type CheckoutPaymentMethod,
+} from '../store/cartStore';
+import type { ScheduleSlot, SuggestedGateInfo } from '@shared/curfew';
 
-export interface CartItem {
-  itemId: string;
-  lineKey?: string;
-  name: string;
-  pricePaise: number;
-  quantity: number;
-  notes?: string;
-  isVeg?: boolean;
-  variantId?: string;
-  variantLabel?: string;
-  addonIds?: string[];
-  addonsLabel?: string;
-}
+export { buildCartLineKey, type CartItem, type CartVendor, type CheckoutPaymentMethod };
 
-export function buildCartLineKey(
-  itemId: string,
-  variantId?: string,
-  addonIds?: string[]
-): string {
-  const addonsPart = addonIds && addonIds.length > 0 ? [...addonIds].sort().join(',') : '';
-  return `${itemId}::${variantId || ''}::${addonsPart}`;
-}
-
-export interface CartVendor {
+export interface SuggestedAddonItem {
   id: string;
   name: string;
-  slug: string;
+  pricePaise: number;
+  isVeg: boolean;
 }
 
 export interface CartQuote {
@@ -36,12 +24,22 @@ export interface CartQuote {
   discountPaise?: number;
   deliveryFeePaise: number;
   totalPaise: number;
+  minOrderPaise?: number;
+  meetsMinOrder?: boolean;
+  shortfallPaise?: number;
+  suggestedAddons?: SuggestedAddonItem[];
   etaMinutes: number;
+  etaAt?: number;
+  estimatedArrivalIst?: string;
+  latestOrderTime?: string | null;
   canDeliver: boolean;
   reason?: string;
+  deliveryMessage?: string;
   couponApplied?: string | null;
   couponError?: string | null;
-  alternativeGates?: Array<{ id: string; name: string }>;
+  suggestedGate?: SuggestedGateInfo | null;
+  alternativeGates?: SuggestedGateInfo[];
+  availableSlots?: ScheduleSlot[];
 }
 
 interface CartContextType {
@@ -53,6 +51,12 @@ interface CartContextType {
   setCouponCode: (code: string) => void;
   scheduledFor: number | null;
   setScheduledFor: (ts: number | null) => void;
+  deliveryInstruction: string;
+  setDeliveryInstruction: (note: string) => void;
+  contactPhone: string;
+  setContactPhone: (phone: string) => void;
+  paymentMethod: CheckoutPaymentMethod;
+  setPaymentMethod: (method: CheckoutPaymentMethod) => void;
   addItem: (vendor: CartVendor, item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
   updateQuantity: (itemIdOrKey: string, quantity: number) => void;
   updateNotes: (itemIdOrKey: string, notes: string) => void;
@@ -62,6 +66,7 @@ interface CartContextType {
   quote: CartQuote | null;
   quoteLoading: boolean;
   quoteError: string | null;
+  isOfflineEstimate: boolean;
   pendingVendorSwitch: {
     vendor: CartVendor;
     item: Omit<CartItem, 'quantity'> & { quantity?: number };
@@ -73,91 +78,74 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-const STORAGE_GATE_KEY = 'trefood_gate_id';
-const STORAGE_CART_KEY = 'trefood_cart_v1';
+interface QuoteApiResponse {
+  ok?: boolean;
+  subtotalPaise: number;
+  packingTotalPaise?: number;
+  discountPaise?: number;
+  deliveryFeePaise: number;
+  totalPaise: number;
+  minOrderPaise?: number;
+  meetsMinOrder?: boolean;
+  shortfallPaise?: number;
+  suggestedAddons?: SuggestedAddonItem[];
+  etaMinutes: number;
+  etaAt?: number;
+  estimatedArrivalIst?: string;
+  latestOrderTime?: string | null;
+  canDeliver: boolean;
+  deliveryReason?: string;
+  deliveryMessage?: string;
+  couponApplied?: string | null;
+  couponError?: string | null;
+  suggestedGate?: SuggestedGateInfo | null;
+  alternativeGates?: SuggestedGateInfo[];
+  availableSlots?: ScheduleSlot[];
+  error?: { code?: string; message?: string };
+}
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Initialize gate from URL param, localStorage, or default to Main Gate
-  const [selectedGateId, setSelectedGateIdState] = useState<string>(() => {
-    const urlGate = searchParams.get('gate');
-    if (urlGate) return urlGate;
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_GATE_KEY);
-      if (stored) return stored;
-    }
-    return 'gate_main';
-  });
-
-  const [vendor, setVendor] = useState<CartVendor | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_CART_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return parsed.vendor || null;
-        }
-      } catch {}
-    }
-    return null;
-  });
-
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_CART_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return parsed.items || [];
-        }
-      } catch {}
-    }
-    return [];
-  });
-
-  const [couponCode, setCouponCodeState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_CART_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return parsed.couponCode || '';
-        }
-      } catch {}
-    }
-    return '';
-  });
-
-  const [scheduledFor, setScheduledForState] = useState<number | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_CART_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return typeof parsed.scheduledFor === 'number' ? parsed.scheduledFor : null;
-        }
-      } catch {}
-    }
-    return null;
-  });
+  const vendor = useCartStore((s) => s.vendor);
+  const items = useCartStore((s) => s.items);
+  const selectedGateId = useCartStore((s) => s.selectedGateId);
+  const setStoreGateId = useCartStore((s) => s.setSelectedGateId);
+  const couponCode = useCartStore((s) => s.couponCode);
+  const setCouponCode = useCartStore((s) => s.setCouponCode);
+  const scheduledFor = useCartStore((s) => s.scheduledFor);
+  const setScheduledFor = useCartStore((s) => s.setScheduledFor);
+  const deliveryInstruction = useCartStore((s) => s.deliveryInstruction);
+  const setDeliveryInstruction = useCartStore((s) => s.setDeliveryInstruction);
+  const contactPhone = useCartStore((s) => s.contactPhone);
+  const setContactPhone = useCartStore((s) => s.setContactPhone);
+  const paymentMethod = useCartStore((s) => s.paymentMethod);
+  const setPaymentMethod = useCartStore((s) => s.setPaymentMethod);
+  const addItem = useCartStore((s) => s.addItem);
+  const confirmVendorSwitch = useCartStore((s) => s.confirmVendorSwitch);
+  const cancelVendorSwitch = useCartStore((s) => s.cancelVendorSwitch);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const updateNotes = useCartStore((s) => s.updateNotes);
+  const removeItem = useCartStore((s) => s.removeItem);
+  const clearCart = useCartStore((s) => s.clearCart);
+  const pendingVendorSwitch = useCartStore((s) => s.pendingVendorSwitch);
 
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [isOfflineEstimate, setIsOfflineEstimate] = useState(false);
 
-  const [pendingVendorSwitch, setPendingVendorSwitch] = useState<{
-    vendor: CartVendor;
-    item: Omit<CartItem, 'quantity'> & { quantity?: number };
-  } | null>(null);
+  // Sync URL ?gate= into Zustand if initially loaded via deep link
+  useEffect(() => {
+    const urlGate = searchParams.get('gate');
+    if (urlGate && urlGate !== selectedGateId) {
+      setStoreGateId(urlGate);
+    }
+  }, []);
 
-  // Sync gate changes to localStorage and URL
   const setSelectedGateId = useCallback(
     (gateId: string) => {
-      setSelectedGateIdState(gateId);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_GATE_KEY, gateId);
-      }
+      setStoreGateId(gateId);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -167,34 +155,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         { replace: true }
       );
     },
-    [setSearchParams]
+    [setStoreGateId, setSearchParams]
   );
 
-  const setCouponCode = useCallback((code: string) => {
-    setCouponCodeState(code.trim().toUpperCase());
-  }, []);
+  // Compute safe offline fallback subtotal from locally persisted items
+  const buildOfflineFallback = useCallback((): CartQuote => {
+    const subtotalPaise = items.reduce((sum, i) => sum + i.pricePaise * i.quantity, 0);
+    return {
+      subtotalPaise,
+      packingTotalPaise: 0,
+      discountPaise: 0,
+      deliveryFeePaise: 0,
+      totalPaise: subtotalPaise,
+      meetsMinOrder: true,
+      shortfallPaise: 0,
+      etaMinutes: 25,
+      canDeliver: true,
+    };
+  }, [items]);
 
-  const setScheduledFor = useCallback((ts: number | null) => {
-    setScheduledForState(ts);
-  }, []);
-
-  // Save cart to localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(
-        STORAGE_CART_KEY,
-        JSON.stringify({ vendor, items, couponCode, scheduledFor })
-      );
-    }
-  }, [vendor, items, couponCode, scheduledFor]);
-
-  // Debounced quote fetcher
   const fetchQuote = useCallback(async () => {
     if (!vendor || items.length === 0 || !selectedGateId) {
       setQuote(null);
       setQuoteLoading(false);
       setQuoteError(null);
-      return;
+      setIsOfflineEstimate(false);
+      return null;
     }
 
     setQuoteLoading(true);
@@ -208,6 +194,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           gateId: selectedGateId,
           vendorId: vendor.id,
           couponCode: couponCode || undefined,
+          scheduledFor: scheduledFor || undefined,
           items: items.map((i) => ({
             itemId: i.itemId,
             quantity: i.quantity,
@@ -217,7 +204,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as QuoteApiResponse;
       if (!res.ok) {
         if (res.status === 409) {
           setQuoteError(data.error?.message || 'Some items changed in price or availability.');
@@ -225,119 +212,52 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           setQuoteError(data.error?.message || 'Could not calculate quote.');
         }
         setQuote(null);
-      } else {
-        const newQuote: CartQuote = {
-          subtotalPaise: data.subtotalPaise,
-          packingTotalPaise: data.packingTotalPaise,
-          discountPaise: data.discountPaise,
-          deliveryFeePaise: data.deliveryFeePaise,
-          totalPaise: data.totalPaise,
-          etaMinutes: data.etaMinutes,
-          canDeliver: data.canDeliver,
-          reason: data.reason,
-          couponApplied: data.couponApplied,
-          couponError: data.couponError,
-          alternativeGates: data.alternativeGates,
-        };
-        setQuote(newQuote);
-        return newQuote;
+        setIsOfflineEstimate(false);
+        return null;
       }
+
+      const newQuote: CartQuote = {
+        subtotalPaise: data.subtotalPaise,
+        packingTotalPaise: data.packingTotalPaise,
+        discountPaise: data.discountPaise,
+        deliveryFeePaise: data.deliveryFeePaise,
+        totalPaise: data.totalPaise,
+        minOrderPaise: data.minOrderPaise,
+        meetsMinOrder: data.meetsMinOrder,
+        shortfallPaise: data.shortfallPaise,
+        suggestedAddons: data.suggestedAddons,
+        etaMinutes: data.etaMinutes,
+        etaAt: data.etaAt,
+        estimatedArrivalIst: data.estimatedArrivalIst,
+        latestOrderTime: data.latestOrderTime,
+        canDeliver: data.canDeliver,
+        reason: data.deliveryReason,
+        deliveryMessage: data.deliveryMessage,
+        couponApplied: data.couponApplied,
+        couponError: data.couponError,
+        suggestedGate: data.suggestedGate,
+        alternativeGates: data.alternativeGates,
+        availableSlots: data.availableSlots,
+      };
+      setQuote(newQuote);
+      setIsOfflineEstimate(false);
+      return newQuote;
     } catch {
-      setQuoteError('Network error checking prices');
+      const offlineQuote = buildOfflineFallback();
+      setQuote(offlineQuote);
+      setIsOfflineEstimate(true);
       return null;
     } finally {
       setQuoteLoading(false);
     }
-  }, [vendor, items, selectedGateId, couponCode]);
+  }, [vendor, items, selectedGateId, couponCode, scheduledFor, buildOfflineFallback]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchQuote();
-    }, 250);
+    }, 200);
     return () => clearTimeout(timer);
   }, [fetchQuote]);
-
-  const addItem = useCallback(
-    (newVendor: CartVendor, newItem: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
-      const qtyToAdd = Math.max(1, newItem.quantity ?? 1);
-      const lineKey = newItem.lineKey || buildCartLineKey(newItem.itemId, newItem.variantId, newItem.addonIds);
-
-      if (vendor && vendor.id !== newVendor.id && items.length > 0) {
-        setPendingVendorSwitch({ vendor: newVendor, item: { ...newItem, lineKey, quantity: qtyToAdd } });
-        return;
-      }
-
-      setVendor(newVendor);
-      setItems((prev) => {
-        const existingIdx = prev.findIndex(
-          (i) => (i.lineKey || buildCartLineKey(i.itemId, i.variantId, i.addonIds)) === lineKey
-        );
-        if (existingIdx >= 0) {
-          const next = [...prev];
-          next[existingIdx] = {
-            ...next[existingIdx],
-            quantity: next[existingIdx].quantity + qtyToAdd,
-            notes: newItem.notes ?? next[existingIdx].notes,
-          };
-          return next;
-        }
-        return [...prev, { ...newItem, lineKey, quantity: qtyToAdd }];
-      });
-    },
-    [vendor, items.length]
-  );
-
-  const confirmVendorSwitch = useCallback(() => {
-    if (pendingVendorSwitch) {
-      const qty = Math.max(1, pendingVendorSwitch.item.quantity ?? 1);
-      setVendor(pendingVendorSwitch.vendor);
-      setItems([{ ...pendingVendorSwitch.item, quantity: qty }]);
-      setScheduledForState(null);
-      setPendingVendorSwitch(null);
-    }
-  }, [pendingVendorSwitch]);
-
-  const cancelVendorSwitch = useCallback(() => {
-    setPendingVendorSwitch(null);
-  }, []);
-
-  const updateQuantity = useCallback((itemIdOrKey: string, quantity: number) => {
-    setItems((prev) => {
-      const matches = (i: CartItem) =>
-        i.lineKey === itemIdOrKey || (!i.lineKey && i.itemId === itemIdOrKey) || i.itemId === itemIdOrKey;
-      if (quantity <= 0) {
-        return prev.filter((i) => !matches(i));
-      }
-      return prev.map((i) => (matches(i) ? { ...i, quantity } : i));
-    });
-  }, []);
-
-  const updateNotes = useCallback((itemIdOrKey: string, notes: string) => {
-    const safeNotes = notes.slice(0, 80);
-    setItems((prev) =>
-      prev.map((i) =>
-        i.lineKey === itemIdOrKey || i.itemId === itemIdOrKey ? { ...i, notes: safeNotes } : i
-      )
-    );
-  }, []);
-
-  const removeItem = useCallback((itemIdOrKey: string) => {
-    setItems((prev) =>
-      prev.filter((i) => i.lineKey !== itemIdOrKey && i.itemId !== itemIdOrKey)
-    );
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setItems([]);
-    setVendor(null);
-    setQuote(null);
-    setQuoteError(null);
-    setScheduledForState(null);
-    setCouponCodeState('');
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_CART_KEY);
-    }
-  }, []);
 
   const itemCount = items.reduce((acc, i) => acc + i.quantity, 0);
 
@@ -352,6 +272,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setCouponCode,
         scheduledFor,
         setScheduledFor,
+        deliveryInstruction,
+        setDeliveryInstruction,
+        contactPhone,
+        setContactPhone,
+        paymentMethod,
+        setPaymentMethod,
         addItem,
         updateQuantity,
         updateNotes,
@@ -361,6 +287,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         quote,
         quoteLoading,
         quoteError,
+        isOfflineEstimate,
         pendingVendorSwitch,
         confirmVendorSwitch,
         cancelVendorSwitch,

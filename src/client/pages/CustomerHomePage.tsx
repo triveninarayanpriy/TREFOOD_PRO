@@ -634,8 +634,8 @@ export function CustomerHomePage() {
       <Dialog
         open={Boolean(pendingVendorSwitch)}
         onClose={cancelVendorSwitch}
-        title="Replace items in packet?"
-        description="TreFood packets can only contain items from one campus vendor per gate handover."
+        title={`Start a new cart with ${pendingVendorSwitch?.vendor.name || 'this vendor'}?`}
+        description="TreFood orders come from one campus vendor per gate handover."
       >
         <p className="text-xs text-[var(--color-text-muted)] pt-1 pb-4">
           Your current packet has items from <strong>{cartVendor?.name}</strong>. Replace with{' '}

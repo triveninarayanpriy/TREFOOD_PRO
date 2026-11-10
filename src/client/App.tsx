@@ -10,7 +10,6 @@ import { TopBar } from './components/ui/TopBar';
 import { BottomNav } from './components/ui/BottomNav';
 import { DesktopNavRail } from './components/ui/DesktopNavRail';
 import { SplashScreen } from './components/ui/SplashScreen';
-import { CartDrawer } from './components/cart/CartDrawer';
 import { usePwaInstall } from './hooks/usePwaInstall';
 import { LandingPage } from './pages/LandingPage';
 import { Skeleton } from './components/ui/Skeleton';
@@ -20,6 +19,9 @@ import type { Gate } from '@shared/schemas';
 
 const InstallAppModal = lazy(() =>
   import('./components/ui/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
+);
+const CartDrawer = lazy(() =>
+  import('./components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
 );
 
 // Lazy-load secondary routes so first load stays lean (<150 KB gzip) for hostel WiFi
@@ -176,8 +178,12 @@ function AppShell() {
       {/* Bottom Navigation on mobile (< md) */}
       {!isDedicatedConsole && <BottomNav />}
 
-      {/* Global Cart Drawer */}
-      <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
+      {/* Lazy Global Cart Drawer */}
+      <Suspense fallback={null}>
+        {cartDrawerOpen && (
+          <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
+        )}
+      </Suspense>
 
       {/* Lazy Install App Modal */}
       <Suspense fallback={null}>
