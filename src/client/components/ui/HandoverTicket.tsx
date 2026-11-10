@@ -66,7 +66,7 @@ export function HandoverTicket({
     <div
       role="region"
       aria-label="Order Handover Ticket"
-      className="relative overflow-hidden rounded-3xl border-2 border-stone-800 bg-white shadow-xl dark:border-stone-700 dark:bg-stone-900"
+      className="relative overflow-hidden rounded-3xl border-2 border-[#1C1917] bg-[var(--color-surface)] shadow-xl dark:border-[#3A2229]"
     >
       {/* Top Section */}
       <div className="bg-[#830020] p-4 text-white">
@@ -85,43 +85,43 @@ export function HandoverTicket({
       </div>
 
       {/* Middle Perforated Divider */}
-      <div className="relative flex items-center justify-between bg-stone-50 px-4 py-2 dark:bg-stone-850">
-        <div className="-ml-6 h-5 w-5 rounded-full bg-stone-50 dark:bg-stone-950 border-r border-stone-300 dark:border-stone-700" />
-        <div className="w-full border-t-2 border-dashed border-stone-300 dark:border-stone-700 mx-2" />
-        <div className="-mr-6 h-5 w-5 rounded-full bg-stone-50 dark:bg-stone-950 border-l border-stone-300 dark:border-stone-700" />
+      <div className="relative flex items-center justify-between bg-[var(--color-surface-sunken)] px-4 py-2">
+        <div className="-ml-6 h-5 w-5 rounded-full border-r border-[var(--color-border)] bg-[var(--color-bg)]" />
+        <div className="mx-2 w-full border-t-2 border-dashed border-[var(--color-border)]" />
+        <div className="-mr-6 h-5 w-5 rounded-full border-l border-[var(--color-border)] bg-[var(--color-bg)]" />
       </div>
 
       {/* Code Display Area */}
-      <div className="p-6 text-center space-y-2">
-        <span className="text-xs font-bold uppercase tracking-widest text-stone-500">
+      <div className="space-y-2 p-6 text-center">
+        <span className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
           Match 4-Digit Code at Gate
         </span>
 
         {/* Oversized Tabular Digits */}
-        <div className="font-mono text-5xl sm:text-6xl font-black tracking-widest text-[#830020] dark:text-amber-400 py-1 select-all">
+        <div className="select-all py-1 font-mono text-5xl font-black tracking-widest text-[#830020] dark:text-[#FFB400] sm:text-6xl">
           {handoverCode}
         </div>
 
-        <p className="text-[11px] text-stone-500">
+        <p className="text-[11px] text-[var(--color-text-muted)]">
           Confirm that this 4-digit code matches the label on your food packet.
         </p>
       </div>
 
       {/* Footer Info */}
-      <div className="border-t border-stone-100 bg-stone-50 p-4 dark:border-stone-800 dark:bg-stone-850 flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-4 text-xs">
         <div>
-          <div className="font-bold text-stone-900 dark:text-stone-100">{vendorName}</div>
-          <div className="text-stone-500">{gateName}</div>
+          <div className="font-bold text-[var(--color-text)]">{vendorName}</div>
+          <div className="text-[var(--color-text-muted)]">{gateName}</div>
         </div>
         <div className="text-right">
           {displayEta && (
-            <div className="font-semibold text-amber-700 dark:text-amber-400 flex items-center justify-end gap-1">
+            <div className="flex items-center justify-end gap-1 font-semibold text-[#92400E] dark:text-[#FCD34D]">
               <Clock className="h-3 w-3" />
               <span>~{displayEta}</span>
             </div>
           )}
           {totalPaise !== undefined && (
-            <div className="font-mono font-bold text-stone-900 dark:text-stone-100">
+            <div className="font-mono font-bold text-[var(--color-text)]">
               ₹{(totalPaise / 100).toFixed(2)}
             </div>
           )}

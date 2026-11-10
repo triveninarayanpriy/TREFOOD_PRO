@@ -5,10 +5,11 @@ import { useCart } from '../context/CartContext';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
-import { QtyStepper } from '../components/ui/QtyStepper';
+import { MenuItemRow } from '../components/ui/MenuItemRow';
 import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CartDrawer } from '../components/cart/CartDrawer';
+import { isNightSafetyActive } from '@shared/curfew';
 import {
   Clock,
   Star,
@@ -57,10 +58,10 @@ export function VendorPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
-        <Skeleton className="h-8 w-32 rounded-lg" />
-        <Skeleton className="h-40 w-full rounded-2xl" />
-        <div className="space-y-4 pt-4">
+      <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+        <Skeleton className="h-8 w-36 rounded-lg" />
+        <Skeleton className="h-44 w-full rounded-2xl" />
+        <div className="space-y-3 pt-2">
           <MenuItemSkeleton />
           <MenuItemSkeleton />
           <MenuItemSkeleton />
@@ -88,233 +89,164 @@ export function VendorPage() {
 
   const hours = vendor.hoursJson ? JSON.parse(vendor.hoursJson) : null;
   const isBusy = vendor.busyUntil && vendor.busyUntil > Math.floor(Date.now() / 1000);
+  const nightSafe = vendor.nightSafe !== false;
+  const nightNow = isNightSafetyActive();
 
-  // Cart total paise for items belonging to this vendor
   const isCurrentVendorCart = currentCartVendor?.id === vendor.id;
   const vendorCartTotalPaise = isCurrentVendorCart
     ? cartItems.reduce((sum, item) => sum + item.pricePaise * item.quantity, 0)
     : 0;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-4 pb-24 space-y-6">
-      {/* Top Navigation */}
+    <div className="mx-auto max-w-6xl px-4 py-5 pb-28 space-y-6">
       <button
         type="button"
         onClick={() => navigate('/browse')}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         <span>All Campus Canteens</span>
       </button>
 
-      {/* Vendor Profile Header Card */}
-      <div className="rounded-3xl border border-stone-200 bg-white p-5 sm:p-6 shadow-xs dark:border-stone-800 dark:bg-stone-900 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-                {vendor.name}
-              </h1>
-              {vendor.nameHi && (
-                <span className="text-sm font-medium text-stone-400 dark:text-stone-500">
-                  ({vendor.nameHi})
+      {/* Two-Column Desktop Layout (1440px): Menu + Sticky Packet Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-8 space-y-6">
+          {/* Vendor Profile Header Card */}
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-[var(--shadow-card)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
+                    {vendor.name}
+                  </h1>
+                  {vendor.nameHi && (
+                    <span className="text-sm font-medium text-[var(--color-text-muted)]">
+                      ({vendor.nameHi})
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)] capitalize">
+                  {vendor.category.replace('_', ' ')} • NIT Patna Campus
+                </p>
+                {vendor.description && (
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)] max-w-xl">
+                    {vendor.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                {!vendor.isOpen ? (
+                  <Badge variant="closed">Closed</Badge>
+                ) : isBusy ? (
+                  <Badge variant="warning">Busy Mode</Badge>
+                ) : (
+                  <Badge variant="success">Open for Orders</Badge>
+                )}
+
+                {nightSafe && <Badge variant="night_safe">Night Safe</Badge>}
+
+                {vendor.ratingAvg > 0 && (
+                  <div className="inline-flex items-center gap-1 rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#78350F] dark:border-[#92400E] dark:bg-[#3B2406] dark:text-[#FDE68A]">
+                    <Star className="h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
+                    <span>{vendor.ratingAvg.toFixed(1)}</span>
+                    <span className="opacity-75 font-normal">({vendor.ratingCount})</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Info Grid: Hours, Prep Time, FSSAI */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[var(--color-border-subtle)] pt-4 text-xs text-[var(--color-text-muted)]">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  Hours: {hours?.open || '09:00'} – {hours?.close || '22:00'}
                 </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[#FFB400] shrink-0" aria-hidden="true" />
+                <span>Prep: ~{vendor.prepMinutes} mins</span>
+              </div>
+
+              {vendor.fssaiNo && (
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-[#15803D] shrink-0" aria-hidden="true" />
+                  <span>FSSAI: {vendor.fssaiNo}</span>
+                </div>
               )}
             </div>
-            <p className="mt-1 text-xs text-stone-500 capitalize">
-              {vendor.category.replace('_', ' ')} • NIT Patna Campus
-            </p>
-            {vendor.description && (
-              <p className="mt-2 text-xs text-stone-600 dark:text-stone-300 max-w-xl">
-                {vendor.description}
-              </p>
-            )}
-          </div>
 
-          <div className="flex sm:flex-col items-center sm:items-end gap-2">
-            {!vendor.isOpen ? (
-              <Badge variant="danger">Closed</Badge>
-            ) : isBusy ? (
-              <Badge variant="warning">Busy Mode Active</Badge>
-            ) : (
-              <Badge variant="success">Open for Orders</Badge>
-            )}
-
-            {vendor.ratingAvg > 0 && (
-              <div className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
-                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-                <span>{vendor.ratingAvg.toFixed(1)}</span>
-                <span className="text-stone-400 font-normal">({vendor.ratingCount})</span>
+            {/* Campus Night Safety Notice */}
+            {nightSafe && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-[#FCD34D] bg-[#FFF8E1] px-3.5 py-2.5 text-xs font-semibold text-[#78350F] dark:border-[#92400E] dark:bg-[#331F04] dark:text-[#FDE68A]">
+                <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {nightNow
+                    ? 'Campus Night Safety Active (after 7 PM): deliveries are handled personally by owner, co-owner, or senior staff.'
+                    : 'Campus Night Safety Guarantee: after 7:00 PM IST orders are delivered personally by owner or senior staff.'}
+                </span>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Info Grid: FSSAI, Hours, Prep Time */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-stone-100 pt-4 dark:border-stone-800 text-xs">
-          <div className="flex items-center gap-2 text-stone-600 dark:text-stone-400">
-            <Clock className="h-4 w-4 text-stone-400 shrink-0" />
-            <span>
-              Hours: {hours?.open || '09:00'} – {hours?.close || '22:00'}
-            </span>
+          {/* Sticky Category Tabs */}
+          <div className="sticky top-[65px] z-20 -mx-4 px-4 py-2.5 bg-[var(--color-surface-sunken)]/95 backdrop-blur-xs border-y border-[var(--color-border)] flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {vendor.categories?.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`min-h-[40px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
+                  activeCategory === cat.id
+                    ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
+                    : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-raised)]'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-2 text-stone-600 dark:text-stone-400">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-            <span>Prep: ~{vendor.prepMinutes} mins</span>
-          </div>
+          {/* Menu Categories and Items rendered via MenuItemRow */}
+          <div className="space-y-8">
+            {vendor.categories?.map((cat) => {
+              const items = cat.items || [];
+              if (items.length === 0) return null;
 
-          {vendor.fssaiNo && (
-            <div className="flex items-center gap-2 text-stone-600 dark:text-stone-400">
-              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>FSSAI: {vendor.fssaiNo}</span>
-            </div>
-          )}
-        </div>
-      </div>
+              return (
+                <section key={cat.id} id={`cat-${cat.id}`} className="space-y-3">
+                  <h2 className="text-lg font-bold text-[var(--color-text)] flex items-center gap-2">
+                    <span>{cat.name}</span>
+                    <span className="text-xs font-normal text-[var(--color-text-muted)]">({items.length})</span>
+                  </h2>
 
-      {/* Sticky Category Tabs */}
-      <div className="sticky top-14 z-20 -mx-4 px-4 py-2 bg-stone-50/95 backdrop-blur-xs border-b border-stone-200 dark:bg-stone-950/95 dark:border-stone-800 flex items-center gap-2 overflow-x-auto no-scrollbar">
-        {vendor.categories?.map((cat: any) => (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => {
-              setActiveCategory(cat.id);
-              document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-              activeCategory === cat.id
-                ? 'bg-[#830020] text-white shadow-xs dark:bg-amber-400 dark:text-stone-950'
-                : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300'
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </div>
+                  <div className="space-y-3">
+                    {items.map((item: MenuItem) => {
+                      const cartItem = isCurrentVendorCart
+                        ? cartItems.find((ci) => ci.itemId === item.id)
+                        : undefined;
+                      const inCartQty = cartItem?.quantity || 0;
 
-      {/* Menu Categories and Items */}
-      <div className="space-y-8">
-        {vendor.categories?.map((cat: any) => {
-          const items = cat.items || [];
-          if (items.length === 0) return null;
-
-          return (
-            <section key={cat.id} id={`cat-${cat.id}`} className="space-y-3">
-              <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                <span>{cat.name}</span>
-                <span className="text-xs font-normal text-stone-400">({items.length})</span>
-              </h2>
-
-              <div className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
-                {items.map((item: MenuItem) => {
-                  const cartItem = isCurrentVendorCart
-                    ? cartItems.find((ci) => ci.itemId === item.id)
-                    : undefined;
-                  const inCartQty = cartItem?.quantity || 0;
-
-                  return (
-                    <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-block h-2.5 w-2.5 rounded-full ring-2 ${
-                              item.isVeg
-                                ? 'bg-emerald-600 ring-emerald-100 dark:ring-emerald-950'
-                                : 'bg-red-600 ring-red-100 dark:ring-red-950'
-                            }`}
-                            title={item.isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
-                          />
-                          <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100">
-                            {item.name}
-                          </h3>
-                          {item.nameHi && (
-                            <span className="text-xs text-stone-400">({item.nameHi})</span>
-                          )}
-                        </div>
-
-                        {item.description && (
-                          <p className="text-xs text-stone-500 dark:text-stone-400 max-w-lg">
-                            {item.description}
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-3 pt-1">
-                          <span className="text-sm font-mono font-bold text-stone-900 dark:text-stone-100">
-                            ₹{(item.pricePaise / 100).toFixed(2)}
-                          </span>
-                          {!item.inStock && (
-                            <Badge variant="danger" className="text-[10px]">
-                              Sold Out
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Note preview or note edit trigger */}
-                        {inCartQty > 0 && (
-                          <div className="pt-1 text-xs">
-                            {editingNoteItemId === item.id ? (
-                              <div className="flex gap-2 items-center">
-                                <input
-                                  type="text"
-                                  maxLength={80}
-                                  placeholder="e.g. less spicy (max 80 chars)"
-                                  defaultValue={cartItem?.notes || ''}
-                                  onBlur={(e) => {
-                                    updateNotes(item.id, e.target.value);
-                                    setEditingNoteItemId(null);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      updateNotes(item.id, (e.target as HTMLInputElement).value);
-                                      setEditingNoteItemId(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                  className="h-7 w-60 rounded border border-stone-300 px-2 text-xs dark:border-stone-700 dark:bg-stone-800"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingNoteItemId(null)}
-                                  className="text-stone-500 underline"
-                                >
-                                  Done
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setEditingNoteItemId(item.id)}
-                                className="text-[11px] text-stone-500 hover:text-stone-700 underline dark:hover:text-stone-300"
-                              >
-                                {cartItem?.notes
-                                  ? `Note: "${cartItem.notes}" (edit)`
-                                  : '+ Add note (e.g. less spicy)'}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Quantity Controls / Add Button */}
-                      <div className="flex items-center justify-end shrink-0">
-                        {!item.inStock ? (
-                          <button
-                            disabled
-                            className="rounded-xl border border-stone-200 px-3.5 py-1.5 text-xs font-semibold text-stone-400 dark:border-stone-800 cursor-not-allowed"
-                          >
-                            Out of stock
-                          </button>
-                        ) : inCartQty > 0 ? (
-                          <QtyStepper
-                            value={inCartQty}
-                            onIncrease={() => updateQuantity(item.id, inCartQty + 1)}
-                            onDecrease={() => updateQuantity(item.id, inCartQty - 1)}
-                          />
-                        ) : (
-                          <Button
-                            onClick={() =>
+                      return (
+                        <div key={item.id} className="space-y-2">
+                          <MenuItemRow
+                            id={item.id}
+                            name={item.name}
+                            nameHi={item.nameHi}
+                            description={item.description}
+                            pricePaise={item.pricePaise}
+                            isVeg={item.isVeg}
+                            inStock={item.inStock}
+                            category={vendor.category}
+                            quantity={inCartQty}
+                            notes={cartItem?.notes}
+                            onAddNote={() => setEditingNoteItemId(item.id)}
+                            onAdd={() =>
                               addItem(
                                 { id: vendor.id, name: vendor.name, slug: vendor.slug },
                                 {
@@ -325,53 +257,98 @@ export function VendorPage() {
                                 }
                               )
                             }
-                            variant="secondary"
-                            size="sm"
-                            className="min-h-[38px] px-4 font-bold text-[#830020] border-[#830020]/20 hover:bg-[#830020]/5 dark:text-amber-400 dark:border-amber-400/20"
-                          >
-                            + Add
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+                            onIncrease={() => updateQuantity(item.id, inCartQty + 1)}
+                            onDecrease={() => updateQuantity(item.id, inCartQty - 1)}
+                          />
 
-      {/* Floating Bottom Cart Bar when items are present */}
-      {itemCount > 0 && (
-        <div className="fixed bottom-16 sm:bottom-6 left-0 right-0 z-30 px-4">
-          <div className="mx-auto max-w-md">
-            <button
-              type="button"
-              onClick={() => setCartDrawerOpen(true)}
-              className="flex w-full items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] dark:bg-amber-400 dark:text-stone-950"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 font-mono font-bold text-sm">
-                  {itemCount}
-                </div>
-                <div className="text-left">
-                  <div className="text-xs uppercase tracking-wide opacity-80">
-                    {currentCartVendor?.name}
+                          {inCartQty > 0 && editingNoteItemId === item.id && (
+                            <div className="flex items-center gap-2 pl-4">
+                              <input
+                                type="text"
+                                maxLength={80}
+                                placeholder="e.g. less spicy (max 80 chars)"
+                                defaultValue={cartItem?.notes || ''}
+                                onBlur={(e) => {
+                                  updateNotes(item.id, e.target.value);
+                                  setEditingNoteItemId(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    updateNotes(item.id, (e.target as HTMLInputElement).value);
+                                    setEditingNoteItemId(null);
+                                  }
+                                }}
+                                autoFocus
+                                className="h-9 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)]"
+                              />
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setEditingNoteItemId(null)}
+                              >
+                                Done
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="text-sm font-bold">
-                    View Packet • ₹{(vendorCartTotalPaise / 100).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 text-xs font-bold bg-white/20 px-3 py-1.5 rounded-xl">
-                <span>Open Cart</span>
-                <ShoppingBag className="h-4 w-4" />
-              </div>
-            </button>
+                </section>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* Sticky Desktop Packet Summary Column (and responsive bottom floating trigger on < lg) */}
+        <aside className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
+          <div className="hidden lg:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] space-y-3">
+            <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center justify-between">
+              <span>Your Campus Packet</span>
+              <span className="font-mono text-xs text-[var(--color-text-muted)]">{itemCount} items</span>
+            </h3>
+            {itemCount === 0 ? (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Add items from {vendor.name} to inspect server-verified pricing, gate ETA, and place your pay-at-gate order.
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--color-text-muted)]">
+                Zero delivery fee. 4-digit handover verification code generated upon order confirmation.
+              </p>
+            )}
+          </div>
+
+          {itemCount > 0 && (
+            <div className="fixed bottom-16 left-4 right-4 z-30 md:bottom-6 lg:static lg:z-auto">
+              <div className="mx-auto max-w-md lg:max-w-none">
+                <button
+                  type="button"
+                  onClick={() => setCartDrawerOpen(true)}
+                  className="flex w-full min-h-[56px] items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1917]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 dark:bg-[#1C1917]/15 font-mono font-bold text-sm">
+                      {itemCount}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs uppercase tracking-wide opacity-90">
+                        {currentCartVendor?.name}
+                      </div>
+                      <div className="text-sm font-bold">
+                        View Packet • ₹{(vendorCartTotalPaise / 100).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-bold bg-white/20 dark:bg-[#1C1917]/15 px-3 py-1.5 rounded-xl">
+                    <span>Open Cart</span>
+                    <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
 
       {/* Cart Drawer */}
       <CartDrawer open={cartDrawerOpen} onClose={() => setCartDrawerOpen(false)} />
@@ -383,9 +360,9 @@ export function VendorPage() {
         title="Start a new packet?"
         description={`Your cart currently contains items from "${currentCartVendor?.name}". Each order is delivered from one campus vendor.`}
       >
-        <p className="text-xs text-stone-600 dark:text-stone-400 pt-1 pb-4">
+        <p className="text-xs text-[var(--color-text-muted)] pt-1 pb-4">
           Would you like to clear your current packet and add items from{' '}
-          <span className="font-semibold text-stone-900 dark:text-stone-100">
+          <span className="font-semibold text-[var(--color-text)]">
             {pendingVendorSwitch?.vendor.name}
           </span>
           ?

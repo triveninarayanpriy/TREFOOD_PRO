@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" fill="none">
+  <defs><linearGradient id="gFruits" x1="0" y1="0" x2="160" y2="160" gradientUnits="userSpaceOnUse"><stop stop-color="#15803D"/><stop offset="1" stop-color="#065F46"/></linearGradient></defs>
+  <rect width="160" height="160" rx="24" fill="url(#gFruits)"/>
+  <circle cx="68" cy="88" r="32" fill="#DC2626"/>
+  <path d="M68 56C68 48 74 42 82 40" stroke="#FFFDF8" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="80" cy="48" rx="9" ry="5" transform="rotate(-25 80 48)" fill="#86EFAC"/>
+  <circle cx="104" cy="96" r="24" fill="#FFB400"/>
+  <circle cx="104" cy="96" r="18" fill="#FEF3C7"/>
+  <circle cx="104" cy="96" r="12" fill="#F59E0B"/>
+</svg>

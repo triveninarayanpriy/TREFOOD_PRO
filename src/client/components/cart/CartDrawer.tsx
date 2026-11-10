@@ -178,7 +178,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             <div className="pt-2">
               <Button
                 onClick={handleCheckoutClick}
-                disabled={quoteLoading || !!quoteError || items.length === 0}
+                disabled={!!quoteError || items.length === 0}
                 variant="primary"
                 className="w-full min-h-[48px] text-base"
               >

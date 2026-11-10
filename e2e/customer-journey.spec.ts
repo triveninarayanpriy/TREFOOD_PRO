@@ -39,9 +39,10 @@ test.describe('Customer End-to-End Journey', () => {
     await expect(viewPacketBtn).toBeVisible({ timeout: 10000 });
     await viewPacketBtn.click();
 
-    // 8. In Cart Drawer, click Proceed to Checkout
+    // 8. In Cart Drawer, click Proceed to Checkout (wait for debounced server quote)
     const checkoutBtn = page.getByRole('button', { name: /Proceed to Checkout/i });
     await expect(checkoutBtn).toBeVisible({ timeout: 10000 });
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 });
     await checkoutBtn.click();
 
     // 9. Sign in with 1-Tap Demo Student

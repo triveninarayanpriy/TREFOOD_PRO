@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 44" width="180" height="44" fill="none">
+  <rect x="2" y="2" width="40" height="40" rx="12" fill="#830020"/>
+  <path d="M12 24C12 18.477 16.477 14 22 14C27.523 14 32 18.477 32 24H12Z" fill="#FFB400"/>
+  <path d="M10 26.5H34C34 29.538 31.538 32 28.5 32H15.5C12.462 32 10 29.538 10 26.5Z" fill="#FFFDF8"/>
+  <circle cx="22" cy="11" r="2" fill="#FFB400"/>
+  <text x="52" y="29" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="22" letter-spacing="-0.03em" fill="#830020">TreFood</text>
+  <rect x="139" y="13" width="38" height="16" rx="5" fill="#FEF3C7"/>
+  <text x="158" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="9.5" fill="#78350F">NITP</text>
+</svg>

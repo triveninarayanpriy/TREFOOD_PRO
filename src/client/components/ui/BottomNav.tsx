@@ -14,7 +14,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-stone-200 bg-white/95 pb-safe backdrop-blur-md sm:hidden dark:border-stone-800 dark:bg-stone-900/95"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 pb-safe backdrop-blur-md md:hidden"
       aria-label="Mobile Bottom Navigation"
     >
       <div className="flex h-16 items-center justify-around px-2">
@@ -25,14 +25,14 @@ export function BottomNav() {
               key={link.to}
               to={link.to}
               className={({ isActive }) =>
-                `flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#F2A900] ${
+                `flex min-h-[44px] min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
                   isActive
-                    ? 'text-[#830020] dark:text-amber-400'
-                    : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
+                    ? 'text-[#830020] dark:text-[#FFB400]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
                 }`
               }
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" aria-hidden="true" />
               <span>{link.label}</span>
             </NavLink>
           );
