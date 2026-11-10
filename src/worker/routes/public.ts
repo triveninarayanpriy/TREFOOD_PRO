@@ -16,6 +16,7 @@ import {
   vendorApplications,
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
+import { getAvailableScheduleSlots } from '@shared/curfew';
 import { priceCart, CartConflictError } from '../services/cart';
 import { getRequestNow, nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
@@ -758,9 +759,11 @@ publicRoutes.post('/cart/quote', async (c) => {
     );
   }
 
-  const { vendorId, gateId, items, couponCode } = parseResult.data;
+  const { vendorId, gateId, items, couponCode, scheduledFor } = parseResult.data;
   const now = getRequestNow(c);
   const currentUser = c.get('user');
+  const isScheduled = Boolean(scheduledFor && scheduledFor > now);
+  const checkTimestamp = isScheduled ? scheduledFor! : now;
 
   // Verify gate
   const allGates = await db.select().from(gates).all();
@@ -782,8 +785,9 @@ publicRoutes.post('/cart/quote', async (c) => {
     .where(and(eq(vendorGates.vendorId, vendorId), eq(vendorGates.gateId, gateId)))
     .get();
 
-  // Curfew & delivery check
-  const deliveryCheck = canDeliver(gate, vendor, now, vg, allGates);
+  // Curfew & delivery check (supports scheduled slots vs live right-now check)
+  const deliveryCheck = canDeliver(gate, vendor, checkTimestamp, vg, allGates, { isScheduled });
+  const availableSlots = getAvailableScheduleSlots(vendor, gate, now, vg, 12);
 
   // Price cart from server truth
   try {
@@ -792,6 +796,42 @@ publicRoutes.post('/cart/quote', async (c) => {
       userId: currentUser?.id,
       nowUtcSeconds: now,
     });
+
+    // When short of vendor minimum order, suggest up to 3 in-stock add-ons from the same vendor
+    let suggestedAddons: Array<{
+      id: string;
+      name: string;
+      pricePaise: number;
+      isVeg: boolean;
+    }> = [];
+    if (!pricedCart.meetsMinOrder && pricedCart.shortfallPaise > 0) {
+      const inCartIds = new Set(items.map((i) => i.itemId));
+      const vendorItems = await db
+        .select({
+          id: menuItems.id,
+          name: menuItems.name,
+          pricePaise: menuItems.pricePaise,
+          isVeg: menuItems.isVeg,
+          inStock: menuItems.inStock,
+        })
+        .from(menuItems)
+        .where(and(eq(menuItems.vendorId, vendorId), eq(menuItems.inStock, true)))
+        .all();
+
+      suggestedAddons = vendorItems
+        .filter((it) => !inCartIds.has(it.id))
+        .sort((a, b) => {
+          const aMeets = a.pricePaise >= pricedCart.shortfallPaise ? 0 : 1;
+          const bMeets = b.pricePaise >= pricedCart.shortfallPaise ? 0 : 1;
+          if (aMeets !== bMeets) return aMeets - bMeets;
+          return (
+            Math.abs(a.pricePaise - pricedCart.shortfallPaise) -
+            Math.abs(b.pricePaise - pricedCart.shortfallPaise)
+          );
+        })
+        .slice(0, 3)
+        .map(({ id, name, pricePaise, isVeg }) => ({ id, name, pricePaise, isVeg }));
+    }
 
     return c.json({
       ok: true,
@@ -804,19 +844,22 @@ publicRoutes.post('/cart/quote', async (c) => {
       deliveryFeePaise: 0,
       totalPaise: pricedCart.totalPaise,
       totalQuantity: pricedCart.totalQuantity,
+      minOrderPaise: vendor.minOrderPaise,
       meetsMinOrder: pricedCart.meetsMinOrder,
       shortfallPaise: pricedCart.shortfallPaise,
+      suggestedAddons,
       couponApplied: pricedCart.couponApplied,
       couponError: pricedCart.couponError,
       canDeliver: deliveryCheck.ok,
       deliveryReason: deliveryCheck.reason,
       deliveryMessage: deliveryCheck.message,
       etaMinutes: deliveryCheck.etaMinutes || 25,
-      etaAt: deliveryCheck.etaAt || now + 25 * 60,
+      etaAt: deliveryCheck.etaAt || checkTimestamp + 25 * 60,
       estimatedArrivalIst: deliveryCheck.estimatedArrivalIst || '',
       latestOrderTime: deliveryCheck.latestOrderTime,
       suggestedGate: deliveryCheck.suggestedGate,
       alternativeGates: deliveryCheck.alternativeGates,
+      availableSlots,
     });
   } catch (err) {
     if (err instanceof CartConflictError) {

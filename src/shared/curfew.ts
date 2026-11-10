@@ -166,6 +166,18 @@ function resolveAlternativeGates(
   return alternatives;
 }
 
+export interface CanDeliverOptions {
+  isScheduled?: boolean;
+}
+
+export interface ScheduleSlot {
+  timestamp: number;
+  orderTimeIst: string;
+  arrivalTimeIst: string;
+  dayLabel: 'Today' | 'Tomorrow';
+  label: string;
+}
+
 /**
  * Pure delivery feasibility check matching Brief signature `canDeliver(vendor, gate, now)`
  * returning `{ ok, reason, message, suggestedGate, alternativeGates, latestOrderTime, ...eta }`.
@@ -175,7 +187,8 @@ export function evaluateCanDeliver(
   gate: GateTimingInfo,
   nowUtcSeconds: number,
   vendorGate?: VendorGateTimingInfo | null,
-  allGates: GateTimingInfo[] = []
+  allGates: GateTimingInfo[] = [],
+  options?: CanDeliverOptions
 ): DeliveryEligibilityResult {
   const alternatives = () => resolveAlternativeGates(vendor, nowUtcSeconds, allGates, gate.id);
 
@@ -190,21 +203,31 @@ export function evaluateCanDeliver(
     };
   }
 
-  if (vendor.status !== 'active' || !vendor.isOpen) {
+  if (vendor.status !== 'active') {
     return {
       ok: false,
       reason: 'vendor_closed',
-      message: `${vendor.name} is currently closed.`,
+      message: `${vendor.name} is currently inactive.`,
     };
   }
 
-  if (vendor.busyUntil && vendor.busyUntil > nowUtcSeconds) {
-    const minutesRemaining = Math.ceil((vendor.busyUntil - nowUtcSeconds) / 60);
-    return {
-      ok: false,
-      reason: 'vendor_busy',
-      message: `${vendor.name} is temporarily busy. Accepting orders in ~${minutesRemaining} min.`,
-    };
+  if (!options?.isScheduled) {
+    if (!vendor.isOpen) {
+      return {
+        ok: false,
+        reason: 'vendor_closed',
+        message: `${vendor.name} is currently closed.`,
+      };
+    }
+
+    if (vendor.busyUntil && vendor.busyUntil > nowUtcSeconds) {
+      const minutesRemaining = Math.ceil((vendor.busyUntil - nowUtcSeconds) / 60);
+      return {
+        ok: false,
+        reason: 'vendor_busy',
+        message: `${vendor.name} is temporarily busy. Accepting orders in ~${minutesRemaining} min.`,
+      };
+    }
   }
 
   const ist = getIstClock(nowUtcSeconds);
@@ -214,16 +237,16 @@ export function evaluateCanDeliver(
     const openMinutes = parseHHMM(hours.open);
     const closeMinutes = parseHHMM(hours.close);
 
-    const isOpenNow =
+    const isOpenAtTarget =
       closeMinutes >= openMinutes
         ? currentMinutes >= openMinutes && currentMinutes <= closeMinutes
         : currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
 
-    if (!isOpenNow) {
+    if (!isOpenAtTarget) {
       return {
         ok: false,
         reason: 'vendor_closed',
-        message: `${vendor.name} is closed. Operating hours are ${hours.open} to ${hours.close} IST.`,
+        message: `${vendor.name} is closed at ${ist.timeString} IST. Operating hours are ${hours.open} to ${hours.close} IST.`,
       };
     }
   } catch {
@@ -280,6 +303,44 @@ export function evaluateCanDeliver(
     ...eta,
     latestOrderTime,
   };
+}
+
+/**
+ * Generates valid 15-minute delivery slots within the next 24h strictly bounded
+ * by vendor operating hours AND gate curfew/buffer windows in Asia/Kolkata time.
+ */
+export function getAvailableScheduleSlots(
+  vendor: VendorTimingInfo,
+  gate: GateTimingInfo,
+  nowUtcSeconds: number,
+  vendorGate?: VendorGateTimingInfo | null,
+  maxSlots: number = 12
+): ScheduleSlot[] {
+  if (!gate.active || vendor.status !== 'active' || !vendorGate) return [];
+
+  const todayIstDay = Math.floor((nowUtcSeconds + IST_OFFSET_SECONDS) / 86400);
+  // Start from next 15-minute boundary at least 15m from now
+  const firstCandidate = Math.ceil((nowUtcSeconds + 15 * 60) / 900) * 900;
+  const endHorizon = nowUtcSeconds + 24 * 3600;
+  const slots: ScheduleSlot[] = [];
+
+  for (let ts = firstCandidate; ts <= endHorizon && slots.length < maxSlots; ts += 900) {
+    const check = evaluateCanDeliver(vendor, gate, ts, vendorGate, [], { isScheduled: true });
+    if (!check.ok || !check.estimatedArrivalIst) continue;
+
+    const slotDay = Math.floor((ts + IST_OFFSET_SECONDS) / 86400);
+    const dayLabel: 'Today' | 'Tomorrow' = slotDay > todayIstDay ? 'Tomorrow' : 'Today';
+    const orderTimeIst = getIstClock(ts).timeString;
+    slots.push({
+      timestamp: ts,
+      orderTimeIst,
+      arrivalTimeIst: check.estimatedArrivalIst,
+      dayLabel,
+      label: `${dayLabel} ${check.estimatedArrivalIst} IST (prep ${orderTimeIst})`,
+    });
+  }
+
+  return slots;
 }
 
 export interface GateCurfewStatus {

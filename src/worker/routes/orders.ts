@@ -70,9 +70,32 @@ orderRoutes.post('/', async (c) => {
     );
   }
 
-  const { vendorId, gateId, items, couponCode, paymentMethod, scheduledFor, note } = parseResult.data;
+  const {
+    vendorId,
+    gateId,
+    items,
+    couponCode,
+    paymentMethod,
+    upiSimulateResult,
+    paymentRef,
+    contactPhone,
+    scheduledFor,
+    note,
+  } = parseResult.data;
   const now = getRequestNow(c);
-  const checkTimestamp = scheduledFor && scheduledFor > now ? scheduledFor : now;
+  if (scheduledFor !== undefined && (scheduledFor < now - 60 || scheduledFor > now + 24 * 3600)) {
+    return c.json(
+      {
+        error: {
+          code: 'INVALID_SCHEDULE_SLOT',
+          message: 'Scheduled delivery time must be within the next 24 hours.',
+        },
+      },
+      400
+    );
+  }
+  const isScheduled = Boolean(scheduledFor && scheduledFor > now);
+  const checkTimestamp = isScheduled ? scheduledFor! : now;
 
   // Validate gate
   const allGates = await db.select().from(gates).all();
@@ -94,8 +117,8 @@ orderRoutes.post('/', async (c) => {
     .where(and(eq(vendorGates.vendorId, vendorId), eq(vendorGates.gateId, gateId)))
     .get();
 
-  // Check delivery capability
-  const deliveryCheck = canDeliver(gate, vendor, checkTimestamp, vg, allGates);
+  // Check delivery capability (supports future scheduled slots bounded by vendor & gate hours)
+  const deliveryCheck = canDeliver(gate, vendor, checkTimestamp, vg, allGates, { isScheduled });
   if (!deliveryCheck.ok) {
     return c.json(
       {
@@ -139,12 +162,36 @@ orderRoutes.post('/', async (c) => {
     );
   }
 
+  if (couponCode && pricedCart.couponError) {
+    return c.json(
+      {
+        error: {
+          code: 'COUPON_NOT_ELIGIBLE',
+          message: pricedCart.couponError,
+        },
+      },
+      409
+    );
+  }
+
+  const resolvedPaymentMethod = paymentMethod || 'pay_at_gate';
+  if (resolvedPaymentMethod === 'upi_simulated' && upiSimulateResult === 'failed') {
+    return c.json(
+      {
+        error: {
+          code: 'PAYMENT_FAILED',
+          message: 'UPI authorization was declined. Retry UPI or switch to Pay at gate.',
+        },
+      },
+      402
+    );
+  }
+
   // Generate 4-digit handover code unique to active orders at this gate
   const handoverCode = await generateHandoverCode(db, gateId);
 
   const orderId = ulid();
   const publicNo = `TF-${Math.floor(1000 + Math.random() * 9000)}`;
-  const resolvedPaymentMethod = paymentMethod || 'pay_at_gate';
   const resolvedPaymentStatus = resolvedPaymentMethod === 'upi_simulated' ? 'paid' : 'pending';
 
   // Insert order
@@ -168,6 +215,7 @@ orderRoutes.post('/', async (c) => {
     idempotencyKey,
     scheduledFor: scheduledFor || null,
     note: note || null,
+    contactPhone: contactPhone || null,
     etaAt: deliveryCheck.etaAt,
     placedAt: now,
     createdAt: now,
@@ -193,7 +241,12 @@ orderRoutes.post('/', async (c) => {
     status: 'placed',
     actorId: user.id,
     at: now,
-    note: 'Order placed by customer',
+    note:
+      resolvedPaymentMethod === 'upi_simulated' && paymentRef
+        ? `Order placed via simulated UPI (ref ${paymentRef})`
+        : isScheduled
+          ? 'Scheduled order placed by customer'
+          : 'Order placed by customer',
   });
 
   const createdOrder = await db.select().from(orders).where(eq(orders.id, orderId)).get();

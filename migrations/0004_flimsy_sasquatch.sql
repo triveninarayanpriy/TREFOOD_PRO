@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `contact_phone` text;

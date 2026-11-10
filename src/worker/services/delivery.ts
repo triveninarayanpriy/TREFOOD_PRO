@@ -1,5 +1,6 @@
 import {
   evaluateCanDeliver,
+  type CanDeliverOptions,
   type GateTimingInfo,
   type VendorTimingInfo,
   type VendorGateTimingInfo,
@@ -23,7 +24,8 @@ export function canDeliver(
   vendor: VendorRecord,
   nowUtcSeconds: number,
   vendorGate?: VendorGateRecord | null,
-  allGates: GateRecord[] = []
+  allGates: GateRecord[] = [],
+  options?: CanDeliverOptions
 ): CanDeliverResult {
-  return evaluateCanDeliver(vendor, gate, nowUtcSeconds, vendorGate, allGates);
+  return evaluateCanDeliver(vendor, gate, nowUtcSeconds, vendorGate, allGates, options);
 }

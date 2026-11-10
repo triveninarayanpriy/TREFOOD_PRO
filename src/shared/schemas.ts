@@ -136,6 +136,7 @@ export const CartQuoteRequestSchema = z.object({
   gateId: z.string(),
   items: z.array(CartItemInputSchema).min(1, 'Cart cannot be empty'),
   couponCode: z.string().trim().max(32).optional(),
+  scheduledFor: z.number().int().optional(),
 });
 
 export type CartQuoteRequest = z.infer<typeof CartQuoteRequestSchema>;
@@ -194,6 +195,13 @@ export const CreateOrderRequestSchema = z.object({
   items: z.array(CartItemInputSchema).min(1, 'Must include at least one item'),
   couponCode: z.string().trim().max(32).optional(),
   paymentMethod: z.enum(['pay_at_gate', 'upi_simulated']).optional().default('pay_at_gate'),
+  upiSimulateResult: z.enum(['success', 'failed']).optional(),
+  paymentRef: z.string().trim().max(64).optional(),
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number')
+    .optional(),
   scheduledFor: z.number().int().optional(),
   note: z.string().max(200, 'Order note must be under 200 characters').optional(),
 });
@@ -230,9 +238,16 @@ export const OrderDetailSchema = z.object({
   gateName: z.string().optional(),
   status: OrderStatusEnum,
   subtotalPaise: z.number().int(),
+  packingTotalPaise: z.number().int().optional(),
+  discountPaise: z.number().int().optional(),
+  couponCode: z.string().nullable().optional(),
   totalPaise: z.number().int(),
-  paymentMethod: z.literal('pay_at_gate'),
+  paymentMethod: z.enum(['pay_at_gate', 'upi_simulated']),
+  paymentStatus: z.string().optional(),
   handoverCode: z.string().length(4),
+  scheduledFor: z.number().int().nullable().optional(),
+  note: z.string().nullable().optional(),
+  contactPhone: z.string().nullable().optional(),
   etaAt: z.number().nullable().optional(),
   placedAt: z.number().int(),
   acceptedAt: z.number().nullable().optional(),

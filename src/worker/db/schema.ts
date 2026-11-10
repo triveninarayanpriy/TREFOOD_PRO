@@ -199,6 +199,7 @@ export const orders = sqliteTable(
     idempotencyKey: text('idempotency_key').notNull().unique(),
     scheduledFor: integer('scheduled_for'), // UTC seconds nullable
     note: text('note'),
+    contactPhone: text('contact_phone'),
     etaAt: integer('eta_at'),
     placedAt: integer('placed_at').notNull(),
     acceptedAt: integer('accepted_at'),
