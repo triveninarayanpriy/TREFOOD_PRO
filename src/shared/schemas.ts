@@ -342,3 +342,19 @@ export const PushUnsubscribeSchema = z.object({
 });
 
 export type PushSubscribeInput = z.infer<typeof PushSubscribeSchema>;
+
+export const VendorStatusUpdateSchema = z.object({
+  isOpen: z.boolean().optional(),
+  busyMinutes: z.number().int().min(0).max(240).optional(),
+  nightSafe: z.boolean().optional(),
+});
+
+export const VendorMenuItemUpdateSchema = z.object({
+  pricePaise: z.number().int().min(100).max(500000).optional(),
+  inStock: z.boolean().optional(),
+  packingChargePaise: z.number().int().min(0).max(20000).optional(),
+});
+
+export const VendorOrderPrepAdjustSchema = z.object({
+  prepMinutes: z.number().int().min(5).max(120),
+});

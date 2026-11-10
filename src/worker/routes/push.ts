@@ -170,7 +170,7 @@ notificationRoutes.get('/', requireAuth, async (c) => {
     .innerJoin(gates, eq(orders.gateId, gates.id))
     .where(eq(orders.userId, user.id))
     .orderBy(desc(orders.createdAt))
-    .limit(10)
+    .limit(40)
     .all();
 
   if (recentOrders.length === 0) {
@@ -186,16 +186,15 @@ notificationRoutes.get('/', requireAuth, async (c) => {
     .from(orderEvents)
     .where(inArray(orderEvents.orderId, orderIds))
     .orderBy(desc(orderEvents.at))
-    .limit(limit * 2)
+    .limit(120)
     .all();
 
-  const seenPerOrderStatus = new Set<string>();
+  const seenOrders = new Set<string>();
   const notifications: OrderNotificationItem[] = [];
 
   for (const ev of events) {
-    const dedupKey = `${ev.orderId}:${ev.status}`;
-    if (seenPerOrderStatus.has(dedupKey)) continue;
-    seenPerOrderStatus.add(dedupKey);
+    if (seenOrders.has(ev.orderId)) continue;
+    seenOrders.add(ev.orderId);
 
     const row = orderMap.get(ev.orderId);
     if (!row) continue;

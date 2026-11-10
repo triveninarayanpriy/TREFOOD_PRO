@@ -118,6 +118,7 @@ Allow: /
 Disallow: /api/
 Disallow: /admin
 Disallow: /v
+Disallow: /vendor
 
 Sitemap: ${proto}://${host}/sitemap.xml
 `;

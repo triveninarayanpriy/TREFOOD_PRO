@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, gt, desc } from 'drizzle-orm';
+import { eq, and, gt, desc, inArray } from 'drizzle-orm';
 import type { Env } from '../types';
 import {
   orders,
@@ -15,7 +15,13 @@ import { requireAuth, requireRole } from '../middleware';
 import { nextStatus, StatusTransitionError, type OrderStatus } from '../services/order';
 import { nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
-import { VendorRejectSchema } from '@shared/schemas';
+import {
+  VendorRejectSchema,
+  VendorStatusUpdateSchema,
+  VendorMenuItemUpdateSchema,
+  VendorOrderPrepAdjustSchema,
+} from '@shared/schemas';
+import { IST_OFFSET_SECONDS } from '@shared/curfew';
 import { z } from 'zod';
 import { dispatchWebPushForUser } from '../utils/webpush';
 
@@ -46,30 +52,64 @@ vendorRoutes.get('/orders', async (c) => {
     conditions.push(gt(orders.createdAt, since));
   }
 
-  const vendorOrderList = await db
-    .select({
-      order: orders,
-      gate: gates,
-    })
-    .from(orders)
-    .innerJoin(gates, eq(orders.gateId, gates.id))
-    .where(and(...conditions))
-    .orderBy(desc(orders.createdAt))
-    .all();
+  const [vendorRecord, activeGates, vendorOrderList] = await Promise.all([
+    db.select().from(vendors).where(eq(vendors.id, vendorId)).get(),
+    db.select().from(gates).where(eq(gates.active, true)).all(),
+    db
+      .select({
+        order: orders,
+        gate: gates,
+      })
+      .from(orders)
+      .innerJoin(gates, eq(orders.gateId, gates.id))
+      .where(and(...conditions))
+      .orderBy(desc(orders.createdAt))
+      .limit(80)
+      .all(),
+  ]);
 
-  // Load items for each order
-  const ordersWithItems = await Promise.all(
-    vendorOrderList.map(async ({ order, gate }) => {
-      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id)).all();
-      return {
-        ...order,
-        gateName: gate.name,
-        items,
-      };
-    })
-  );
+  let ordersWithItems: Array<typeof orders.$inferSelect & { gateName: string; gateCurfewTime: string; gateIs24x7: boolean; items: Array<typeof orderItems.$inferSelect> }> = [];
+  if (vendorOrderList.length > 0) {
+    const orderIds = vendorOrderList.map((r) => r.order.id);
+    const batchedItems = await db
+      .select()
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds))
+      .all();
 
-  return c.json({ ok: true, orders: ordersWithItems, serverTime: nowUtc() });
+    const itemsByOrder = new Map<string, Array<typeof orderItems.$inferSelect>>();
+    for (const item of batchedItems) {
+      const list = itemsByOrder.get(item.orderId) || [];
+      list.push(item);
+      itemsByOrder.set(item.orderId, list);
+    }
+
+    ordersWithItems = vendorOrderList.map(({ order, gate }) => ({
+      ...order,
+      gateName: gate.name,
+      gateCurfewTime: gate.curfewTime,
+      gateIs24x7: gate.is24x7,
+      items: itemsByOrder.get(order.id) || [],
+    }));
+  }
+
+  return c.json({
+    ok: true,
+    orders: ordersWithItems,
+    vendor: vendorRecord
+      ? {
+          id: vendorRecord.id,
+          name: vendorRecord.name,
+          isOpen: vendorRecord.isOpen,
+          busyUntil: vendorRecord.busyUntil,
+          prepMinutes: vendorRecord.prepMinutes,
+          prepMaxMinutes: vendorRecord.prepMaxMinutes,
+          nightSafe: vendorRecord.nightSafe,
+        }
+      : null,
+    gates: activeGates,
+    serverTime: nowUtc(),
+  });
 });
 
 // PATCH /api/vendor/orders/:id/status
@@ -308,6 +348,47 @@ vendorRoutes.post('/orders/:id/handover-assist', async (c) => {
   });
 });
 
+// PATCH /api/vendor/orders/:id/prep-time (Adjust ETA / prep time on an active order)
+vendorRoutes.patch('/orders/:id/prep-time', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const vendorId = getVendorId(c);
+  const orderId = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = VendorOrderPrepAdjustSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: 'Prep time must be between 5 and 120 minutes.' } },
+      400
+    );
+  }
+
+  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) {
+    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+  }
+  if (user.role === 'vendor' && order.vendorId !== vendorId) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'You do not manage this order.' } }, 403);
+  }
+
+  const now = nowUtc();
+  const baseTime = order.acceptedAt || order.placedAt || now;
+  const newEtaAt = Math.max(now + 60, baseTime + parsed.data.prepMinutes * 60);
+
+  await db.update(orders).set({ etaAt: newEtaAt }).where(eq(orders.id, order.id));
+  await db.insert(orderEvents).values({
+    id: ulid(),
+    orderId: order.id,
+    status: order.status,
+    actorId: user.id,
+    at: now,
+    note: `Prep time adjusted to ${parsed.data.prepMinutes} mins by vendor`,
+  });
+
+  return c.json({ ok: true, orderId: order.id, etaAt: newEtaAt, prepMinutes: parsed.data.prepMinutes });
+});
+
 // PATCH /api/vendor/prep-time
 const UpdatePrepTimeSchema = z.object({
   prepMinutes: z.number().int().min(5).max(90),
@@ -316,6 +397,7 @@ const UpdatePrepTimeSchema = z.object({
 
 vendorRoutes.patch('/prep-time', async (c) => {
   const db = c.get('db');
+  const user = c.get('user')!;
   const vendorId = getVendorId(c);
   if (!vendorId) {
     return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
@@ -334,6 +416,16 @@ vendorRoutes.patch('/prep-time', async (c) => {
     })
     .where(eq(vendors.id, vendorId));
 
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'VENDOR_PREP_TIME_UPDATED',
+    targetType: 'vendors',
+    targetId: vendorId,
+    detailsJson: JSON.stringify({ prepMinutes: parsed.data.prepMinutes }),
+    at: nowUtc(),
+  });
+
   const updated = await db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   return c.json({ ok: true, vendor: updated });
 });
@@ -346,19 +438,13 @@ vendorRoutes.get('/menu', async (c) => {
     return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
   }
 
-  const categories = await db
-    .select()
-    .from(menuCategories)
-    .where(eq(menuCategories.vendorId, vendorId))
-    .all();
+  const [vendorRecord, categories, items] = await Promise.all([
+    db.select().from(vendors).where(eq(vendors.id, vendorId)).get(),
+    db.select().from(menuCategories).where(eq(menuCategories.vendorId, vendorId)).all(),
+    db.select().from(menuItems).where(eq(menuItems.vendorId, vendorId)).all(),
+  ]);
 
-  const items = await db
-    .select()
-    .from(menuItems)
-    .where(eq(menuItems.vendorId, vendorId))
-    .all();
-
-  return c.json({ ok: true, categories, items });
+  return c.json({ ok: true, vendor: vendorRecord || null, categories, items });
 });
 
 // PATCH /api/vendor/menu/item/:id/stock (One-tap stock toggle)
@@ -382,26 +468,70 @@ vendorRoutes.patch('/menu/item/:id/stock', async (c) => {
   return c.json({ ok: true, id: itemId, inStock: body.inStock });
 });
 
-// PATCH /api/vendor/status (Toggle open or busy)
-const VendorStatusToggleSchema = z.object({
-  isOpen: z.boolean().optional(),
-  busyMinutes: z.number().int().nonnegative().optional(), // e.g. 15, 30, 0 to clear
+// PATCH /api/vendor/menu/item/:id (Update item price, packing charge, or stock)
+vendorRoutes.patch('/menu/item/:id', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const vendorId = getVendorId(c);
+  const itemId = c.req.param('id');
+  if (!vendorId) {
+    return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = VendorMenuItemUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: parsed.error.errors[0]?.message || 'Invalid item update' } },
+      400
+    );
+  }
+
+  const item = await db.select().from(menuItems).where(eq(menuItems.id, itemId)).get();
+  if (!item || item.vendorId !== vendorId) {
+    return c.json({ error: { code: 'ITEM_NOT_FOUND', message: 'Item not found' } }, 404);
+  }
+
+  const updateFields: Partial<typeof menuItems.$inferInsert> = {};
+  if (parsed.data.pricePaise !== undefined) updateFields.pricePaise = parsed.data.pricePaise;
+  if (parsed.data.inStock !== undefined) updateFields.inStock = parsed.data.inStock;
+  if (parsed.data.packingChargePaise !== undefined) {
+    updateFields.packingChargePaise = parsed.data.packingChargePaise;
+  }
+
+  if (Object.keys(updateFields).length > 0) {
+    await db.update(menuItems).set(updateFields).where(eq(menuItems.id, itemId));
+    await db.insert(auditLog).values({
+      id: ulid(),
+      actorId: user.id,
+      action: 'VENDOR_MENU_ITEM_UPDATED',
+      targetType: 'menu_items',
+      targetId: itemId,
+      detailsJson: JSON.stringify(updateFields),
+      at: nowUtc(),
+    });
+  }
+
+  const updated = await db.select().from(menuItems).where(eq(menuItems.id, itemId)).get();
+  return c.json({ ok: true, item: updated });
 });
 
+// PATCH /api/vendor/status (Toggle open, busy mode, or night-safety staff duty)
 vendorRoutes.patch('/status', async (c) => {
   const db = c.get('db');
+  const user = c.get('user')!;
   const vendorId = getVendorId(c);
   if (!vendorId) {
     return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const parseResult = VendorStatusToggleSchema.safeParse(body);
+  const parseResult = VendorStatusUpdateSchema.safeParse(body);
   if (!parseResult.success) {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'Invalid vendor status options' } }, 400);
   }
 
-  const { isOpen, busyMinutes } = parseResult.data;
+  const { isOpen, busyMinutes, nightSafe } = parseResult.data;
   const now = nowUtc();
   const updateData: Partial<typeof vendors.$inferInsert> = {};
 
@@ -413,13 +543,28 @@ vendorRoutes.patch('/status', async (c) => {
     updateData.busyUntil = busyMinutes > 0 ? now + busyMinutes * 60 : null;
   }
 
-  await db.update(vendors).set(updateData).where(eq(vendors.id, vendorId));
+  if (nightSafe !== undefined) {
+    updateData.nightSafe = nightSafe;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await db.update(vendors).set(updateData).where(eq(vendors.id, vendorId));
+    await db.insert(auditLog).values({
+      id: ulid(),
+      actorId: user.id,
+      action: 'VENDOR_STATUS_UPDATED',
+      targetType: 'vendors',
+      targetId: vendorId,
+      detailsJson: JSON.stringify(updateData),
+      at: now,
+    });
+  }
 
   const updated = await db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   return c.json({ ok: true, vendor: updated });
 });
 
-// GET /api/vendor/settlement (Summary of delivered orders and collected amounts)
+// GET /api/vendor/settlement (Daily settlement + vendor insights)
 vendorRoutes.get('/settlement', async (c) => {
   const db = c.get('db');
   const vendorId = getVendorId(c);
@@ -427,24 +572,122 @@ vendorRoutes.get('/settlement', async (c) => {
     return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
   }
 
-  const deliveredOrders = await db
-    .select()
-    .from(orders)
-    .where(and(eq(orders.vendorId, vendorId), eq(orders.status, 'delivered')))
-    .all();
+  const [vendorRecord, allVendorOrders] = await Promise.all([
+    db.select().from(vendors).where(eq(vendors.id, vendorId)).get(),
+    db
+      .select()
+      .from(orders)
+      .where(eq(orders.vendorId, vendorId))
+      .orderBy(desc(orders.createdAt))
+      .limit(200)
+      .all(),
+  ]);
+
+  const now = nowUtc();
+  // Start of current IST day in UTC seconds
+  const istNowSec = now + IST_OFFSET_SECONDS;
+  const istStartOfDaySec = istNowSec - (istNowSec % 86400);
+  const utcStartOfIstDay = istStartOfDaySec - IST_OFFSET_SECONDS;
+
+  const todayOrders = allVendorOrders.filter(
+    (o) => o.createdAt >= utcStartOfIstDay && o.status !== 'cancelled' && o.status !== 'expired'
+  );
+  const deliveredOrders = allVendorOrders.filter((o) => o.status === 'delivered');
+  const todayDelivered = deliveredOrders.filter((o) => (o.deliveredAt || o.createdAt) >= utcStartOfIstDay);
 
   const totalCollectedPaise = deliveredOrders.reduce((sum, o) => sum + o.totalPaise, 0);
   const totalDeliveredCount = deliveredOrders.length;
+  const todayRevenuePaise = todayOrders.reduce((sum, o) => sum + o.totalPaise, 0);
+  const payAtGatePaise = todayOrders
+    .filter((o) => o.paymentMethod !== 'upi_simulated')
+    .reduce((sum, o) => sum + o.totalPaise, 0);
+  const upiPaise = todayOrders
+    .filter((o) => o.paymentMethod === 'upi_simulated')
+    .reduce((sum, o) => sum + o.totalPaise, 0);
+
+  // Average prep duration vs promised (for orders dispatched/at_gate/delivered)
+  const prepSamples = allVendorOrders
+    .map((o) => {
+      const start = o.acceptedAt || o.placedAt;
+      const end = o.outForDeliveryAt || o.atGateAt || o.deliveredAt;
+      if (!start || !end || end < start) return null;
+      return Math.max(1, Math.round((end - start) / 60));
+    })
+    .filter((m): m is number => m !== null && m <= 120);
+
+  const avgPrepMinutes =
+    prepSamples.length > 0
+      ? Math.round(prepSamples.reduce((s, m) => s + m, 0) / prepSamples.length)
+      : vendorRecord?.prepMinutes || 15;
+
+  // Peak hours IST histogram in 2-hour buckets matching 00h..22h (or full 12 buckets)
+  const hourlyBuckets = Array.from({ length: 12 }, (_, idx) => ({
+    label: `${(idx * 2).toString().padStart(2, '0')}h`,
+    count: 0,
+  }));
+  for (const o of allVendorOrders) {
+    if (o.status === 'cancelled' || o.status === 'expired') continue;
+    const istHour = new Date((o.createdAt + IST_OFFSET_SECONDS) * 1000).getUTCHours();
+    const bucketIdx = Math.min(11, Math.floor(istHour / 2));
+    hourlyBuckets[bucketIdx].count += 1;
+  }
+
+  // Batched Top Selling Items across non-cancelled vendor orders
+  const nonCancelledIds = allVendorOrders
+    .filter((o) => o.status !== 'cancelled' && o.status !== 'expired')
+    .map((o) => o.id);
+
+  let topItems: Array<{ itemId: string; name: string; quantity: number; revenuePaise: number }> = [];
+  if (nonCancelledIds.length > 0) {
+    const soldLines = await db
+      .select()
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, nonCancelledIds))
+      .all();
+
+    const itemStats = new Map<
+      string,
+      { itemId: string; name: string; quantity: number; revenuePaise: number }
+    >();
+    for (const line of soldLines) {
+      const existing = itemStats.get(line.itemId) || {
+        itemId: line.itemId,
+        name: line.name,
+        quantity: 0,
+        revenuePaise: 0,
+      };
+      existing.quantity += line.quantity;
+      existing.revenuePaise += line.pricePaise * line.quantity;
+      itemStats.set(line.itemId, existing);
+    }
+
+    topItems = Array.from(itemStats.values())
+      .sort((a, b) => b.quantity - a.quantity || b.revenuePaise - a.revenuePaise)
+      .slice(0, 5);
+  }
 
   return c.json({
     ok: true,
     totalDeliveredCount,
     totalCollectedPaise,
     totalCollectedRupees: totalCollectedPaise / 100,
+    insights: {
+      todayOrdersCount: todayOrders.length,
+      todayDeliveredCount: todayDelivered.length,
+      todayRevenuePaise,
+      payAtGatePaise,
+      upiPaise,
+      avgPrepMinutes,
+      promisedPrepMinutes: vendorRecord?.prepMinutes || 15,
+      prepSamplesCount: prepSamples.length,
+      topItems,
+      hourlyBuckets,
+    },
     orders: deliveredOrders.map((o) => ({
       id: o.id,
       publicNo: o.publicNo,
       totalPaise: o.totalPaise,
+      paymentMethod: o.paymentMethod,
       deliveredAt: o.deliveredAt,
       handoverCode: o.handoverCode,
     })),
