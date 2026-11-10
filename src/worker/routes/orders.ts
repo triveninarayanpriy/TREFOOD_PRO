@@ -17,6 +17,7 @@ import { canDeliver } from '../services/delivery';
 import { priceCart, CartConflictError } from '../services/cart';
 import { nextStatus, StatusTransitionError, type OrderStatus } from '../services/order';
 import { generateHandoverCode } from '../services/handover';
+import { verifyHandoverAttempt } from '@shared/handover';
 import { nowUtc, getRequestNow } from '../utils/time';
 import { ulid } from '../utils/ulid';
 import { sha256 } from '../utils/crypto';
@@ -25,6 +26,7 @@ import {
   CancelOrderSchema,
   ReviewOrderSchema,
   IssueReportSchema,
+  ConfirmHandoverSchema,
 } from '@shared/schemas';
 
 export const orderRoutes = new Hono<{ Bindings: Env }>();
@@ -68,8 +70,9 @@ orderRoutes.post('/', async (c) => {
     );
   }
 
-  const { vendorId, gateId, items } = parseResult.data;
+  const { vendorId, gateId, items, couponCode, paymentMethod, scheduledFor, note } = parseResult.data;
   const now = getRequestNow(c);
+  const checkTimestamp = scheduledFor && scheduledFor > now ? scheduledFor : now;
 
   // Validate gate
   const allGates = await db.select().from(gates).all();
@@ -92,13 +95,15 @@ orderRoutes.post('/', async (c) => {
     .get();
 
   // Check delivery capability
-  const deliveryCheck = canDeliver(gate, vendor, now, vg, allGates);
+  const deliveryCheck = canDeliver(gate, vendor, checkTimestamp, vg, allGates);
   if (!deliveryCheck.ok) {
     return c.json(
       {
         error: {
           code: deliveryCheck.reason || 'CANNOT_DELIVER',
           message: deliveryCheck.message || 'Cannot deliver to chosen gate at this time.',
+          suggestedGate: deliveryCheck.suggestedGate,
+          latestOrderTime: deliveryCheck.latestOrderTime,
           alternativeGates: deliveryCheck.alternativeGates,
         },
       },
@@ -109,7 +114,11 @@ orderRoutes.post('/', async (c) => {
   // Price cart
   let pricedCart;
   try {
-    pricedCart = await priceCart(db, vendorId, items);
+    pricedCart = await priceCart(db, vendorId, items, {
+      couponCode,
+      userId: user.id,
+      nowUtcSeconds: now,
+    });
   } catch (err) {
     if (err instanceof CartConflictError) {
       return c.json({ error: { code: err.code, message: err.message, details: err.details } }, 409);
@@ -117,11 +126,26 @@ orderRoutes.post('/', async (c) => {
     throw err;
   }
 
+  if (!pricedCart.meetsMinOrder) {
+    return c.json(
+      {
+        error: {
+          code: 'MIN_ORDER_NOT_MET',
+          message: `Add ₹${(pricedCart.shortfallPaise / 100).toFixed(0)} more to meet vendor minimum order.`,
+          shortfallPaise: pricedCart.shortfallPaise,
+        },
+      },
+      409
+    );
+  }
+
   // Generate 4-digit handover code unique to active orders at this gate
   const handoverCode = await generateHandoverCode(db, gateId);
 
   const orderId = ulid();
   const publicNo = `TF-${Math.floor(1000 + Math.random() * 9000)}`;
+  const resolvedPaymentMethod = paymentMethod || 'pay_at_gate';
+  const resolvedPaymentStatus = resolvedPaymentMethod === 'upi_simulated' ? 'paid' : 'pending';
 
   // Insert order
   await db.insert(orders).values({
@@ -133,10 +157,17 @@ orderRoutes.post('/', async (c) => {
     gateId,
     status: 'placed',
     subtotalPaise: pricedCart.subtotalPaise,
+    packingTotalPaise: pricedCart.packingTotalPaise,
+    discountPaise: pricedCart.discountPaise,
+    couponCode: pricedCart.couponApplied,
     totalPaise: pricedCart.totalPaise,
-    paymentMethod: 'pay_at_gate',
+    paymentMethod: resolvedPaymentMethod,
+    paymentStatus: resolvedPaymentStatus,
     handoverCode,
+    codeAttempts: 0,
     idempotencyKey,
+    scheduledFor: scheduledFor || null,
+    note: note || null,
     etaAt: deliveryCheck.etaAt,
     placedAt: now,
     createdAt: now,
@@ -321,27 +352,62 @@ orderRoutes.post('/:id/cancel', async (c) => {
   return c.json({ ok: true, status: 'cancelled' });
 });
 
-// POST /api/orders/:id/confirm (Customer confirms delivery at gate upon matching 4-digit code)
-orderRoutes.post('/:id/confirm', async (c) => {
-  const db = c.get('db');
-  const user = c.get('user')!;
-  const orderId = c.req.param('id');
-
-  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
-  if (!order) {
-    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
-  }
-
+async function handleHandoverConfirmation(
+  db: ReturnType<typeof import('../db').getDb>,
+  order: typeof orders.$inferSelect,
+  user: { id: string; role: 'student' | 'vendor' | 'admin' },
+  submittedCode: string | null
+) {
   const isOwner = order.userId === user.id;
 
-  // Domain rule: Only the customer who owns the order can confirm delivery, and only when status is at_gate
   try {
     nextStatus(order.status as OrderStatus, 'delivered', user.role, isOwner);
   } catch (err) {
     if (err instanceof StatusTransitionError) {
-      return c.json({ error: { code: err.code, message: err.message } }, err.status);
+      return {
+        ok: false as const,
+        error: { code: err.code, message: err.message },
+        httpStatus: err.status as 400 | 403 | 404 | 409 | 423,
+      };
     }
     throw err;
+  }
+
+  if (submittedCode !== null) {
+    const verification = verifyHandoverAttempt({
+      expectedCode: order.handoverCode,
+      submittedCode,
+      currentAttempts: order.codeAttempts || 0,
+    });
+
+    if (!verification.ok) {
+      if (verification.newAttempts !== order.codeAttempts) {
+        await db
+          .update(orders)
+          .set({ codeAttempts: verification.newAttempts })
+          .where(eq(orders.id, order.id));
+
+        await db.insert(orderEvents).values({
+          id: ulid(),
+          orderId: order.id,
+          status: order.status,
+          actorId: user.id,
+          at: nowUtc(),
+          note: `Failed handover code attempt (${verification.newAttempts}/5)`,
+        });
+      }
+
+      return {
+        ok: false as const,
+        error: {
+          code: verification.reason || 'CODE_MISMATCH',
+          message: verification.message || 'Handover code does not match.',
+          attemptsRemaining: verification.attemptsRemaining,
+          locked: verification.locked,
+        },
+        httpStatus: (verification.locked ? 423 : 400) as 400 | 423,
+      };
+    }
   }
 
   const now = nowUtc();
@@ -350,6 +416,7 @@ orderRoutes.post('/:id/confirm', async (c) => {
     .set({
       status: 'delivered',
       deliveredAt: now,
+      paymentStatus: 'paid',
     })
     .where(eq(orders.id, order.id));
 
@@ -359,10 +426,57 @@ orderRoutes.post('/:id/confirm', async (c) => {
     status: 'delivered',
     actorId: user.id,
     at: now,
-    note: 'Customer confirmed packet code match and accepted delivery',
+    note: 'Customer matched packet 4-digit code and confirmed delivery',
   });
 
-  return c.json({ ok: true, status: 'delivered', deliveredAt: now });
+  return { ok: true as const, status: 'delivered' as const, deliveredAt: now };
+}
+
+// POST /api/orders/:id/confirm (Backwards-compatible confirmation; verifies code if passed)
+orderRoutes.post('/:id/confirm', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const orderId = c.req.param('id');
+  const body = (await c.req.json().catch(() => ({}))) as { handoverCode?: string };
+
+  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) {
+    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+  }
+
+  const submittedCode = typeof body.handoverCode === 'string' ? body.handoverCode : null;
+  const result = await handleHandoverConfirmation(db, order, user, submittedCode);
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.httpStatus);
+  }
+  return c.json(result);
+});
+
+// POST /api/orders/:id/confirm-handover (Strict 4-digit code verification with 5-attempt lockout)
+orderRoutes.post('/:id/confirm-handover', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const orderId = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+
+  const parsed = ConfirmHandoverSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: parsed.error.errors[0]?.message || 'Invalid handover code format' } },
+      400
+    );
+  }
+
+  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) {
+    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+  }
+
+  const result = await handleHandoverConfirmation(db, order, user, parsed.data.handoverCode);
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.httpStatus);
+  }
+  return c.json(result);
 });
 
 // POST /api/orders/:id/review
@@ -426,29 +540,34 @@ orderRoutes.post('/:id/review', async (c) => {
   return c.json({ ok: true, ratingAvg: avg, ratingCount: allVendorReviews.length });
 });
 
-// POST /api/orders/:id/issue
-orderRoutes.post('/:id/issue', async (c) => {
-  const db = c.get('db');
-  const user = c.get('user')!;
-  const orderId = c.req.param('id');
-  const body = await c.req.json().catch(() => ({}));
+async function handleIssueOrReport(
+  db: ReturnType<typeof import('../db').getDb>,
+  orderId: string,
+  user: { id: string },
+  body: unknown
+) {
   const parseResult = IssueReportSchema.safeParse(body);
   if (!parseResult.success) {
-    return c.json(
-      { error: { code: 'INVALID_INPUT', message: parseResult.error.errors[0]?.message || 'Invalid input' } },
-      400
-    );
+    return {
+      ok: false as const,
+      error: { code: 'INVALID_INPUT', message: parseResult.error.errors[0]?.message || 'Invalid input' },
+      httpStatus: 400 as const,
+    };
   }
 
   const { reason, description } = parseResult.data;
 
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
   if (!order) {
-    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+    return { ok: false as const, error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' }, httpStatus: 404 as const };
   }
 
   if (order.userId !== user.id) {
-    return c.json({ error: { code: 'FORBIDDEN', message: 'Only order owner can report an issue' } }, 403);
+    return {
+      ok: false as const,
+      error: { code: 'FORBIDDEN', message: 'Only order owner can report an issue' },
+      httpStatus: 403 as const,
+    };
   }
 
   const now = nowUtc();
@@ -475,5 +594,28 @@ orderRoutes.post('/:id/issue', async (c) => {
     at: now,
   });
 
-  return c.json({ ok: true, issueId, status: 'open' });
+  return { ok: true as const, issueId, status: 'open' as const };
+}
+
+// POST /api/orders/:id/issue and /api/orders/:id/report
+orderRoutes.post('/:id/issue', async (c) => {
+  const result = await handleIssueOrReport(
+    c.get('db'),
+    c.req.param('id'),
+    c.get('user')!,
+    await c.req.json().catch(() => ({}))
+  );
+  if (!result.ok) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
+});
+
+orderRoutes.post('/:id/report', async (c) => {
+  const result = await handleIssueOrReport(
+    c.get('db'),
+    c.req.param('id'),
+    c.get('user')!,
+    await c.req.json().catch(() => ({}))
+  );
+  if (!result.ok) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
 });

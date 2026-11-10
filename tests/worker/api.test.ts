@@ -211,4 +211,194 @@ describe('Worker Full API Integration Tests', () => {
     expect(userInDb?.email).toContain('@privacy.trefood.local');
     expect(userInDb?.name).toBe('Deleted Student');
   });
+
+  it('exercises campus, search suggest, coupons, quote, handover 5-attempt lockout & vendor/admin endpoints', async () => {
+    const db = getDb(env.DB);
+    const adminSession = await createSession(db, 'usr_admin');
+    const adminCookie = buildSetCookieHeader('session', adminSession.token);
+
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    // 1. Campus detail & stats + Gates + Search suggest + Coupons + Vendor by ID
+    const campusRes = await exec(new Request('http://localhost/api/campuses/nitp'));
+    expect(campusRes.status).toBe(200);
+    const campusBody = (await campusRes.json()) as { ok: boolean; gates: unknown[]; stats: { totalVendors: number } };
+    expect(campusBody.ok).toBe(true);
+    expect(campusBody.stats.totalVendors).toBeGreaterThanOrEqual(12);
+
+    const suggestRes = await exec(new Request('http://localhost/api/search/suggest?q=Paneer'));
+    expect(suggestRes.status).toBe(200);
+    const suggestBody = (await suggestRes.json()) as { items: Array<{ name: string }> };
+    expect(suggestBody.items.some((i) => i.name.includes('Paneer'))).toBe(true);
+
+    const couponsRes = await exec(new Request('http://localhost/api/coupons'));
+    expect(couponsRes.status).toBe(200);
+    const couponsBody = (await couponsRes.json()) as { coupons: Array<{ code: string }> };
+    expect(couponsBody.coupons.length).toBeGreaterThanOrEqual(6);
+
+    const vendorByIdRes = await exec(new Request('http://localhost/api/vendors/v_ganga'));
+    expect(vendorByIdRes.status).toBe(200);
+
+    // 2. Cart quote with coupon
+    const quoteRes = await exec(
+      new Request('http://localhost/api/cart/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          couponCode: 'CAMPUS20',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      })
+    );
+    expect(quoteRes.status).toBe(200);
+    const quoteBody = (await quoteRes.json()) as { subtotalPaise: number; discountPaise: number; totalPaise: number };
+    expect(quoteBody.subtotalPaise).toBe(16000);
+    expect(quoteBody.discountPaise).toBe(3200); // 20% of 16000
+    expect(quoteBody.totalPaise).toBe(12800);
+
+    // 3. Place order -> vendor accept & ready & at_gate -> confirm-handover 5-attempt lockout -> assist -> report
+    const createRes = await exec(
+      new Request('http://localhost/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `full-flow-${ulid()}`,
+          Cookie: studentCookie,
+        },
+        body: JSON.stringify({
+          vendorId: 'v_ganga',
+          gateId: 'gate_main',
+          items: [{ itemId: 'it_g1', quantity: 1 }],
+        }),
+      })
+    );
+    expect(createRes.status).toBe(201);
+    const createBody = (await createRes.json()) as { order: { id: string; handoverCode: string } };
+    const orderId = createBody.order.id;
+
+    // ETag support on GET /api/orders/:id
+    const detailRes = await exec(new Request(`http://localhost/api/orders/${orderId}`, { headers: { Cookie: studentCookie } }));
+    expect(detailRes.status).toBe(200);
+    const etag = detailRes.headers.get('ETag')!;
+    expect(etag).toBeTruthy();
+    const res304 = await exec(
+      new Request(`http://localhost/api/orders/${orderId}`, {
+        headers: { Cookie: studentCookie, 'If-None-Match': etag },
+      })
+    );
+    expect(res304.status).toBe(304);
+
+    // Vendor accept -> ready -> at_gate
+    expect(
+      (
+        await exec(
+          new Request(`http://localhost/api/vendor/orders/${orderId}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+            body: JSON.stringify({ prepMinutes: 15 }),
+          })
+        )
+      ).status
+    ).toBe(200);
+
+    expect(
+      (
+        await exec(
+          new Request(`http://localhost/api/vendor/orders/${orderId}/ready`, {
+            method: 'POST',
+            headers: { Cookie: vendorCookie },
+          })
+        )
+      ).status
+    ).toBe(200);
+
+    expect(
+      (
+        await exec(
+          new Request(`http://localhost/api/vendor/orders/${orderId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+            body: JSON.stringify({ status: 'at_gate' }),
+          })
+        )
+      ).status
+    ).toBe(200);
+
+    // Fail handover code 5 times -> locks at 423
+    const wrongCode = createBody.order.handoverCode === '0000' ? '9999' : '0000';
+    for (let i = 1; i <= 4; i++) {
+      const badRes = await exec(
+        new Request(`http://localhost/api/orders/${orderId}/confirm-handover`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+          body: JSON.stringify({ handoverCode: wrongCode }),
+        })
+      );
+      expect(badRes.status).toBe(400);
+    }
+
+    const fifthRes = await exec(
+      new Request(`http://localhost/api/orders/${orderId}/confirm-handover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({ handoverCode: wrongCode }),
+      })
+    );
+    expect(fifthRes.status).toBe(423);
+
+    // Locked even with correct code until vendor assist
+    const lockedRes = await exec(
+      new Request(`http://localhost/api/orders/${orderId}/confirm-handover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({ handoverCode: createBody.order.handoverCode }),
+      })
+    );
+    expect(lockedRes.status).toBe(423);
+
+    // Vendor handover assist completes delivery cleanly
+    const assistRes = await exec(
+      new Request(`http://localhost/api/vendor/orders/${orderId}/handover-assist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
+        body: JSON.stringify({ completeDelivery: true, note: 'Verified student ID at Main Gate' }),
+      })
+    );
+    expect(assistRes.status).toBe(200);
+
+    // Student reports issue -> admin views & resolves report
+    const reportRes = await exec(
+      new Request(`http://localhost/api/orders/${orderId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({ reason: 'late', description: 'Arrived slightly late due to rain' }),
+      })
+    );
+    expect(reportRes.status).toBe(200);
+    const reportBody = (await reportRes.json()) as { issueId: string };
+
+    // Admin 403 check for student, 200 for admin
+    expect((await exec(new Request('http://localhost/api/admin/stats', { headers: { Cookie: studentCookie } }))).status).toBe(403);
+    expect((await exec(new Request('http://localhost/api/admin/stats', { headers: { Cookie: adminCookie } }))).status).toBe(200);
+    expect((await exec(new Request('http://localhost/api/admin/coupons', { headers: { Cookie: adminCookie } }))).status).toBe(200);
+    expect((await exec(new Request('http://localhost/api/admin/reports', { headers: { Cookie: adminCookie } }))).status).toBe(200);
+    expect(
+      (
+        await exec(
+          new Request(`http://localhost/api/admin/reports/${reportBody.issueId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+            body: JSON.stringify({ status: 'credited', refundPaise: 2000, resolutionNote: 'Issued Rs 20 credit' }),
+          })
+        )
+      ).status
+    ).toBe(200);
+  });
 });

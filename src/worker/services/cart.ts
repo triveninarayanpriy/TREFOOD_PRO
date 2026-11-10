@@ -1,18 +1,22 @@
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, count } from 'drizzle-orm';
 import type { Database } from '../db';
-import { menuItems } from '../db/schema';
+import { menuItems, vendors, coupons, orders } from '../db/schema';
+import { calculateCartPricing, type CouponRule } from '@shared/cartRules';
 
 export interface CartItemInput {
   itemId: string;
   quantity: number;
   expectedPricePaise?: number;
   notes?: string;
+  variantId?: string;
+  addonIds?: string[];
 }
 
 export interface CartItemPriced {
   itemId: string;
   name: string;
   pricePaise: number;
+  packingChargePaise: number;
   quantity: number;
   subtotalPaise: number;
   isVeg: boolean;
@@ -24,17 +28,27 @@ export interface CartQuoteResult {
   vendorId: string;
   items: CartItemPriced[];
   subtotalPaise: number;
+  packingTotalPaise: number;
+  discountPaise: number;
   deliveryFeePaise: number; // Always 0
   totalPaise: number;
   totalQuantity: number;
+  meetsMinOrder: boolean;
+  shortfallPaise: number;
+  couponApplied: string | null;
+  couponError: string | null;
 }
 
 export class CartConflictError extends Error {
-  public code: 'ITEM_OUT_OF_STOCK' | 'PRICE_CHANGED';
+  public code: 'ITEM_OUT_OF_STOCK' | 'PRICE_CHANGED' | 'MIN_ORDER_NOT_MET';
   public status = 409;
   public details: unknown;
 
-  constructor(code: 'ITEM_OUT_OF_STOCK' | 'PRICE_CHANGED', message: string, details?: unknown) {
+  constructor(
+    code: 'ITEM_OUT_OF_STOCK' | 'PRICE_CHANGED' | 'MIN_ORDER_NOT_MET',
+    message: string,
+    details?: unknown
+  ) {
     super(message);
     this.name = 'CartConflictError';
     this.code = code;
@@ -45,31 +59,52 @@ export class CartConflictError extends Error {
 export async function priceCart(
   db: Database,
   vendorId: string,
-  clientItems: CartItemInput[]
+  clientItems: CartItemInput[],
+  options?: {
+    couponCode?: string;
+    userId?: string;
+    nowUtcSeconds?: number;
+  }
 ): Promise<CartQuoteResult> {
   if (!clientItems || clientItems.length === 0) {
     return {
       vendorId,
       items: [],
       subtotalPaise: 0,
+      packingTotalPaise: 0,
+      discountPaise: 0,
       deliveryFeePaise: 0,
       totalPaise: 0,
       totalQuantity: 0,
+      meetsMinOrder: true,
+      shortfallPaise: 0,
+      couponApplied: null,
+      couponError: null,
     };
   }
 
   const itemIds = clientItems.map((i) => i.itemId);
 
-  // Fetch using index on vendor_id
-  const dbItems = await db
-    .select()
-    .from(menuItems)
-    .where(and(eq(menuItems.vendorId, vendorId), inArray(menuItems.id, itemIds)));
+  const [dbItems, vendorRow] = await Promise.all([
+    db
+      .select()
+      .from(menuItems)
+      .where(and(eq(menuItems.vendorId, vendorId), inArray(menuItems.id, itemIds))),
+    db.select().from(vendors).where(eq(vendors.id, vendorId)).get(),
+  ]);
 
   const dbItemMap = new Map(dbItems.map((item) => [item.id, item]));
 
   const pricedItems: CartItemPriced[] = [];
-  let subtotalPaise = 0;
+  const lineInputs: Array<{
+    itemId: string;
+    quantity: number;
+    unitPricePaise: number;
+    packingChargePaise: number;
+    variantDeltaPaise: number;
+    addonsTotalPaise: number;
+  }> = [];
+
   let totalQuantity = 0;
 
   for (const clientItem of clientItems) {
@@ -107,28 +142,112 @@ export async function priceCart(
       );
     }
 
-    const itemSubtotal = dbItem.pricePaise * clientItem.quantity;
-    subtotalPaise += itemSubtotal;
+    // Resolve optional server-verified variant & addons deltas
+    let variantDeltaPaise = 0;
+    if (clientItem.variantId) {
+      try {
+        const variants = JSON.parse(dbItem.variantsJson || '[]') as Array<{
+          id: string;
+          priceDeltaPaise: number;
+        }>;
+        const foundVariant = variants.find((v) => v.id === clientItem.variantId);
+        if (foundVariant) variantDeltaPaise = foundVariant.priceDeltaPaise;
+      } catch {}
+    }
+
+    let addonsTotalPaise = 0;
+    if (clientItem.addonIds && clientItem.addonIds.length > 0) {
+      try {
+        const addons = JSON.parse(dbItem.addonsJson || '[]') as Array<{
+          id: string;
+          pricePaise: number;
+        }>;
+        for (const aid of clientItem.addonIds) {
+          const foundAddon = addons.find((a) => a.id === aid);
+          if (foundAddon) addonsTotalPaise += foundAddon.pricePaise;
+        }
+      } catch {}
+    }
+
+    const effectiveUnit = dbItem.pricePaise + variantDeltaPaise + addonsTotalPaise;
+    const itemSubtotal = effectiveUnit * clientItem.quantity;
+    const packingChargePaise = dbItem.packingChargePaise || 0;
     totalQuantity += clientItem.quantity;
+
+    lineInputs.push({
+      itemId: dbItem.id,
+      quantity: clientItem.quantity,
+      unitPricePaise: dbItem.pricePaise,
+      packingChargePaise,
+      variantDeltaPaise,
+      addonsTotalPaise,
+    });
 
     pricedItems.push({
       itemId: dbItem.id,
       name: dbItem.name,
-      pricePaise: dbItem.pricePaise,
+      pricePaise: effectiveUnit,
+      packingChargePaise,
       quantity: clientItem.quantity,
       subtotalPaise: itemSubtotal,
       isVeg: dbItem.isVeg,
       inStock: dbItem.inStock,
-      notes: clientItem.notes?.trim() || undefined,
+      notes: clientItem.notes,
     });
   }
+
+  let couponRule: CouponRule | null = null;
+  let couponLookupError: string | null = null;
+  let isNewUser = true;
+
+  if (options?.couponCode) {
+    const cleanCode = options.couponCode.trim().toUpperCase();
+    const dbCoupon = await db.select().from(coupons).where(eq(coupons.code, cleanCode)).get();
+    if (!dbCoupon) {
+      couponLookupError = `Coupon "${cleanCode}" not found.`;
+    } else {
+      couponRule = {
+        code: dbCoupon.code,
+        discountType: dbCoupon.discountType,
+        discountValue: dbCoupon.discountValue,
+        minOrderPaise: dbCoupon.minOrderPaise,
+        maxDiscountPaise: dbCoupon.maxDiscountPaise,
+        newUsersOnly: dbCoupon.newUsersOnly,
+        active: dbCoupon.active,
+        expiresAt: dbCoupon.expiresAt,
+      };
+    }
+
+    if (options.userId && couponRule?.newUsersOnly) {
+      const prevOrders = await db
+        .select({ total: count() })
+        .from(orders)
+        .where(eq(orders.userId, options.userId))
+        .get();
+      isNewUser = (prevOrders?.total || 0) === 0;
+    }
+  }
+
+  const summary = calculateCartPricing({
+    items: lineInputs,
+    minOrderPaise: vendorRow?.minOrderPaise || 0,
+    coupon: couponRule,
+    isNewUser,
+    nowUtcSeconds: options?.nowUtcSeconds,
+  });
 
   return {
     vendorId,
     items: pricedItems,
-    subtotalPaise,
-    deliveryFeePaise: 0, // Zero delivery fee guarantee
-    totalPaise: subtotalPaise,
+    subtotalPaise: summary.subtotalPaise,
+    packingTotalPaise: summary.packingTotalPaise,
+    discountPaise: summary.discountPaise,
+    deliveryFeePaise: 0,
+    totalPaise: summary.totalPaise,
     totalQuantity,
+    meetsMinOrder: summary.meetsMinOrder,
+    shortfallPaise: summary.shortfallPaise,
+    couponApplied: summary.couponApplied,
+    couponError: couponLookupError || summary.couponError,
   };
 }

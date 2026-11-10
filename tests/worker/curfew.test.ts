@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { canDeliver, type GateRecord, type VendorRecord, type VendorGateRecord } from '@worker/services/delivery';
 import { parseTimeToMinutes } from '@worker/utils/time';
+import { isNightSafetyActive, getGateCurfewStatus } from '@shared/curfew';
 
 describe('Curfew and Delivery Service', () => {
   const gateMain: GateRecord = {
@@ -94,5 +95,81 @@ describe('Curfew and Delivery Service', () => {
     expect(parseTimeToMinutes('00:00')).toBe(0);
     expect(parseTimeToMinutes('10:30')).toBe(630);
     expect(parseTimeToMinutes('23:30')).toBe(1410);
+  });
+
+  it('supports 24x7 Main Gate / Academic Blocks and enforces 19:30 hostel curfew at 18:45, 19:15, and 19:45 IST', () => {
+    const gateMain24x7: GateRecord = {
+      id: 'gate_main',
+      name: 'Main Gate / Academic Blocks',
+      curfewTime: '23:59',
+      bufferMinutes: 15,
+      travelMinutes: 10,
+      active: true,
+      is24x7: true,
+    };
+
+    const gateBoysHostel: GateRecord = {
+      id: 'gate_h5',
+      name: 'Boys Hostel Gate',
+      curfewTime: '19:30',
+      bufferMinutes: 15,
+      travelMinutes: 10,
+      active: true,
+      is24x7: false,
+    };
+
+    const vendorFast: VendorRecord = {
+      id: 'v_fast',
+      name: 'Campus Express',
+      hoursJson: JSON.stringify({ open: '08:00', close: '23:00' }),
+      prepMinutes: 15,
+      isOpen: true,
+      status: 'active',
+    };
+
+    const vgBoys: VendorGateRecord = {
+      vendorId: 'v_fast',
+      gateId: 'gate_h5',
+      extraMinutes: 0,
+    };
+
+    const vgMain: VendorGateRecord = {
+      vendorId: 'v_fast',
+      gateId: 'gate_main',
+      extraMinutes: 0,
+    };
+
+    // Base midnight 2026-11-10 IST = 2026-11-09 18:30 UTC
+    const baseIstMidnightUtc = Math.floor(Date.UTC(2026, 10, 9, 18, 30, 0) / 1000);
+    const t1845 = baseIstMidnightUtc + 18 * 3600 + 45 * 60;
+    const t1915 = baseIstMidnightUtc + 19 * 3600 + 15 * 60;
+    const t1945 = baseIstMidnightUtc + 19 * 3600 + 45 * 60;
+
+    // 18:45 IST -> arrives 19:10 + 15m window = 19:25 <= 19:30 -> allowed
+    const r1845 = canDeliver(gateBoysHostel, vendorFast, t1845, vgBoys, [gateMain24x7, gateBoysHostel]);
+    expect(r1845.ok).toBe(true);
+    expect(r1845.latestOrderTime).toBe('18:50');
+
+    // 19:15 IST -> misses 19:30 with 15m window -> rejected with Main Gate 24x7 alternative
+    const r1915 = canDeliver(gateBoysHostel, vendorFast, t1915, vgBoys, [gateMain24x7, gateBoysHostel]);
+    expect(r1915.ok).toBe(false);
+    expect(r1915.reason).toBe('too_late');
+    expect(r1915.alternativeGates?.some((g) => g.gateId === 'gate_main' && g.is24x7)).toBe(true);
+
+    // 19:45 IST -> Boys Hostel closed -> Main Gate 24x7 still accepts!
+    const r1945Boys = canDeliver(gateBoysHostel, vendorFast, t1945, vgBoys, [gateMain24x7, gateBoysHostel]);
+    expect(r1945Boys.ok).toBe(false);
+    expect(r1945Boys.reason).toBe('too_late');
+
+    const r1945Main = canDeliver(gateMain24x7, vendorFast, t1945, vgMain, [gateMain24x7, gateBoysHostel]);
+    expect(r1945Main.ok).toBe(true);
+    expect(getGateCurfewStatus(gateMain24x7, t1945).label).toBe('Open 24x7');
+  });
+
+  it('activates Campus Night Safety automatically at and after 19:00 IST', () => {
+    const baseIstMidnightUtc = Math.floor(Date.UTC(2026, 10, 9, 18, 30, 0) / 1000);
+    expect(isNightSafetyActive(baseIstMidnightUtc + 18 * 3600 + 59 * 60)).toBe(false);
+    expect(isNightSafetyActive(baseIstMidnightUtc + 19 * 3600)).toBe(true);
+    expect(isNightSafetyActive(baseIstMidnightUtc + 22 * 3600 + 30 * 60)).toBe(true);
   });
 });

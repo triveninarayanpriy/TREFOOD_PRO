@@ -38,7 +38,7 @@ authRoutes.post('/otp/request', async (c) => {
   const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '127.0.0.1';
 
   // Rate limit by IP (max 10 requests per 10 minutes)
-  const ipLimit = await checkRateLimit(db, `otp_ip:${clientIp}`, 10, 600);
+  const ipLimit = await checkRateLimit(db, `otp_ip:${clientIp}`, 10, 600, c.env.RATE_LIMIT_KV);
   if (!ipLimit.allowed) {
     return c.json(
       { error: { code: 'RATE_LIMIT_EXCEEDED', message: `Too many requests from this IP. Retry in ${ipLimit.retryAfterSeconds}s.` } },
@@ -47,7 +47,7 @@ authRoutes.post('/otp/request', async (c) => {
   }
 
   // Rate limit by email (max 3 requests per 10 minutes)
-  const emailLimit = await checkRateLimit(db, `otp_email:${email}`, 3, 600);
+  const emailLimit = await checkRateLimit(db, `otp_email:${email}`, 3, 600, c.env.RATE_LIMIT_KV);
   if (!emailLimit.allowed) {
     return c.json(
       { error: { code: 'RATE_LIMIT_EXCEEDED', message: `Too many OTP requests for this email. Retry in ${emailLimit.retryAfterSeconds}s.` } },

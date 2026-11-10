@@ -9,10 +9,13 @@ import {
   users,
   announcements,
   auditLog,
+  coupons,
+  issues,
 } from '../db/schema';
 import { requireAuth, requireRole } from '../middleware';
 import { nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
+import { CouponInputSchema } from '@shared/schemas';
 import { z } from 'zod';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
@@ -151,6 +154,7 @@ const GateUpdateSchema = z.object({
   bufferMinutes: z.number().int().min(0).optional(),
   travelMinutes: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
+  is24x7: z.boolean().optional(),
 });
 
 adminRoutes.patch('/gates/:id', async (c) => {
@@ -321,9 +325,7 @@ adminRoutes.post('/orders/:id/cancel', async (c) => {
   return c.json({ ok: true, orderId, status: 'cancelled' });
 });
 
-// GET /api/admin/metrics
-adminRoutes.get('/metrics', async (c) => {
-  const db = c.get('db');
+async function buildAdminMetrics(db: ReturnType<typeof import('../db').getDb>) {
   const allOrders = await db.select().from(orders).all();
   const allVendors = await db.select().from(vendors).all();
 
@@ -334,11 +336,10 @@ adminRoutes.get('/metrics', async (c) => {
 
   const totalRevenuePaise = delivered.reduce((sum, o) => sum + o.totalPaise, 0);
 
-  // Hourly order distribution (handwritten SVG chart data)
   const hourlyCounts = Array(12).fill(0);
   for (const o of allOrders) {
     const hour = new Date(o.createdAt * 1000).getHours();
-    const bucket = Math.floor(hour / 2); // 12 two-hour buckets
+    const bucket = Math.floor(hour / 2);
     if (bucket >= 0 && bucket < 12) {
       hourlyCounts[bucket]++;
     }
@@ -352,22 +353,172 @@ adminRoutes.get('/metrics', async (c) => {
     ? Math.round((cancelled.length / allOrders.length) * 100)
     : 0;
 
+  return {
+    totalOrders: allOrders.length,
+    deliveredOrders: delivered.length,
+    activeOrders: active.length,
+    cancelledOrders: cancelled.length,
+    totalRevenuePaise,
+    totalRevenueRupees: totalRevenuePaise / 100,
+    activeVendorsCount: activeVendors.length,
+    acceptanceRate,
+    cancellationRate,
+    medianDeliveryMinutes: 18,
+    hourlyDistribution: hourlyCounts,
+  };
+}
+
+// GET /api/admin/metrics and /api/admin/stats
+adminRoutes.get('/metrics', async (c) => {
+  const metrics = await buildAdminMetrics(c.get('db'));
+  return c.json({ ok: true, metrics });
+});
+
+adminRoutes.get('/stats', async (c) => {
+  const metrics = await buildAdminMetrics(c.get('db'));
+  return c.json({ ok: true, stats: metrics, metrics });
+});
+
+// GET /api/admin/coupons
+adminRoutes.get('/coupons', async (c) => {
+  const db = c.get('db');
+  const list = await db.select().from(coupons).orderBy(desc(coupons.createdAt)).all();
+  return c.json({ ok: true, coupons: list });
+});
+
+// POST /api/admin/coupons
+adminRoutes.post('/coupons', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = CouponInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: parsed.error.errors[0]?.message || 'Invalid coupon data' } },
+      400
+    );
+  }
+
+  const now = nowUtc();
+  const id = ulid();
+  await db.insert(coupons).values({
+    id,
+    campusId: 'campus_nitp',
+    code: parsed.data.code,
+    description: parsed.data.description,
+    discountType: parsed.data.discountType,
+    discountValue: parsed.data.discountValue,
+    minOrderPaise: parsed.data.minOrderPaise,
+    maxDiscountPaise: parsed.data.maxDiscountPaise ?? null,
+    newUsersOnly: parsed.data.newUsersOnly,
+    active: parsed.data.active,
+    expiresAt: parsed.data.expiresAt ?? null,
+    createdAt: now,
+  });
+
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'COUPON_CREATED',
+    targetType: 'coupons',
+    targetId: id,
+    detailsJson: JSON.stringify({ code: parsed.data.code }),
+    at: now,
+  });
+
+  const created = await db.select().from(coupons).where(eq(coupons.id, id)).get();
+  return c.json({ ok: true, coupon: created }, 201);
+});
+
+// PATCH /api/admin/coupons/:id
+adminRoutes.patch('/coupons/:id', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const id = c.req.param('id');
+  const body = (await c.req.json().catch(() => ({}))) as { active?: boolean };
+  if (typeof body.active !== 'boolean') {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'active must be boolean' } }, 400);
+  }
+
+  await db.update(coupons).set({ active: body.active }).where(eq(coupons.id, id));
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'COUPON_UPDATED',
+    targetType: 'coupons',
+    targetId: id,
+    detailsJson: JSON.stringify({ active: body.active }),
+    at: nowUtc(),
+  });
+
+  const updated = await db.select().from(coupons).where(eq(coupons.id, id)).get();
+  return c.json({ ok: true, coupon: updated });
+});
+
+// GET /api/admin/reports (Issues & Disputes Queue)
+adminRoutes.get('/reports', async (c) => {
+  const db = c.get('db');
+  const list = await db
+    .select({
+      issue: issues,
+      vendorName: vendors.name,
+      orderPublicNo: orders.publicNo,
+    })
+    .from(issues)
+    .innerJoin(vendors, eq(issues.vendorId, vendors.id))
+    .innerJoin(orders, eq(issues.orderId, orders.id))
+    .orderBy(desc(issues.createdAt))
+    .all();
+
   return c.json({
     ok: true,
-    metrics: {
-      totalOrders: allOrders.length,
-      deliveredOrders: delivered.length,
-      activeOrders: active.length,
-      cancelledOrders: cancelled.length,
-      totalRevenuePaise,
-      totalRevenueRupees: totalRevenuePaise / 100,
-      activeVendorsCount: activeVendors.length,
-      acceptanceRate,
-      cancellationRate,
-      medianDeliveryMinutes: 18,
-      hourlyDistribution: hourlyCounts,
-    },
+    reports: list.map((r) => ({
+      ...r.issue,
+      vendorName: r.vendorName,
+      orderPublicNo: r.orderPublicNo,
+    })),
   });
+});
+
+// PATCH /api/admin/reports/:id (Resolve, refund, credit or reject report)
+const ReportResolveSchema = z.object({
+  status: z.enum(['resolved', 'refunded', 'credited', 'rejected']),
+  resolutionNote: z.string().max(200).optional(),
+  refundPaise: z.number().int().nonnegative().optional(),
+});
+
+adminRoutes.patch('/reports/:id', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = ReportResolveSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'Invalid report resolution payload' } }, 400);
+  }
+
+  const now = nowUtc();
+  await db
+    .update(issues)
+    .set({
+      status: parsed.data.status,
+      resolutionNote: parsed.data.resolutionNote || null,
+      refundPaise: parsed.data.refundPaise || 0,
+    })
+    .where(eq(issues.id, id));
+
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'REPORT_RESOLVED',
+    targetType: 'issues',
+    targetId: id,
+    detailsJson: JSON.stringify(parsed.data),
+    at: now,
+  });
+
+  const updated = await db.select().from(issues).where(eq(issues.id, id)).get();
+  return c.json({ ok: true, report: updated });
 });
 
 // POST /api/admin/announcements

@@ -9,11 +9,13 @@ import {
   gates,
   menuItems,
   menuCategories,
+  auditLog,
 } from '../db/schema';
 import { requireAuth, requireRole } from '../middleware';
 import { nextStatus, StatusTransitionError, type OrderStatus } from '../services/order';
 import { nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
+import { VendorRejectSchema } from '@shared/schemas';
 import { z } from 'zod';
 
 export const vendorRoutes = new Hono<{ Bindings: Env }>();
@@ -76,37 +78,29 @@ const UpdateOrderStatusSchema = z.object({
   cancelReason: z.string().max(200).optional(),
 });
 
-vendorRoutes.patch('/orders/:id/status', async (c) => {
-  const db = c.get('db');
-  const user = c.get('user')!;
-  const vendorId = getVendorId(c);
-  const orderId = c.req.param('id');
-
-  const body = await c.req.json().catch(() => ({}));
-  const parseResult = UpdateOrderStatusSchema.safeParse(body);
-  if (!parseResult.success) {
-    return c.json(
-      { error: { code: 'INVALID_INPUT', message: parseResult.error.errors[0]?.message || 'Invalid status' } },
-      400
-    );
-  }
-
-  const { status: targetStatus, prepMinutes, cancelReason } = parseResult.data;
-
+async function transitionVendorOrder(params: {
+  db: ReturnType<typeof import('../db').getDb>;
+  user: { id: string; role: 'student' | 'vendor' | 'admin'; vendorId?: string | null };
+  orderId: string;
+  targetStatus: 'accepted' | 'out_for_delivery' | 'at_gate' | 'cancelled';
+  prepMinutes?: number;
+  cancelReason?: string;
+}) {
+  const { db, user, orderId, targetStatus, prepMinutes, cancelReason } = params;
   const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
   if (!order) {
-    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+    return { error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' }, httpStatus: 404 as const };
   }
 
-  if (user.role === 'vendor' && order.vendorId !== vendorId) {
-    return c.json({ error: { code: 'FORBIDDEN', message: 'You do not manage this order.' } }, 403);
+  if (user.role === 'vendor' && order.vendorId !== user.vendorId) {
+    return { error: { code: 'FORBIDDEN', message: 'You do not manage this order.' }, httpStatus: 403 as const };
   }
 
   try {
     nextStatus(order.status as OrderStatus, targetStatus as OrderStatus, user.role);
   } catch (err) {
     if (err instanceof StatusTransitionError) {
-      return c.json({ error: { code: err.code, message: err.message } }, err.status);
+      return { error: { code: err.code, message: err.message }, httpStatus: err.status as 400 | 403 | 404 | 409 };
     }
     throw err;
   }
@@ -141,7 +135,162 @@ vendorRoutes.patch('/orders/:id/status', async (c) => {
     note: cancelReason || `Status updated to ${targetStatus} by vendor`,
   });
 
-  return c.json({ ok: true, status: targetStatus, updatedAt: now });
+  return { ok: true as const, status: targetStatus, updatedAt: now };
+}
+
+vendorRoutes.patch('/orders/:id/status', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parseResult = UpdateOrderStatusSchema.safeParse(body);
+  if (!parseResult.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: parseResult.error.errors[0]?.message || 'Invalid status' } },
+      400
+    );
+  }
+
+  const result = await transitionVendorOrder({
+    db: c.get('db'),
+    user: c.get('user')!,
+    orderId: c.req.param('id'),
+    targetStatus: parseResult.data.status,
+    prepMinutes: parseResult.data.prepMinutes,
+    cancelReason: parseResult.data.cancelReason,
+  });
+
+  if ('error' in result) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
+});
+
+// POST /api/vendor/orders/:id/accept
+vendorRoutes.post('/orders/:id/accept', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { prepMinutes?: number };
+  const prepMinutes = typeof body.prepMinutes === 'number' && body.prepMinutes > 0 ? body.prepMinutes : undefined;
+  const result = await transitionVendorOrder({
+    db: c.get('db'),
+    user: c.get('user')!,
+    orderId: c.req.param('id'),
+    targetStatus: 'accepted',
+    prepMinutes,
+  });
+  if ('error' in result) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
+});
+
+// POST /api/vendor/orders/:id/reject (with required reason)
+vendorRoutes.post('/orders/:id/reject', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = VendorRejectSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: parsed.error.errors[0]?.message || 'Reason required' } },
+      400
+    );
+  }
+  const result = await transitionVendorOrder({
+    db: c.get('db'),
+    user: c.get('user')!,
+    orderId: c.req.param('id'),
+    targetStatus: 'cancelled',
+    cancelReason: parsed.data.reason,
+  });
+  if ('error' in result) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
+});
+
+// POST /api/vendor/orders/:id/ready (mark out_for_delivery -> ready for dispatch/gate)
+vendorRoutes.post('/orders/:id/ready', async (c) => {
+  const result = await transitionVendorOrder({
+    db: c.get('db'),
+    user: c.get('user')!,
+    orderId: c.req.param('id'),
+    targetStatus: 'out_for_delivery',
+  });
+  if ('error' in result) return c.json({ error: result.error }, result.httpStatus);
+  return c.json(result);
+});
+
+// POST /api/vendor/orders/:id/handover-assist (unlock locked handover or mark handed over with audit log)
+vendorRoutes.post('/orders/:id/handover-assist', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const vendorId = getVendorId(c);
+  const orderId = c.req.param('id');
+  const body = (await c.req.json().catch(() => ({}))) as { note?: string; completeDelivery?: boolean };
+
+  const order = await db.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) {
+    return c.json({ error: { code: 'ORDER_NOT_FOUND', message: 'Order not found' } }, 404);
+  }
+  if (user.role === 'vendor' && order.vendorId !== vendorId) {
+    return c.json({ error: { code: 'FORBIDDEN', message: 'You do not manage this order.' } }, 403);
+  }
+
+  const now = nowUtc();
+  const complete = Boolean(body.completeDelivery);
+  if (complete && order.status === 'at_gate') {
+    await db
+      .update(orders)
+      .set({ codeAttempts: 0, status: 'delivered', deliveredAt: now, paymentStatus: 'paid' })
+      .where(eq(orders.id, order.id));
+  } else {
+    await db.update(orders).set({ codeAttempts: 0 }).where(eq(orders.id, order.id));
+  }
+
+  await db.insert(orderEvents).values({
+    id: ulid(),
+    orderId: order.id,
+    status: complete && order.status === 'at_gate' ? 'delivered' : order.status,
+    actorId: user.id,
+    at: now,
+    note: body.note || 'Vendor assisted student handover verification',
+  });
+
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'VENDOR_HANDOVER_ASSIST',
+    targetType: 'orders',
+    targetId: order.id,
+    detailsJson: JSON.stringify({ complete, previousAttempts: order.codeAttempts }),
+    at: now,
+  });
+
+  return c.json({
+    ok: true,
+    orderId: order.id,
+    status: complete && order.status === 'at_gate' ? 'delivered' : order.status,
+    codeAttempts: 0,
+  });
+});
+
+// PATCH /api/vendor/prep-time
+const UpdatePrepTimeSchema = z.object({
+  prepMinutes: z.number().int().min(5).max(90),
+  prepMaxMinutes: z.number().int().min(5).max(120).optional(),
+});
+
+vendorRoutes.patch('/prep-time', async (c) => {
+  const db = c.get('db');
+  const vendorId = getVendorId(c);
+  if (!vendorId) {
+    return c.json({ error: { code: 'NO_VENDOR_ASSIGNED', message: 'No vendor assigned.' } }, 403);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = UpdatePrepTimeSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'Invalid prep time (5-90 mins)' } }, 400);
+  }
+
+  await db
+    .update(vendors)
+    .set({
+      prepMinutes: parsed.data.prepMinutes,
+      prepMaxMinutes: parsed.data.prepMaxMinutes || parsed.data.prepMinutes + 10,
+    })
+    .where(eq(vendors.id, vendorId));
+
+  const updated = await db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
+  return c.json({ ok: true, vendor: updated });
 });
 
 // GET /api/vendor/menu

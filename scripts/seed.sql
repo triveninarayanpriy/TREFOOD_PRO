@@ -3,6 +3,7 @@
 
 -- Clean existing data
 DELETE FROM audit_log;
+DELETE FROM push_subscriptions;
 DELETE FROM favorites;
 DELETE FROM issues;
 DELETE FROM reviews;
@@ -12,35 +13,40 @@ DELETE FROM orders;
 DELETE FROM otp_codes;
 DELETE FROM sessions;
 DELETE FROM rate_limits;
+DELETE FROM coupons;
 DELETE FROM announcements;
 DELETE FROM menu_items;
 DELETE FROM menu_categories;
 DELETE FROM vendor_gates;
+DELETE FROM users;
 DELETE FROM vendors;
 DELETE FROM gates;
-DELETE FROM users;
 DELETE FROM campuses;
 
 -- 1. Campuses
 INSERT INTO campuses (id, name, slug, created_at) VALUES 
 ('campus_nitp', 'National Institute of Technology Patna', 'nitp', 1700000000);
 
--- 2. Gates with Curfew times (Asia/Kolkata)
-INSERT INTO gates (id, campus_id, name, curfew_time, buffer_minutes, travel_minutes, active, created_at) VALUES
-('gate_main', 'campus_nitp', 'Main Gate (Ashok Rajpath)', '23:30', 15, 10, 1, 1700000000),
-('gate_h5', 'campus_nitp', 'Hostel 5 Gate', '22:30', 15, 12, 1, 1700000000),
-('gate_h7', 'campus_nitp', 'Hostel 7 Gate (Ganga View)', '23:00', 15, 14, 1, 1700000000);
+-- 2. Gates with Curfew times (Asia/Kolkata): Main Gate 24x7, Hostels close 19:30 with 15m window
+INSERT INTO gates (id, campus_id, name, curfew_time, buffer_minutes, travel_minutes, active, is_24x7, created_at) VALUES
+('gate_main', 'campus_nitp', 'Main Gate / Academic Blocks', '23:59', 15, 10, 1, 1, 1700000000),
+('gate_h5', 'campus_nitp', 'Boys Hostel Gate', '19:30', 15, 12, 1, 0, 1700000000),
+('gate_h7', 'campus_nitp', 'Girls Hostel Gate', '19:30', 15, 14, 1, 0, 1700000000);
 
--- 3. Vendors across 8 campus categories
-INSERT INTO vendors (id, campus_id, slug, name, name_hi, category, description, fssai_no, phone, hours_json, prep_minutes, is_open, status, rating_avg, rating_count, created_at) VALUES
-('v_ganga', 'campus_nitp', 'ganga-dhaba', 'Ganga Dhaba & Kitchen', 'गंगा ढाबा', 'meals', 'North Indian thalis, fresh rotis, paneer curries and aromatic biryani.', '10421000001234', '+919876543210', '{"open":"10:00","close":"23:00"}', 20, 1, 'active', 4.6, 184, 1700000000),
-('v_chai', 'campus_nitp', 'campus-chai-point', 'Campus Chai & Maggi Point', 'कैंपस चाय पॉइंट', 'snacks', 'Hot adrak chai, bun maska, cheesy Maggi, and crispy evening snacks.', '10421000001235', '+919876543211', '{"open":"08:00","close":"23:30"}', 12, 1, 'active', 4.8, 320, 1700000000),
-('v_fruits', 'campus_nitp', 'kisan-fresh-fruits', 'Kisan Fresh Fruit Stall', 'किसान फ्रेश फ्रूट्स', 'fruits', 'Seasonal whole fresh fruits, daily fruit bowls, apples, and bananas.', '10421000001236', '+919876543212', '{"open":"09:00","close":"21:30"}', 10, 1, 'active', 4.5, 95, 1700000000),
-('v_mart', 'campus_nitp', 'hostel-essentials-mart', 'Hostel Essentials Mart', 'हॉस्टल एसेंशियल मार्ट', 'groceries', 'Biscuits, chips, toiletries, milk, noodles and daily student groceries.', '10421000001237', '+919876543213', '{"open":"08:00","close":"22:30"}', 10, 1, 'active', 4.7, 210, 1700000000),
-('v_veggies', 'campus_nitp', 'green-valley-veggies', 'Green Valley Fresh Veggies', 'ग्रीन वैली सब्जियां', 'vegetables', 'Cleaned seasonal vegetables, potatoes, onions, tomatoes and greens.', '10421000001238', '+919876543214', '{"open":"07:30","close":"20:30"}', 10, 1, 'active', 4.4, 68, 1700000000),
-('v_meat', 'campus_nitp', 'patna-fresh-meat', 'Patna Fresh Poultry & Raw Meat', 'पटना फ्रेश पोल्ट्री', 'raw_chicken', 'Hygienic curry cut chicken, boneless breast, and fresh farm eggs.', '10421000001239', '+919876543215', '{"open":"08:00","close":"20:00"}', 15, 1, 'active', 4.3, 82, 1700000000),
-('v_late', 'campus_nitp', 'midnight-bites', 'Midnight Bites NITP', 'मिडनाइट बाइट्स', 'late_night', 'Late night rolls, burgers, fried rice, and loaded peri-peri fries.', '10421000001240', '+919876543216', '{"open":"21:00","close":"03:00"}', 20, 1, 'active', 4.7, 412, 1700000000),
-('v_juice', 'campus_nitp', 'royal-juice-corner', 'Royal Juice & Shake Corner', 'रॉयल जूस कॉर्नर', 'beverages', 'Freshly squeezed juices, thick fruit shakes, chilled badam milk and lassi.', '10421000001241', '+919876543217', '{"open":"10:00","close":"22:30"}', 10, 1, 'active', 4.6, 140, 1700000000);
+-- 3. 12 Vendors across Meals, Snacks, Fruits & Juices, Vegetables, Groceries, Fresh Chicken, and Late Night
+INSERT INTO vendors (id, campus_id, slug, name, name_hi, category, description, fssai_no, phone, hours_json, prep_minutes, prep_max_minutes, min_order_paise, is_open, night_safe, status, rating_avg, rating_count, created_at) VALUES
+('v_ganga', 'campus_nitp', 'ganga-dhaba', 'Ganga Dhaba & Kitchen', 'गंगा ढाबा', 'meals', 'North Indian thalis, fresh rotis, paneer curries and aromatic biryani.', '10421000001234', '+919876543210', '{"open":"10:00","close":"23:00"}', 20, 30, 0, 1, 1, 'active', 4.6, 184, 1700000000),
+('v_chai', 'campus_nitp', 'campus-chai-point', 'Campus Chai & Maggi Point', 'कैंपस चाय पॉइंट', 'snacks', 'Hot adrak chai, bun maska, cheesy Maggi, and crispy evening snacks.', '10421000001235', '+919876543211', '{"open":"08:00","close":"23:30"}', 12, 18, 0, 1, 1, 'active', 4.8, 320, 1700000000),
+('v_fruits', 'campus_nitp', 'kisan-fresh-fruits', 'Kisan Fresh Fruit Stall', 'किसान फ्रेश फ्रूट्स', 'fruits', 'Seasonal whole fresh fruits, daily fruit bowls, apples, and bananas.', '10421000001236', '+919876543212', '{"open":"09:00","close":"21:30"}', 10, 15, 4900, 1, 1, 'active', 4.5, 95, 1700000000),
+('v_mart', 'campus_nitp', 'hostel-essentials-mart', 'Hostel Essentials Mart', 'हॉस्टल एसेंशियल मार्ट', 'groceries', 'Biscuits, chips, toiletries, milk, noodles and daily student groceries.', '10421000001237', '+919876543213', '{"open":"08:00","close":"22:30"}', 10, 15, 0, 1, 1, 'active', 4.7, 210, 1700000000),
+('v_veggies', 'campus_nitp', 'green-valley-veggies', 'Green Valley Fresh Veggies', 'ग्रीन वैली सब्जियां', 'vegetables', 'Cleaned seasonal vegetables, potatoes, onions, tomatoes and greens.', '10421000001238', '+919876543214', '{"open":"07:30","close":"20:30"}', 10, 18, 4900, 1, 0, 'active', 4.4, 68, 1700000000),
+('v_meat', 'campus_nitp', 'patna-fresh-meat', 'Patna Fresh Poultry & Raw Meat', 'पटना फ्रेश पोल्ट्री', 'raw_chicken', 'Hygienic curry cut chicken, boneless breast, and fresh farm eggs.', '10421000001239', '+919876543215', '{"open":"08:00","close":"20:00"}', 15, 25, 9900, 1, 0, 'active', 4.3, 82, 1700000000),
+('v_late', 'campus_nitp', 'midnight-bites', 'Midnight Bites NITP', 'मिडनाइट बाइट्स', 'late_night', 'Late night rolls, burgers, fried rice, and loaded peri-peri fries.', '10421000001240', '+919876543216', '{"open":"21:00","close":"03:00"}', 20, 30, 9900, 1, 1, 'active', 4.7, 412, 1700000000),
+('v_juice', 'campus_nitp', 'royal-juice-corner', 'Royal Juice & Shake Corner', 'रॉयल जूस कॉर्नर', 'beverages', 'Freshly squeezed juices, thick fruit shakes, chilled badam milk and lassi.', '10421000001241', '+919876543217', '{"open":"10:00","close":"22:30"}', 10, 15, 0, 1, 1, 'active', 4.6, 140, 1700000000),
+('v_sone', 'campus_nitp', 'sone-valley-biryani', 'Sone Valley Thali & Biryani', 'सोन वैली बिरयानी', 'meals', 'Hyderabadi dum biryani, litti chokha platters, and budget student thalis.', '10421000001242', '+919876543218', '{"open":"11:00","close":"22:30"}', 18, 28, 7900, 1, 1, 'active', 4.5, 165, 1700000000),
+('v_mithila', 'campus_nitp', 'mithila-tiffin-house', 'Mithila Homestyle Tiffin', 'मिथिला टिफिन हाउस', 'meals', 'Homestyle Champaran handi, sattu parathas, rajma chawal, and curd meals.', '10421000001243', '+919876543219', '{"open":"08:00","close":"21:00"}', 20, 30, 0, 0, 1, 'active', 4.9, 204, 1700000000),
+('v_magadh', 'campus_nitp', 'magadh-daily-needs', 'Magadh Night Canteen & Dairy', 'मगध डेली नीड्स', 'groceries', 'Exam-week coffee, curd cups, instant oats, notebooks, pens, and late snacks.', '10421000001244', '+919876543220', '{"open":"07:00","close":"23:59"}', 8, 12, 0, 1, 1, 'active', 4.6, 118, 1700000000),
+('v_maurya', 'campus_nitp', 'maurya-tandoor-express', 'Maurya Sandwich & Wrap Express', 'मौर्य सैंडविच एक्सप्रेस', 'snacks', 'Grilled paneer tikka sandwiches, cold coffee, momos, and garlic bread.', '10421000001245', '+919876543221', '{"open":"10:30","close":"22:30"}', 14, 22, 4900, 1, 1, 'active', 4.4, 92, 1700000000);
 
 -- 4. Vendor Gates (Reachability & extra travel time)
 INSERT INTO vendor_gates (id, vendor_id, gate_id, extra_minutes) VALUES
@@ -73,7 +79,22 @@ INSERT INTO vendor_gates (id, vendor_id, gate_id, extra_minutes) VALUES
 
 ('vg_juice_main', 'v_juice', 'gate_main', 0),
 ('vg_juice_h5', 'v_juice', 'gate_h5', 2),
-('vg_juice_h7', 'v_juice', 'gate_h7', 4);
+('vg_juice_h7', 'v_juice', 'gate_h7', 4),
+
+('vg_sone_main', 'v_sone', 'gate_main', 0),
+('vg_sone_h5', 'v_sone', 'gate_h5', 3),
+('vg_sone_h7', 'v_sone', 'gate_h7', 4),
+
+('vg_mithila_main', 'v_mithila', 'gate_main', 0),
+('vg_mithila_h5', 'v_mithila', 'gate_h5', 2),
+
+('vg_magadh_main', 'v_magadh', 'gate_main', 0),
+('vg_magadh_h5', 'v_magadh', 'gate_h5', 2),
+('vg_magadh_h7', 'v_magadh', 'gate_h7', 3),
+
+('vg_maurya_main', 'v_maurya', 'gate_main', 0),
+('vg_maurya_h5', 'v_maurya', 'gate_h5', 3),
+('vg_maurya_h7', 'v_maurya', 'gate_h7', 4);
 
 -- 5. Menu Categories
 INSERT INTO menu_categories (id, vendor_id, name, name_hi, sort) VALUES
@@ -91,7 +112,11 @@ INSERT INTO menu_categories (id, vendor_id, name, name_hi, sort) VALUES
 ('cat_l_rolls', 'v_late', 'Rolls & Wraps', 'रोल और रैप', 1),
 ('cat_l_burgers', 'v_late', 'Burgers & Fries', 'बर्गर और फ्राइज', 2),
 ('cat_j_shakes', 'v_juice', 'Fresh Shakes', 'फ्रूट शेक', 1),
-('cat_j_juices', 'v_juice', 'Fresh Juices', 'ताजा जूस', 2);
+('cat_j_juices', 'v_juice', 'Fresh Juices', 'ताजा जूस', 2),
+('cat_s_biryani', 'v_sone', 'Biryani & Thalis', 'बिरयानी और थाली', 1),
+('cat_mi_meals', 'v_mithila', 'Bihari Specials', 'बिहारी स्पेशल', 1),
+('cat_mg_study', 'v_magadh', 'Hostel Exam Supplies', 'छात्र सामग्री', 1),
+('cat_my_wraps', 'v_maurya', 'Sandwiches & Momos', 'सैंडविच और मोमोज', 1);
 
 -- 6. Menu Items (All prices in Integer Paise)
 INSERT INTO menu_items (id, vendor_id, category_id, name, name_hi, description, price_paise, is_veg, tags, in_stock, sort, created_at) VALUES
@@ -175,7 +200,61 @@ INSERT INTO menu_items (id, vendor_id, category_id, name, name_hi, description, 
 ('it_j5', 'v_juice', 'cat_j_shakes', 'Banana Caramel Shake', 'बनाना शेक', 'Fresh banana blended with creamy milk and caramel drizzle.', 5000, 1, '[]', 1, 5, 1700000000),
 ('it_j6', 'v_juice', 'cat_j_shakes', 'Oreo Chocolate Overload Shake', 'ओरियो शेक', 'Crushed Oreo cookies blended with chocolate milk and fudge.', 7000, 1, '["popular"]', 1, 6, 1700000000),
 ('it_j7', 'v_juice', 'cat_j_shakes', 'Kesar Badam Milk (Cold)', 'केसर बादाम दूध', 'Thick almond milk flavored with real saffron and cardamom.', 4500, 1, '[]', 1, 7, 1700000000),
-('it_j8', 'v_juice', 'cat_j_juices', 'Patliputra Sweet Cream Lassi', 'मीठी लस्सी', 'Thick churned sweet curd topped with malai and pistachios.', 4000, 1, '["bestseller"]', 1, 8, 1700000000);
+('it_j8', 'v_juice', 'cat_j_juices', 'Patliputra Sweet Cream Lassi', 'मीठी लस्सी', 'Thick churned sweet curd topped with malai and pistachios.', 4000, 1, '["bestseller"]', 0, 8, 1700000000),
+
+-- Sone Valley Biryani & Thalis (8 items)
+('it_s1', 'v_sone', 'cat_s_biryani', 'Chicken Hyderabadi Dum Biryani', 'दम चिकन बिरयानी', 'Fragrant basmati rice slow-cooked with succulent spiced chicken.', 17000, 0, '["bestseller","nonveg"]', 1, 1, 1700000000),
+('it_s2', 'v_sone', 'cat_s_biryani', 'Paneer Dum Biryani with Raita', 'पनीर बिरयानी', 'Marinated paneer layered with saffron basmati and mirchi salan.', 14000, 1, '["popular"]', 1, 2, 1700000000),
+('it_s3', 'v_sone', 'cat_s_biryani', 'Student Economy Veg Thali', 'स्टूडेंट वेज थाली', 'Dal fry, mix veg, jeera rice, 4 tawa rotis, salad and pickle.', 9500, 1, '["value"]', 1, 3, 1700000000),
+('it_s4', 'v_sone', 'cat_s_biryani', 'Patna Litti Chokha (4 Pcs + Ghee)', 'लिट्टी चोखा', 'Wood-fired sattu litti dipped in desi ghee with smoky brinjal chokha.', 8000, 1, '["bestseller"]', 1, 4, 1700000000),
+('it_s5', 'v_sone', 'cat_s_biryani', 'Double Egg Biryani Bowl', 'अंडा बिरयानी', 'Two spiced boiled eggs tossed in layered biryani masala rice.', 12000, 0, '["nonveg"]', 1, 5, 1700000000),
+('it_s6', 'v_sone', 'cat_s_biryani', 'Chicken Seekh Kebab Roll', 'सीख कबाब रोल', 'Charcoal grilled seekh wrapped in flaky rumali roti.', 11500, 0, '["nonveg"]', 0, 6, 1700000000),
+('it_s7', 'v_sone', 'cat_s_biryani', 'Boondi Raita Cup', 'बूंदी रायता', 'Chilled spiced dahi topped with roasted jeera and boondi.', 2500, 1, '[]', 1, 7, 1700000000),
+('it_s8', 'v_sone', 'cat_s_biryani', 'Chilli Paneer Gravy Box', 'चिली पनीर', 'Indo-Chinese tossed paneer cubes with bell peppers.', 15000, 1, '[]', 1, 8, 1700000000),
+
+-- Mithila Tiffin House (8 items, vendor currently closed)
+('it_mi1', 'v_mithila', 'cat_mi_meals', 'Champaran Handi Paneer', 'चंपारण हांडी पनीर', 'Slow cooked earthen pot paneer masala.', 16500, 1, '["popular"]', 1, 1, 1700000000),
+('it_mi2', 'v_mithila', 'cat_mi_meals', 'Sattu Stuffed Paratha (2 Pcs) + Curd', 'सत्तू पराठा', 'Roasted gram flour stuffed whole wheat paratha with fresh dahi.', 7500, 1, '["bestseller"]', 1, 2, 1700000000),
+('it_mi3', 'v_mithila', 'cat_mi_meals', 'Rajma Chawal Bowl', 'राजमा चावल', 'Comforting Punjabi style red kidney beans over steamed rice.', 9000, 1, '[]', 1, 3, 1700000000),
+('it_mi4', 'v_mithila', 'cat_mi_meals', 'Kadhi Pakoda Chawal', 'कढ़ी चावल', 'Tangy gram-flour yogurt curry with besan fritters and rice.', 8500, 1, '[]', 1, 4, 1700000000),
+('it_mi5', 'v_mithila', 'cat_mi_meals', 'Aloo Paratha (2 Pcs) with Butter', 'आलू पराठा', 'Crispy pan-seared potato parathas served with pickle and butter.', 7000, 1, '[]', 1, 5, 1700000000),
+('it_mi6', 'v_mithila', 'cat_mi_meals', 'Tawa Roti Combo (5 Pcs + Dal)', 'रोटी दाल कॉम्बो', 'Light homely yellow dal tadka and five fresh wheat chapatis.', 7500, 1, '[]', 1, 6, 1700000000),
+('it_mi7', 'v_mithila', 'cat_mi_meals', 'Chole Bhature (2 Pcs)', 'छोले भटूरे', 'Spiced chickpea curry with fluffy bhaturas and pickled onions.', 9500, 1, '[]', 1, 7, 1700000000),
+('it_mi8', 'v_mithila', 'cat_mi_meals', 'Makhana Kheer Cup', 'मखाना खीर', 'Sweetened roasted foxnuts simmered in saffron cardamom milk.', 5500, 1, '["dessert"]', 1, 8, 1700000000),
+
+-- Magadh Daily Needs (8 items)
+('it_mg1', 'v_magadh', 'cat_mg_study', 'Sting Energy Drink (250ml)', 'स्टिंग एनर्जी ड्रिंक', 'Chilled berry flavored caffeine drink for late-night study sessions.', 2000, 1, '["popular"]', 1, 1, 1700000000),
+('it_mg2', 'v_magadh', 'cat_mg_study', 'Quaker Rolled Oats Pouch (400g)', 'ओट्स पैक', 'Quick-cooking wholegrain breakfast oats.', 8500, 1, '["healthy"]', 1, 2, 1700000000),
+('it_mg3', 'v_magadh', 'cat_mg_study', 'Amul Masti Dahi Cup (200g)', 'अमूल दही', 'Fresh thick plain curd cup.', 2500, 1, '[]', 1, 3, 1700000000),
+('it_mg4', 'v_magadh', 'cat_mg_study', 'Classmate Long Notebook (180 Pages)', 'क्लासमेट नोटबुक', 'Single-line smooth writing register.', 6500, 1, '["stationery"]', 1, 4, 1700000000),
+('it_mg5', 'v_magadh', 'cat_mg_study', 'Dairy Milk Silk Roast Almond (60g)', 'डेयरी मिल्क सिल्क', 'Creamy milk chocolate with crunchy almonds.', 9500, 1, '[]', 1, 5, 1700000000),
+('it_mg6', 'v_magadh', 'cat_mg_study', 'Yippee Magic Masala Noodles 4-Pack', 'यिप्पी नूडल्स', 'Round non-sticky instant masala noodles pack.', 5600, 1, '[]', 1, 6, 1700000000),
+('it_mg7', 'v_magadh', 'cat_mg_study', 'Paper Boat Aamras Drink (250ml)', 'पेपर बोट आमरस', 'Mango fruit drink pack.', 2500, 1, '[]', 1, 7, 1700000000),
+('it_mg8', 'v_magadh', 'cat_mg_study', 'Peanut Butter Crunchy Jar (340g)', 'पीनट बटर', 'High protein roasted peanut spread.', 14000, 1, '["fitness"]', 1, 8, 1700000000),
+
+-- Maurya Sandwich & Wrap Express (8 items)
+('it_my1', 'v_maurya', 'cat_my_wraps', 'Bombay Masala Cheese Grill Sandwich', 'चीज ग्रिल सैंडविच', 'Triple layer toasted sandwich with spiced potato, mint chutney and cheese.', 8500, 1, '["bestseller"]', 1, 1, 1700000000),
+('it_my2', 'v_maurya', 'cat_my_wraps', 'Steam Veg Kurkure Momos (8 Pcs)', 'वेज मोमोज', 'Crispy coated momos served with fiery red garlic chutney and mayo.', 8000, 1, '["popular"]', 1, 2, 1700000000),
+('it_my3', 'v_maurya', 'cat_my_wraps', 'Chicken Tandoori Grill Sandwich', 'चिकन ग्रिल सैंडविच', 'Pulled tandoori chicken breast slices in toasted herb panini.', 11000, 0, '["nonveg"]', 1, 3, 1700000000),
+('it_my4', 'v_maurya', 'cat_my_wraps', 'Garlic Cheese Bread (4 Slices)', 'गार्लिक ब्रेड', 'Toasted baguette slices smothered in roasted garlic butter and mozzarella.', 7500, 1, '[]', 1, 4, 1700000000),
+('it_my5', 'v_maurya', 'cat_my_wraps', 'Chicken Steamed Momos (8 Pcs)', 'चिकन मोमोज', 'Juicy minced chicken dumplings with spicy tomato chilli dip.', 9500, 0, '["nonveg"]', 1, 5, 1700000000),
+('it_my6', 'v_maurya', 'cat_my_wraps', 'Crispy Falafel Hummus Wrap', 'फलाफल रैप', 'Crunchy chickpea patties rolled with garlic sauce and pickled veggies.', 10500, 1, '[]', 0, 6, 1700000000),
+('it_my7', 'v_maurya', 'cat_my_wraps', 'Classic Iced Lemon Peach Tea', 'आइस्ड टी', 'Refreshing chilled black tea shaken with peach syrup and lemon juice.', 5000, 1, '[]', 1, 7, 1700000000),
+('it_my8', 'v_maurya', 'cat_my_wraps', 'Chocolate Lava Muffin', 'चोको लावा मफिन', 'Warm dark chocolate filled muffin.', 5500, 1, '["dessert"]', 1, 8, 1700000000);
+
+-- Sample packing charge & item variants for richer cart quotes
+UPDATE menu_items SET variants_json = '[{"id":"half","label":"Half (300ml)","priceDeltaPaise":0},{"id":"full","label":"Full (500ml)","priceDeltaPaise":8000}]' WHERE id = 'it_g1';
+UPDATE menu_items SET packing_charge_paise = 1000, addons_json = '[{"id":"raita","label":"Extra Boondi Raita","pricePaise":2000,"isVeg":true}]' WHERE id = 'it_g8';
+UPDATE menu_items SET packing_charge_paise = 500 WHERE id = 'it_s1';
+
+-- 6B. 6 Sample Campus Coupons
+INSERT INTO coupons (id, campus_id, code, description, discount_type, discount_value, min_order_paise, max_discount_paise, new_users_only, active, expires_at, created_at) VALUES
+('cpn_new50', 'campus_nitp', 'NEW50', '50% off up to Rs 60 on your first campus order', 'percent', 50, 9900, 6000, 1, 1, 1893456000, 1700000000),
+('cpn_campus20', 'campus_nitp', 'CAMPUS20', '20% off up to Rs 40 across all open canteens', 'percent', 20, 10000, 4000, 0, 1, 1893456000, 1700000000),
+('cpn_flat25', 'campus_nitp', 'FLAT25', 'Flat Rs 25 off on orders above Rs 149', 'flat', 2500, 14900, 2500, 0, 1, 1893456000, 1700000000),
+('cpn_night15', 'campus_nitp', 'NIGHT15', '15% off up to Rs 35 on evening & late night orders', 'percent', 15, 8000, 3500, 0, 1, 1893456000, 1700000000),
+('cpn_fruit10', 'campus_nitp', 'FRUIT10', 'Flat Rs 10 off healthy fruits, shakes & essentials', 'flat', 1000, 6000, 1000, 0, 1, 1893456000, 1700000000),
+('cpn_mess30', 'campus_nitp', 'MESS30', 'Flat Rs 30 off group dinner orders above Rs 249', 'flat', 3000, 24900, 3000, 0, 1, 1893456000, 1700000000);
 
 -- 7. Demo Users
 INSERT INTO users (id, email, name, role, campus_id, vendor_id, created_at) VALUES

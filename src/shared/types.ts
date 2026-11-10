@@ -27,9 +27,11 @@ export interface VendorSummary {
   category: string;
   description: string;
   fssaiNo: string;
+  hoursJson?: string;
   prepMinutes: number;
   isOpen: boolean;
   busyUntil?: number | null;
+  nightSafe?: boolean;
   status: 'pending' | 'active' | 'suspended';
   ratingAvg: number;
   ratingCount: number;

@@ -21,6 +21,7 @@ export const gates = sqliteTable(
     bufferMinutes: integer('buffer_minutes').notNull().default(15),
     travelMinutes: integer('travel_minutes').notNull().default(10),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    is24x7: integer('is_24x7', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [index('idx_gates_campus').on(table.campusId)]
@@ -43,8 +44,11 @@ export const vendors = sqliteTable(
     phone: text('phone').notNull(),
     hoursJson: text('hours_json').notNull(), // JSON e.g. {"open":"09:00","close":"23:00"}
     prepMinutes: integer('prep_minutes').notNull().default(15),
+    prepMaxMinutes: integer('prep_max_minutes').notNull().default(25),
+    minOrderPaise: integer('min_order_paise').notNull().default(0),
     isOpen: integer('is_open', { mode: 'boolean' }).notNull().default(true),
     busyUntil: integer('busy_until'), // UTC seconds nullable
+    nightSafe: integer('night_safe', { mode: 'boolean' }).notNull().default(true),
     status: text('status', { enum: ['pending', 'active', 'suspended'] })
       .notNull()
       .default('active'),
@@ -101,8 +105,12 @@ export const menuItems = sqliteTable(
     nameHi: text('name_hi'),
     description: text('description').notNull().default(''),
     pricePaise: integer('price_paise').notNull(), // Integer paise
+    packingChargePaise: integer('packing_charge_paise').notNull().default(0),
+    imageUrl: text('image_url'),
     isVeg: integer('is_veg', { mode: 'boolean' }).notNull().default(true),
     tags: text('tags').notNull().default('[]'), // JSON string array
+    variantsJson: text('variants_json').notNull().default('[]'), // JSON [{id,label,priceDeltaPaise}]
+    addonsJson: text('addons_json').notNull().default('[]'), // JSON [{id,label,pricePaise,isVeg}]
     inStock: integer('in_stock', { mode: 'boolean' }).notNull().default(true),
     sort: integer('sort').notNull().default(0),
     createdAt: integer('created_at').notNull(),
@@ -180,10 +188,17 @@ export const orders = sqliteTable(
       .notNull()
       .default('placed'),
     subtotalPaise: integer('subtotal_paise').notNull(),
+    packingTotalPaise: integer('packing_total_paise').notNull().default(0),
+    discountPaise: integer('discount_paise').notNull().default(0),
+    couponCode: text('coupon_code'),
     totalPaise: integer('total_paise').notNull(),
     paymentMethod: text('payment_method').notNull().default('pay_at_gate'),
+    paymentStatus: text('payment_status').notNull().default('pending'),
     handoverCode: text('handover_code').notNull(), // 4 digits
+    codeAttempts: integer('code_attempts').notNull().default(0),
     idempotencyKey: text('idempotency_key').notNull().unique(),
+    scheduledFor: integer('scheduled_for'), // UTC seconds nullable
+    note: text('note'),
     etaAt: integer('eta_at'),
     placedAt: integer('placed_at').notNull(),
     acceptedAt: integer('accepted_at'),
@@ -273,12 +288,14 @@ export const issues = sqliteTable(
       .notNull()
       .references(() => vendors.id),
     reason: text('reason', {
-      enum: ['wrong_item', 'missing_item', 'quality', 'late', 'other'],
+      enum: ['wrong_item', 'missing_item', 'quality', 'late', 'not_at_gate', 'other'],
     }).notNull(),
     description: text('description').notNull(),
-    status: text('status', { enum: ['open', 'resolved', 'rejected'] })
+    status: text('status', { enum: ['open', 'resolved', 'refunded', 'credited', 'rejected'] })
       .notNull()
       .default('open'),
+    resolutionNote: text('resolution_note'),
+    refundPaise: integer('refund_paise').notNull().default(0),
     createdAt: integer('created_at').notNull(),
   },
   (table) => [index('idx_issues_order').on(table.orderId)]
@@ -340,4 +357,42 @@ export const auditLog = sqliteTable(
     at: integer('at').notNull(),
   },
   (table) => [index('idx_audit_log_at').on(table.at)]
+);
+
+// Coupons table
+export const coupons = sqliteTable(
+  'coupons',
+  {
+    id: text('id').primaryKey(),
+    campusId: text('campus_id')
+      .notNull()
+      .references(() => campuses.id),
+    code: text('code').notNull().unique(),
+    description: text('description').notNull(),
+    discountType: text('discount_type', { enum: ['percent', 'flat'] }).notNull(),
+    discountValue: integer('discount_value').notNull(), // percent (1-100) or flat paise
+    minOrderPaise: integer('min_order_paise').notNull().default(0),
+    maxDiscountPaise: integer('max_discount_paise'), // cap in paise for percentage coupons
+    newUsersOnly: integer('new_users_only', { mode: 'boolean' }).notNull().default(false),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    expiresAt: integer('expires_at'), // UTC seconds nullable
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('idx_coupons_campus_active').on(table.campusId, table.active)]
+);
+
+// Web Push Subscriptions table
+export const pushSubscriptions = sqliteTable(
+  'push_subscriptions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('idx_push_user').on(table.userId)]
 );

@@ -1,13 +1,16 @@
 import { Hono } from 'hono';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, or, like, desc } from 'drizzle-orm';
 import type { Env } from '../types';
 import {
+  campuses,
   gates,
   vendors,
   vendorGates,
   menuCategories,
   menuItems,
   announcements,
+  coupons,
+  reviews,
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
 import { priceCart, CartConflictError } from '../services/cart';
@@ -15,6 +18,39 @@ import { getRequestNow } from '../utils/time';
 import { CartQuoteRequestSchema } from '@shared/schemas';
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
+
+// GET /api/campuses/:slug
+publicRoutes.get('/campuses/:slug', async (c) => {
+  const db = c.get('db');
+  const slug = c.req.param('slug');
+  const now = getRequestNow(c);
+
+  const campus = await db.select().from(campuses).where(eq(campuses.slug, slug)).get();
+  if (!campus) {
+    return c.json({ error: { code: 'CAMPUS_NOT_FOUND', message: 'Campus not found' } }, 404);
+  }
+
+  const [campusGates, campusVendors, campusAnnouncements] = await Promise.all([
+    db.select().from(gates).where(eq(gates.campusId, campus.id)).all(),
+    db.select().from(vendors).where(and(eq(vendors.campusId, campus.id), eq(vendors.status, 'active'))).all(),
+    db.select().from(announcements).where(and(eq(announcements.campusId, campus.id), eq(announcements.active, true))).all(),
+  ]);
+
+  const openVendorsCount = campusVendors.filter((v) => v.isOpen).length;
+
+  return c.json({
+    ok: true,
+    campus,
+    gates: campusGates.filter((g) => g.active),
+    announcements: campusAnnouncements,
+    stats: {
+      totalVendors: campusVendors.length,
+      openVendorsCount,
+      avgEtaMinutes: 20,
+      serverTime: now,
+    },
+  });
+});
 
 // GET /api/gates
 publicRoutes.get('/gates', async (c) => {
@@ -88,88 +124,88 @@ publicRoutes.get('/vendors', async (c) => {
       continue;
     }
 
+    const baseSummary = {
+      id: v.id,
+      slug: v.slug,
+      name: v.name,
+      nameHi: v.nameHi,
+      category: v.category,
+      description: v.description,
+      fssaiNo: v.fssaiNo,
+      hoursJson: v.hoursJson,
+      prepMinutes: v.prepMinutes,
+      prepMaxMinutes: v.prepMaxMinutes,
+      minOrderPaise: v.minOrderPaise,
+      isOpen: v.isOpen,
+      busyUntil: v.busyUntil,
+      nightSafe: v.nightSafe,
+      status: v.status,
+      ratingAvg: v.ratingAvg,
+      ratingCount: v.ratingCount,
+    };
+
     // Gate filtering & delivery check
     if (targetGate) {
       const vg = vendorGateMap.get(v.id);
-      // Domain rule: A vendor is listed only if it is open and can reach the chosen gate.
       if (!vg) {
-        // Cannot reach the gate -> do not list
         continue;
       }
 
       const deliveryCheck = canDeliver(targetGate, v, now, vg, allGates);
 
       results.push({
-        id: v.id,
-        slug: v.slug,
-        name: v.name,
-        nameHi: v.nameHi,
-        category: v.category,
-        description: v.description,
-        fssaiNo: v.fssaiNo,
-        prepMinutes: v.prepMinutes,
-        isOpen: v.isOpen,
-        busyUntil: v.busyUntil,
-        status: v.status,
-        ratingAvg: v.ratingAvg,
-        ratingCount: v.ratingCount,
+        ...baseSummary,
         canDeliverToGate: deliveryCheck.ok,
         deliveryReason: deliveryCheck.reason,
         deliveryMessage: deliveryCheck.message,
+        suggestedGate: deliveryCheck.suggestedGate,
+        latestOrderTime: deliveryCheck.latestOrderTime,
         etaMinutes: deliveryCheck.etaMinutes,
       });
     } else {
-      results.push({
-        id: v.id,
-        slug: v.slug,
-        name: v.name,
-        nameHi: v.nameHi,
-        category: v.category,
-        description: v.description,
-        fssaiNo: v.fssaiNo,
-        prepMinutes: v.prepMinutes,
-        isOpen: v.isOpen,
-        busyUntil: v.busyUntil,
-        status: v.status,
-        ratingAvg: v.ratingAvg,
-        ratingCount: v.ratingCount,
-      });
+      results.push(baseSummary);
     }
   }
 
   return c.json({ ok: true, vendors: results });
 });
 
-// GET /api/vendors/:slug (Vendor profile and full menu grouped by category)
-publicRoutes.get('/vendors/:slug', async (c) => {
+// GET /api/vendors/:id (Vendor profile by slug OR id + full categorized menu + reviews)
+publicRoutes.get('/vendors/:id', async (c) => {
   const db = c.get('db');
-  const slug = c.req.param('slug');
+  const idOrSlug = c.req.param('id');
 
   const vendor = await db
     .select()
     .from(vendors)
-    .where(eq(vendors.slug, slug))
+    .where(or(eq(vendors.slug, idOrSlug), eq(vendors.id, idOrSlug)))
     .get();
 
   if (!vendor) {
     return c.json({ error: { code: 'VENDOR_NOT_FOUND', message: 'Vendor not found.' } }, 404);
   }
 
-  // Fetch categories sorted
-  const categories = await db
-    .select()
-    .from(menuCategories)
-    .where(eq(menuCategories.vendorId, vendor.id))
-    .orderBy(asc(menuCategories.sort))
-    .all();
-
-  // Fetch items sorted
-  const items = await db
-    .select()
-    .from(menuItems)
-    .where(eq(menuItems.vendorId, vendor.id))
-    .orderBy(asc(menuItems.sort))
-    .all();
+  const [categories, items, recentReviews] = await Promise.all([
+    db
+      .select()
+      .from(menuCategories)
+      .where(eq(menuCategories.vendorId, vendor.id))
+      .orderBy(asc(menuCategories.sort))
+      .all(),
+    db
+      .select()
+      .from(menuItems)
+      .where(eq(menuItems.vendorId, vendor.id))
+      .orderBy(asc(menuItems.sort))
+      .all(),
+    db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.vendorId, vendor.id))
+      .orderBy(desc(reviews.createdAt))
+      .limit(10)
+      .all(),
+  ]);
 
   const itemsByCategory = new Map<string, typeof items>();
   for (const item of items) {
@@ -183,6 +219,8 @@ publicRoutes.get('/vendors/:slug', async (c) => {
     items: (itemsByCategory.get(cat.id) || []).map((i) => ({
       ...i,
       tags: JSON.parse(i.tags || '[]'),
+      variants: JSON.parse(i.variantsJson || '[]'),
+      addons: JSON.parse(i.addonsJson || '[]'),
     })),
   }));
 
@@ -199,15 +237,73 @@ publicRoutes.get('/vendors/:slug', async (c) => {
       phone: vendor.phone,
       hoursJson: vendor.hoursJson,
       prepMinutes: vendor.prepMinutes,
+      prepMaxMinutes: vendor.prepMaxMinutes,
+      minOrderPaise: vendor.minOrderPaise,
       isOpen: vendor.isOpen,
       busyUntil: vendor.busyUntil,
+      nightSafe: vendor.nightSafe,
       status: vendor.status,
       ratingAvg: vendor.ratingAvg,
       ratingCount: vendor.ratingCount,
       categories: structuredCategories,
+      reviews: recentReviews,
     },
     categories: structuredCategories,
   });
+});
+
+// GET /api/search/suggest?q=
+publicRoutes.get('/search/suggest', async (c) => {
+  const db = c.get('db');
+  const q = (c.req.query('q') || '').trim();
+  if (q.length < 2) {
+    return c.json({ ok: true, vendors: [], items: [] });
+  }
+
+  const pattern = `%${q}%`;
+  const [matchingVendors, matchingItems] = await Promise.all([
+    db
+      .select({
+        id: vendors.id,
+        slug: vendors.slug,
+        name: vendors.name,
+        category: vendors.category,
+        isOpen: vendors.isOpen,
+      })
+      .from(vendors)
+      .where(and(eq(vendors.status, 'active'), like(vendors.name, pattern)))
+      .limit(6)
+      .all(),
+    db
+      .select({
+        id: menuItems.id,
+        vendorId: menuItems.vendorId,
+        name: menuItems.name,
+        pricePaise: menuItems.pricePaise,
+        isVeg: menuItems.isVeg,
+        inStock: menuItems.inStock,
+      })
+      .from(menuItems)
+      .where(like(menuItems.name, pattern))
+      .limit(6)
+      .all(),
+  ]);
+
+  return c.json({ ok: true, vendors: matchingVendors, items: matchingItems });
+});
+
+// GET /api/coupons
+publicRoutes.get('/coupons', async (c) => {
+  const db = c.get('db');
+  const now = getRequestNow(c);
+  const allCoupons = await db
+    .select()
+    .from(coupons)
+    .where(and(eq(coupons.campusId, 'campus_nitp'), eq(coupons.active, true)))
+    .all();
+
+  const valid = allCoupons.filter((cp) => !cp.expiresAt || cp.expiresAt >= now);
+  return c.json({ ok: true, coupons: valid });
 });
 
 // POST /api/cart/quote
@@ -222,8 +318,9 @@ publicRoutes.post('/cart/quote', async (c) => {
     );
   }
 
-  const { vendorId, gateId, items } = parseResult.data;
+  const { vendorId, gateId, items, couponCode } = parseResult.data;
   const now = getRequestNow(c);
+  const currentUser = c.get('user');
 
   // Verify gate
   const allGates = await db.select().from(gates).all();
@@ -250,7 +347,11 @@ publicRoutes.post('/cart/quote', async (c) => {
 
   // Price cart from server truth
   try {
-    const pricedCart = await priceCart(db, vendorId, items);
+    const pricedCart = await priceCart(db, vendorId, items, {
+      couponCode,
+      userId: currentUser?.id,
+      nowUtcSeconds: now,
+    });
 
     return c.json({
       ok: true,
@@ -258,15 +359,23 @@ publicRoutes.post('/cart/quote', async (c) => {
       gateId,
       items: pricedCart.items,
       subtotalPaise: pricedCart.subtotalPaise,
+      packingTotalPaise: pricedCart.packingTotalPaise,
+      discountPaise: pricedCart.discountPaise,
       deliveryFeePaise: 0,
       totalPaise: pricedCart.totalPaise,
       totalQuantity: pricedCart.totalQuantity,
+      meetsMinOrder: pricedCart.meetsMinOrder,
+      shortfallPaise: pricedCart.shortfallPaise,
+      couponApplied: pricedCart.couponApplied,
+      couponError: pricedCart.couponError,
       canDeliver: deliveryCheck.ok,
       deliveryReason: deliveryCheck.reason,
       deliveryMessage: deliveryCheck.message,
       etaMinutes: deliveryCheck.etaMinutes || 25,
       etaAt: deliveryCheck.etaAt || now + 25 * 60,
       estimatedArrivalIst: deliveryCheck.estimatedArrivalIst || '',
+      latestOrderTime: deliveryCheck.latestOrderTime,
+      suggestedGate: deliveryCheck.suggestedGate,
       alternativeGates: deliveryCheck.alternativeGates,
     });
   } catch (err) {

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { getDb } from '@worker/db';
 import { priceCart, CartConflictError } from '@worker/services/cart';
 import { menuItems } from '@worker/db/schema';
+import { checkSingleVendor, calculateCartPricing, type CouponRule } from '@shared/cartRules';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv {
@@ -73,5 +74,49 @@ describe('Pricing & Cart Service', () => {
         { itemId: 'test_item_1', quantity: 1, expectedPricePaise: 15000 }, // Expected 15000, DB is 16000
       ])
     ).rejects.toThrowError(CartConflictError);
+  });
+
+  it('enforces single-vendor cart rule, minimum order, packing charges, and capped coupon discounts', () => {
+    expect(checkSingleVendor('v_ganga', 'v_ganga', 2).allowed).toBe(true);
+    expect(checkSingleVendor('v_ganga', 'v_chai', 2)).toEqual({
+      allowed: false,
+      conflictVendorId: 'v_ganga',
+    });
+
+    const coupon: CouponRule = {
+      code: 'NEW50',
+      discountType: 'percent',
+      discountValue: 50,
+      minOrderPaise: 9900,
+      maxDiscountPaise: 6000,
+      newUsersOnly: true,
+      active: true,
+    };
+
+    // Below vendor minimum order (shortfall)
+    const belowMin = calculateCartPricing({
+      items: [{ itemId: 'a', quantity: 1, unitPricePaise: 6000, packingChargePaise: 500 }],
+      minOrderPaise: 9900,
+      coupon,
+      isNewUser: true,
+    });
+    expect(belowMin.meetsMinOrder).toBe(false);
+    expect(belowMin.shortfallPaise).toBe(3900);
+    expect(belowMin.packingTotalPaise).toBe(500);
+    expect(belowMin.discountPaise).toBe(0);
+    expect(belowMin.couponError).toContain('Add ₹39 more');
+
+    // Meets minimum order & caps percent discount at 6000 paise (Rs 60)
+    const eligible = calculateCartPricing({
+      items: [{ itemId: 'a', quantity: 2, unitPricePaise: 10000, packingChargePaise: 500 }],
+      minOrderPaise: 9900,
+      coupon,
+      isNewUser: true,
+    });
+    expect(eligible.meetsMinOrder).toBe(true);
+    expect(eligible.subtotalPaise).toBe(20000);
+    expect(eligible.packingTotalPaise).toBe(1000);
+    expect(eligible.discountPaise).toBe(6000);
+    expect(eligible.totalPaise).toBe(15000);
   });
 });

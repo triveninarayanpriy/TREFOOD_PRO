@@ -51,6 +51,7 @@ export const GateSchema = z.object({
   bufferMinutes: z.number(),
   travelMinutes: z.number(),
   active: z.boolean(),
+  is24x7: z.boolean().optional().default(false),
 });
 
 export type Gate = z.infer<typeof GateSchema>;
@@ -93,9 +94,11 @@ export const VendorListItemSchema = z.object({
   category: z.string(),
   description: z.string(),
   fssaiNo: z.string(),
+  hoursJson: z.string().optional(),
   prepMinutes: z.number(),
   isOpen: z.boolean(),
   busyUntil: z.number().nullable().optional(),
+  nightSafe: z.boolean().optional().default(true),
   status: z.enum(['pending', 'active', 'suspended']),
   ratingAvg: z.number(),
   ratingCount: z.number(),
@@ -114,6 +117,8 @@ export const CartItemInputSchema = z.object({
   quantity: z.number().int().positive('Quantity must be at least 1'),
   expectedPricePaise: z.number().int().nonnegative().optional(),
   notes: z.string().max(80, 'Item notes must be under 80 characters').optional(),
+  variantId: z.string().optional(),
+  addonIds: z.array(z.string()).optional(),
 });
 
 export type CartItemInputType = z.infer<typeof CartItemInputSchema>;
@@ -122,6 +127,7 @@ export const CartQuoteRequestSchema = z.object({
   vendorId: z.string(),
   gateId: z.string(),
   items: z.array(CartItemInputSchema).min(1, 'Cart cannot be empty'),
+  couponCode: z.string().trim().max(32).optional(),
 });
 
 export type CartQuoteRequest = z.infer<typeof CartQuoteRequestSchema>;
@@ -178,6 +184,10 @@ export const CreateOrderRequestSchema = z.object({
   vendorId: z.string(),
   gateId: z.string(),
   items: z.array(CartItemInputSchema).min(1, 'Must include at least one item'),
+  couponCode: z.string().trim().max(32).optional(),
+  paymentMethod: z.enum(['pay_at_gate', 'upi_simulated']).optional().default('pay_at_gate'),
+  scheduledFor: z.number().int().optional(),
+  note: z.string().max(200, 'Order note must be under 200 characters').optional(),
 });
 
 export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
@@ -240,6 +250,26 @@ export const ReviewOrderSchema = z.object({
 });
 
 export const IssueReportSchema = z.object({
-  reason: z.enum(['wrong_item', 'missing_item', 'quality', 'late', 'other']),
+  reason: z.enum(['wrong_item', 'missing_item', 'quality', 'late', 'not_at_gate', 'other']),
   description: z.string().min(5, 'Please provide more details').max(500),
+});
+
+export const ConfirmHandoverSchema = z.object({
+  handoverCode: z.string().trim().length(4, 'Enter the 4-digit handover code from the packet'),
+});
+
+export const VendorRejectSchema = z.object({
+  reason: z.string().trim().min(3, 'Provide a rejection reason').max(200),
+});
+
+export const CouponInputSchema = z.object({
+  code: z.string().trim().min(3).max(24).toUpperCase(),
+  description: z.string().min(3).max(200),
+  discountType: z.enum(['percent', 'flat']),
+  discountValue: z.number().int().positive(),
+  minOrderPaise: z.number().int().nonnegative().default(0),
+  maxDiscountPaise: z.number().int().nonnegative().nullable().optional(),
+  newUsersOnly: z.boolean().default(false),
+  active: z.boolean().default(true),
+  expiresAt: z.number().int().nullable().optional(),
 });
