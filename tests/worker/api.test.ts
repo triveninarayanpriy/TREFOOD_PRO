@@ -1129,4 +1129,159 @@ describe('Worker Full API Integration Tests', () => {
     expect(insightsBody.insights.hourlyBuckets).toHaveLength(12);
     expect(Array.isArray(insightsBody.insights.topItems)).toBe(true);
   });
+
+  it('enforces server-side RBAC on all /api/admin endpoints (students & vendors get 403) and exercises admin workflows', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    const studentLogin = await exec(new Request('http://localhost/api/auth/demo/student', { method: 'POST' }));
+    const studentCookie = (studentLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    const vendorLogin = await exec(new Request('http://localhost/api/auth/demo/vendor', { method: 'POST' }));
+    const vendorCookie = (vendorLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    const adminLogin = await exec(new Request('http://localhost/api/auth/demo/admin', { method: 'POST' }));
+    const adminCookie = (adminLogin.headers.get('set-cookie') || '').split(';')[0];
+
+    // 1. Exhaustive RBAC matrix: Guest -> 401, Student -> 403, Vendor -> 403
+    const adminRoutesToCheck: Array<{ method: string; path: string; body?: unknown }> = [
+      { method: 'GET', path: '/api/admin/metrics' },
+      { method: 'GET', path: '/api/admin/orders' },
+      { method: 'GET', path: '/api/admin/vendors' },
+      { method: 'GET', path: '/api/admin/vendor-applications' },
+      { method: 'PUT', path: '/api/admin/vendors/v_ganga/gates', body: { gates: [{ gateId: 'gate_main', extraMinutes: 0 }] } },
+      { method: 'PATCH', path: '/api/admin/gates/gate_main', body: { bufferMinutes: 15 } },
+      { method: 'GET', path: '/api/admin/coupons' },
+      { method: 'POST', path: '/api/admin/coupons', body: { code: 'HACK20', description: 'Unauthorized coupon attempt', discountType: 'flat', discountValue: 2000, minOrderPaise: 0 } },
+      { method: 'GET', path: '/api/admin/reports' },
+      { method: 'GET', path: '/api/admin/settlements' },
+      { method: 'GET', path: '/api/admin/announcements' },
+      { method: 'GET', path: '/api/admin/audit-log' },
+    ];
+
+    for (const ep of adminRoutesToCheck) {
+      const init = (cookie?: string): RequestInit => ({
+        method: ep.method,
+        headers: {
+          ...(ep.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+        body: ep.body ? JSON.stringify(ep.body) : undefined,
+      });
+
+      const guestRes = await exec(new Request(`http://localhost${ep.path}`, init()));
+      expect(guestRes.status).toBe(401);
+
+      const studentRes = await exec(new Request(`http://localhost${ep.path}`, init(studentCookie)));
+      expect(studentRes.status).toBe(403);
+
+      const vendorRes = await exec(new Request(`http://localhost${ep.path}`, init(vendorCookie)));
+      expect(vendorRes.status).toBe(403);
+    }
+
+    // 2. Admin Metrics & Filtered Orders
+    const metricsRes = await exec(
+      new Request('http://localhost/api/admin/metrics', { headers: { Cookie: adminCookie } })
+    );
+    expect(metricsRes.status).toBe(200);
+    const metricsBody = (await metricsRes.json()) as {
+      metrics: { liveOrders: number; deliveredToday: number; avgGateEtaMinutes: number; openComplaintsCount: number; vendorsOpenCount: number };
+    };
+    expect(typeof metricsBody.metrics.liveOrders).toBe('number');
+    expect(typeof metricsBody.metrics.deliveredToday).toBe('number');
+    expect(metricsBody.metrics.avgGateEtaMinutes).toBeGreaterThan(0);
+    expect(typeof metricsBody.metrics.openComplaintsCount).toBe('number');
+    expect(typeof metricsBody.metrics.vendorsOpenCount).toBe('number');
+
+    const ordersFiltered = await exec(
+      new Request('http://localhost/api/admin/orders?status=delivered&gateId=gate_main', {
+        headers: { Cookie: adminCookie },
+      })
+    );
+    expect(ordersFiltered.status).toBe(200);
+
+    // 3. Vendor onboarding application -> Admin approves -> Vendor row & gate reach created
+    const appRes = await exec(
+      new Request('http://localhost/api/vendor-applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorName: `Bihta Juice Point ${ulid().slice(-4)}`,
+          shopType: 'fruits',
+          phone: '9876543211',
+        }),
+      })
+    );
+    expect(appRes.status).toBe(201);
+    const appBody = (await appRes.json()) as { application: { id: string } };
+
+    const approveRes = await exec(
+      new Request(`http://localhost/api/admin/vendor-applications/${appBody.application.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+        body: JSON.stringify({ status: 'approved', prepMinutes: 12 }),
+      })
+    );
+    expect(approveRes.status).toBe(200);
+    const approveBody = (await approveRes.json()) as { createdVendorId: string };
+    expect(approveBody.createdVendorId).toBeTruthy();
+
+    // Update vendor gate reach + edit hours
+    const reachRes = await exec(
+      new Request(`http://localhost/api/admin/vendors/${approveBody.createdVendorId}/gates`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+        body: JSON.stringify({ gates: [{ gateId: 'gate_main', extraMinutes: 2 }] }),
+      })
+    );
+    expect(reachRes.status).toBe(200);
+    expect(((await reachRes.json()) as { gateReach: unknown[] }).gateReach).toHaveLength(1);
+
+    // 4. Temporary gate closure with broadcast banner + reopen
+    const closeGateRes = await exec(
+      new Request('http://localhost/api/admin/gates/gate_h7', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+        body: JSON.stringify({
+          active: false,
+          broadcastBanner: true,
+          bannerMessage: 'Girls Hostel Gate maintenance closure for 1 hour',
+        }),
+      })
+    );
+    expect(closeGateRes.status).toBe(200);
+    expect(((await closeGateRes.json()) as { broadcastAnnouncementId: string }).broadcastAnnouncementId).toBeTruthy();
+
+    await exec(
+      new Request('http://localhost/api/admin/gates/gate_h7', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+        body: JSON.stringify({ active: true }),
+      })
+    );
+
+    // 5. Settlement report by vendor and day + audit log of sensitive mutations
+    const settlementRes = await exec(
+      new Request('http://localhost/api/admin/settlements', { headers: { Cookie: adminCookie } })
+    );
+    expect(settlementRes.status).toBe(200);
+    const settlementBody = (await settlementRes.json()) as {
+      ok: boolean;
+      settlements: Array<{ vendorId: string; date: string; grossPaise: number }>;
+    };
+    expect(settlementBody.ok).toBe(true);
+    expect(settlementBody.settlements.length).toBeGreaterThan(0);
+
+    const auditRes = await exec(
+      new Request('http://localhost/api/admin/audit-log', { headers: { Cookie: adminCookie } })
+    );
+    expect(auditRes.status).toBe(200);
+    const auditBody = (await auditRes.json()) as { logs: Array<{ action: string }> };
+    expect(auditBody.logs.some((l) => l.action === 'VENDOR_APPLICATION_UPDATED')).toBe(true);
+    expect(auditBody.logs.some((l) => l.action === 'GATE_CLOSURE_UPDATED')).toBe(true);
+  });
 });

@@ -50,6 +50,14 @@ test.describe('Design System & Accessibility (/dev/ui)', () => {
     await themeToggle.click();
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getComputedTiming().iterations === 1)
+          .map((a) => a.finished)
+      )
+    );
 
     const darkResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])

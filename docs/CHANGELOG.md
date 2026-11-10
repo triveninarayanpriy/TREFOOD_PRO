@@ -4,6 +4,19 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Desktop-First Admin Console (/admin) & Server-Side RBAC Verification
+- **Overview Cards & Live Orders Monitor (`src/worker/routes/admin.ts`, `src/client/pages/admin/AdminConsolePage.tsx`)**:
+  - Updated `/api/admin/metrics` & `/api/admin/stats` to compute **Live Orders**, **Delivered Today** (IST boundary), **Average Gate ETA**, **Complaints Open**, and **Vendors Open** alongside GMV and IST hourly volume histogram.
+  - Added server-side and UI filters on **Orders Monitor** (`status`, `gateId`, `vendorId`, and `q` search by `#publicNo`/code/vendor), full timeline view, and force-cancellation with reason + audit trail.
+- **Vendor Onboarding Approval, Gate Reach & Gate Closure Broadcasts**:
+  - Added `GET /api/admin/vendor-applications` and `PATCH /api/admin/vendor-applications/:id` so onboarding inquiries from `/` can be approved directly into active `vendors` + default `vendor_gates` rows.
+  - Added `PUT /api/admin/vendors/:id/gates` and a dedicated **Edit Hours & Gates** modal to adjust vendor opening/closing hours, prep time, and reachable hostel gates with extra travel minutes.
+  - Upgraded `PATCH /api/admin/gates/:id` and **Gates & Curfews** cards with **Save Hours** controls (`curfewTime`, `bufferMinutes`, `travelMinutes`) and temporary gate closures (`Temp Close + Banner` / `Reopen Gate`) that broadcast active student announcements immediately.
+- **Coupons Manager, Reports Queue, Vendor-by-Day Settlements & Audit Log (`src/client/components/admin/AdminOpsTabs.tsx`)**:
+  - Added **Coupons** tab (`POST /api/admin/coupons`, active/pause toggle), upgraded **Reports** tab (`Resolve`, `Credit`, `Refund`, `Reject` with ₹ refund amounts & notes), added `GET /api/admin/settlements` **Settlements** report grouped by vendor & IST day with CSV download, announcement active/hide toggles (`GET` & `PATCH /api/admin/announcements`), and filterable sensitive **Audit Log** (`?action=`).
+  - Removed all remaining `@typescript-eslint/no-explicit-any` warnings across `AdminConsolePage.tsx` (`0` ESLint errors, `0` warnings codebase-wide) and fixed WCAG `4.5:1` muted caption contrast.
+- **Verification**: Kept initial student bundle at **145.26 kB gzip** (`< 150 KB` budget), **39 / 39 Vitest tests** passing (including exhaustive unauthenticated `401` and student/vendor `403` RBAC tests across all `/api/admin/*` endpoints), and **34 / 34 Playwright tests** passing (`e2e/admin-console.spec.ts` + `@axe-core/playwright`).
+
 ### Added - Tablet-First Vendor Console (/vendor, /v Alias, Board, Controls & Insights)
 - **Order Board & Handover Assist (`src/client/pages/vendor/VendorConsolePage.tsx`)**:
   - Mounted `/vendor` (keeping `/v` working cleanly) with responsive tablet grids fitting **768px portrait** and **1024px landscape** without horizontal overflow and **`>= 56px` touch targets** across controls.

@@ -304,14 +304,16 @@ Reports an order issue (`wrong_item`, `missing_item`, `quality`, `late`, `not_at
 
 ---
 
-## 6. Admin Lite (`/api/admin`)
-*All admin endpoints require `admin` role.*
+## 6. Admin Operations (`/api/admin`)
+*All admin endpoints require authenticated `admin` role (`401` unauthenticated, `403` for students and vendors).*
 
-- `GET /api/admin/vendors`, `PATCH /api/admin/vendors/:id`, `PATCH /api/admin/vendors/:id/status`, `POST /api/admin/vendors/invite`
-- `GET /api/admin/gates`, `PATCH /api/admin/gates/:id`, `POST /api/admin/gates/festival-override`
-- `GET /api/admin/orders`, `GET /api/admin/orders/:id/timeline`, `POST /api/admin/orders/:id/cancel`
-- `GET /api/admin/metrics` & `GET /api/admin/stats`
+- `GET /api/admin/vendors`, `PATCH /api/admin/vendors/:id`, `PUT /api/admin/vendors/:id/gates`, `PATCH /api/admin/vendors/:id/status`, `POST /api/admin/vendors/invite`
+- `GET /api/admin/vendor-applications`, `PATCH /api/admin/vendor-applications/:id` (review or approve & onboard new vendors with default gate reach)
+- `GET /api/admin/gates`, `PATCH /api/admin/gates/:id` (update hours/buffer/travel or temporary closure with student banner broadcast), `POST /api/admin/gates/festival-override`
+- `GET /api/admin/orders?status=&gateId=&vendorId=&q=`, `GET /api/admin/orders/:id/timeline`, `POST /api/admin/orders/:id/cancel`
+- `GET /api/admin/metrics` & `GET /api/admin/stats` (`liveOrders`, `deliveredToday`, `avgGateEtaMinutes`, `openComplaintsCount`, `vendorsOpenCount`, `hourlyDistribution`)
+- `GET /api/admin/settlements?vendorId=&date=` (delivered orders grouped by vendor and IST day)
 - `GET /api/admin/coupons`, `POST /api/admin/coupons`, `PATCH /api/admin/coupons/:id`
-- `GET /api/admin/reports`, `PATCH /api/admin/reports/:id` (resolve, refund, credit, or reject order issues)
-- `POST /api/admin/announcements`
-- `GET /api/admin/audit-log`
+- `GET /api/admin/reports`, `PATCH /api/admin/reports/:id` (`resolved`, `refunded`, `credited`, or `rejected`)
+- `GET /api/admin/announcements`, `POST /api/admin/announcements`, `PATCH /api/admin/announcements/:id`
+- `GET /api/admin/audit-log?action=`
