@@ -100,9 +100,9 @@ Destroys session in D1 and invalidates cookie.
 
 ## 3. Public Student Browsing (`/api`)
 ### `GET /api/campuses/:slug`
-Returns campus metadata, active delivery gates, active campus announcements, and vendor availability stats.
+Returns campus metadata, active delivery gates, active campus announcements, and live indexed stats.
 - **Params:** `:slug` (e.g. `nitp`)
-- **Response `200 OK`**: Campus record, `gates[]`, `announcements[]`, and `stats` (`totalVendors`, `openVendorsCount`, `avgEtaMinutes`, `serverTime`).
+- **Response `200 OK`**: Campus record, `gates[]`, `announcements[]`, and `stats` (`totalVendors`, `openVendorsCount`, `avgEtaMinutes`, `ordersHandedOver`, `serverTime`, `isSampleData`).
 
 ### `GET /api/gates`
 Returns all active campus hostel and boundary gates.
@@ -172,6 +172,11 @@ Recalculates cart totals from server truth, verifies item availability, and vali
 
 ### `GET /api/announcements`
 Returns active announcements for the campus.
+
+### `POST /api/vendor-applications`
+Public vendor onboarding form submission stored in D1 `vendor_applications` (`status: 'pending'`), rate-limited by IP.
+- **Body**: `{ "vendorName": "Patna Hostel Chai Corner", "shopType": "snacks", "phone": "9876543210" }`
+- **Response `201 Created`**: `{ "ok": true, "application": { "id", "vendorName", "shopType", "phone", "status": "pending", "createdAt" } }`
 
 ---
 

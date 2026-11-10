@@ -71,7 +71,7 @@ stateDiagram-v2
 
 ## 3. Core Database Entities (Cloudflare D1)
 
-The database schema consists of **20 tables** defined with Drizzle ORM in `src/worker/db/schema.ts` (including `campuses`, `gates`, `vendors`, `vendor_gates`, `menu_categories`, `menu_items`, `users`, `sessions`, `otp_codes`, `orders`, `order_items`, `order_events`, `reviews`, `issues`, `announcements`, `favorites`, `coupons`, `push_subscriptions`, `rate_limits`, and `audit_log`):
+The database schema consists of **21 tables** defined with Drizzle ORM in `src/worker/db/schema.ts` (including `campuses`, `gates`, `vendors`, `vendor_gates`, `menu_categories`, `menu_items`, `users`, `sessions`, `otp_codes`, `orders`, `order_items`, `order_events`, `reviews`, `issues`, `announcements`, `favorites`, `coupons`, `push_subscriptions`, `vendor_applications`, `rate_limits`, and `audit_log`):
 
 ```mermaid
 erDiagram

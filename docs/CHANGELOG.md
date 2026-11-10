@@ -4,6 +4,16 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Public Landing Page (/), Legal Routes, SEO & Lighthouse Hardening
+- **Public Landing Experience (`/`)**:
+  - Updated sticky landing navbar with logo, section anchors (`How it works`, `For vendors`, `Safety`, `FAQ`), `Browse menus`, `Install App` (`beforeinstallprompt` hook + iOS Safari/Android fallback modal), `ThemeToggle`, `Sign in` OTP/Demo modal, and collapsible mobile menu fitting cleanly down to `320px`.
+  - Built guest-ready hero with gate selector, debounced dish/vendor autocomplete (`GET /api/search/suggest`), live packet card with itemised bill and `showVibrate` activation guard, and live API stat strip (`GET /api/campuses/nitp`) explicitly badged as demo data.
+  - Added 8 campus category tiles linking to `/browse?category=...`, interactive 4-step How It Works spotlight, interactive **Curfew & Night Safety Mini-Demo** powered directly by `@shared/curfew`, For Vendors earnings calculator + D1-backed onboarding form (`POST /api/vendor-applications` + `migrations/0003_aspiring_hardball.sql`), trust policies, sample testimonials (`Sample Testimonials (Demo Data)`), 11-item accessible FAQ accordion, final CTA, and complete legal/contact footer.
+- **SEO & Draft Legal Routes**:
+  - Added `SeoHead` / `useSeoHead` manager for per-route `<title>`, `<meta name="description">`, Open Graph, Twitter cards, canonical links, and route JSON-LD (`Organization` & `LocalBusiness` on `/`).
+  - Added lazy-loaded draft legal/info pages (`/about`, `/terms`, `/privacy`, `/refunds`), generated PWA/OG PNG assets (`icon-192.png`, `icon-512.png`, `og-image.png`), and updated `/sitemap.xml` & `/robots.txt`.
+  - Verified production build Lighthouse Mobile scores on `/`: **Performance 98, Accessibility 100, Best Practices 100, SEO 100, CLS 0** and **16 / 16 Playwright E2E tests** passing across `320px`, `390px`, `1280px`, and `1440px`.
+
 ### Added - Design System (/dev/ui) & Expanded Data/API Layer
 - **Design System & Token Architecture**:
   - Updated `src/client/index.css` with semantic tokens supporting warm-cream light surfaces (`#FBF8F3` / `#FFFFFF` / `#F3EFE6`) and deep maroon-black dark surfaces (`#0E0608` / `#180B0F` / `#241117`).
