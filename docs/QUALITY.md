@@ -8,15 +8,15 @@ This report records the verification metrics, accessibility audits, performance 
 
 | Metric Category | Target Budget | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **First Load JavaScript Bundle** | < 150.0 kB gzip | **146.04 kB gzip** | Passed |
-| **Vendor Console Lazy Chunk** | Isolated chunk | **6.54 kB gzip** | Passed |
-| **Admin Console Lazy Chunk** | Isolated chunk | **6.29 kB gzip** | Passed |
-| **Vitest Worker Integration Tests** | 100% passing | **21 / 21 passed** | Passed |
-| **Playwright Full Regression** | Mobile & Desktop | **8 / 8 passed (10.2s)** | Passed |
+| **First Load JavaScript Bundle** | < 150.0 kB gzip | **137.09 kB gzip** | Passed |
+| **Vendor Console Lazy Chunk** | Isolated chunk | **6.44 kB gzip** | Passed |
+| **Admin Console Lazy Chunk** | Isolated chunk | **6.00 kB gzip** | Passed |
+| **Design Kit (`/dev/ui`) Lazy Chunk** | Isolated chunk | **6.10 kB gzip** | Passed |
+| **Vitest Worker & Domain Tests** | 100% passing | **28 / 28 passed (6 files)** | Passed |
+| **Playwright Full Regression** | Mobile & Desktop | **12 / 12 passed (16.4s)** | Passed |
 | **TypeScript Strict Compilation** | 0 errors | **0 errors** | Passed |
-| **ESLint Static Code Analysis** | 0 errors | **0 errors** | Passed |
-| **Axe Accessibility Audit** | 0 critical / serious | **0 violations** | Passed |
-| **Lighthouse Mobile Score** | >= 95 in all 4 categories | **96 - 100 across routes** | Passed |
+| **ESLint Static Code Analysis** | 0 errors | **0 errors (37 warnings)** | Passed |
+| **Axe Accessibility Audit (Light & Dark)** | 0 critical / serious | **0 violations** | Passed |
 | **Edge Security Headers** | CSP, HSTS, Secure Cookies | **100% enforced** | Passed |
 
 ---
@@ -28,20 +28,27 @@ The Cloudflare Workers free plan requires lean client bundles for ultra-fast TTF
 ### Production Build Distribution (`dist/client/assets`)
 
 ```
-dist/client/index.html                                   2.14 kB │ gzip:   0.89 kB
-dist/client/assets/index-CAXwR2hU.css                   63.50 kB │ gzip:  13.00 kB
-dist/client/assets/AdminConsolePage-Bpc4_63G.js         24.22 kB │ gzip:   6.29 kB (Lazy Chunk)
-dist/client/assets/VendorConsolePage-BWrl8yRG.js        27.62 kB │ gzip:   6.54 kB (Lazy Chunk)
-dist/client/assets/index-1MQOEogN.js                   493.59 kB │ gzip: 146.04 kB (Main Student Bundle)
+dist/trefood_prototype/index.js                               423.28 kB (SSR/Worker bundle)
+dist/client/index.html                                          2.16 kB │ gzip:   0.90 kB
+dist/client/assets/index-Ds2lrVmC.css                          71.16 kB │ gzip:  14.48 kB
+dist/client/assets/AdminConsolePage-DsC-powJ.js                23.10 kB │ gzip:   6.00 kB (Lazy Chunk)
+dist/client/assets/DevKitPage-Csql2iAg.js                      19.57 kB │ gzip:   6.10 kB (Lazy Chunk)
+dist/client/assets/VendorConsolePage-BKVzK-fx.js               27.22 kB │ gzip:   6.44 kB (Lazy Chunk)
+dist/client/assets/OrderDetailPage-Dl4RtHya.js                 15.35 kB │ gzip:   4.85 kB (Lazy Chunk)
+dist/client/assets/VendorPage-CexH987W.js                      10.52 kB │ gzip:   3.58 kB (Lazy Chunk)
+dist/client/assets/BrowsePage-CUx38GUC.js                       7.31 kB │ gzip:   2.86 kB (Lazy Chunk)
+dist/client/assets/index-BxMEi5a6.js                          452.20 kB │ gzip: 137.09 kB (Main Student Bundle)
 ```
 
-- **Student Bundle Gzip**: `146.04 kB` (Under the strict 150 kB budget).
-- **Separation of Concerns**: Neither vendor management logic nor admin panels are bundled into the student bundle. Both console pages load on-demand via React Suspense and dynamic `React.lazy` imports.
+- **Student Bundle Gzip**: `137.09 kB` (Under the strict 150 kB budget).
+- **Separation of Concerns**: Route-level `React.lazy` splits ensure vendor console, admin portal, `/dev/ui`, and secondary pages load on demand.
 - **Font Optimization**: Self-hosted WOFF2 fonts (Inter and Plus Jakarta Sans) are served directly from Cloudflare Static Assets with immutable 1-year cache headers (`Cache-Control: public, max-age=31536000, immutable`).
 
 ---
 
-## 3. Lighthouse Performance Audits (Mobile Profile: Throttled Slow 4G)
+## 3. Baseline Lighthouse Audits (Prior Pass — Mobile Slow 4G Profile)
+
+*Note: Recorded during the initial hardening pass prior to the design-system and API expansion upgrade.*
 
 Audits executed simulating a Moto G4 on a 1.6 Mbps / 750 Kbps, 150ms round-trip latency connection.
 
@@ -61,9 +68,10 @@ All routes maintain LCP under 2.0 s (budget < 2.5 s), CLS < 0.01 (budget < 0.1),
 Automated axe-core checks and keyboard navigability were tested across all user screens in both light and dark themes.
 
 - **Contrast Ratios**:
-  - Primary campus maroon token (`#830020`) against white background: **8.9:1** (exceeds WCAG AAA requirement of 7:1).
+  - Primary campus maroon token (`#830020`) against light card (`#FFFFFF`): **8.9:1** (exceeds WCAG AAA requirement of 7:1).
   - Amber badge tokens (`#FEF3C7` / `#78350F`): **7.2:1**.
-  - Dark mode surfaces (`#0C0A09` background, `#F5F5F4` foreground): **15.4:1**.
+  - Dark maroon-black surfaces (`#0E0608` bg / `#180B0F` surface / `#FAF5F0` text / `#D6C2C7` muted text): **>= 9.5:1**.
+  - Verified programmatically via `@axe-core/playwright` on `/dev/ui` in both light and dark modes (0 critical/serious contrast violations).
 - **Touch Targets**:
   - Student app: Minimum touch target size of **44px × 44px** on all buttons, quantity steppers, chips, and links.
   - Vendor Counter Tablet console: Minimum touch target size of **56px × 56px** for quick kitchen interactions.
@@ -102,25 +110,30 @@ Every response served by the Worker contains standard defense-in-depth headers:
 - Constant-time comparison (`crypto.subtle.timingSafeEqual`) on OTP code verification to prevent side-channel timing attacks.
 - Strict Zod validation on every endpoint request and response payload.
 
+### Dependency Security (`npm audit`)
+- **Production Dependencies (`npm audit --omit=dev`)**: `zod` (`^3.25.7`, pinned on v3) triggers advisory `GHSA-mrhx-c7xc-m3w5` (`<4.6.6`); upgrading to Zod v4 is a major breaking change deferred post-prototype (server endpoints constrain payloads and bounded item counts).
+- **Dev Tooling**: Transitive advisories in `vitest`, `drizzle-kit`, `typescript-eslint`, and `@cloudflare/vitest-pool-workers` (`miniflare`/`sharp`/`ws`) apply strictly to local development/testing.
+
 ---
 
 ## 6. Playwright End-to-End Test Suite
 
-Playwright tests run across both Chromium Desktop (`1280x800`) and Chromium Mobile (`390x844` iPhone 12/13/14 profile):
+Playwright tests run across both Chromium Desktop (`1280x800` + `1440x900`) and Chromium Mobile (`390x844`):
 
 1. **`smoke.spec.ts`**:
    - Desktop: Passed (1.6s)
-   - Mobile: Passed (1.7s)
+   - Mobile: Passed (1.4s)
 2. **`customer-journey.spec.ts`**:
-   - Desktop: Passed (4.0s)
-   - Mobile: Passed (3.5s)
+   - Desktop: Passed (3.9s)
+   - Mobile: Passed (4.4s)
 3. **`vendor-admin.spec.ts`**:
-   - Vendor Console (/v) Desktop: Passed (1.3s)
-   - Vendor Console (/v) Mobile: Passed (3.4s)
-   - Admin Operations (/admin) Desktop: Passed (950ms)
-   - Admin Operations (/admin) Mobile: Passed (3.3s)
+   - Vendor Console (`/v`) Desktop & Mobile: Passed (1.3s / 2.8s)
+   - Admin Operations (`/admin`) Desktop & Mobile: Passed (1.1s / 2.8s)
+4. **`design-system.spec.ts`**:
+   - Light & Dark `/dev/ui` `@axe-core/playwright` audit + 0 console/page errors: Passed Desktop (5.4s) & Mobile (6.0s)
+   - 1440x900 desktop rail vs 390px mobile bottom nav + 0 horizontal overflow: Passed Desktop (1.5s) & Mobile (1.7s)
 
-**Total Execution Time**: 10.2 seconds, 8 tests passed, 0 flaky failures, 0 retries.
+**Total Execution Time**: 16.4 seconds, 12 tests passed, 0 failures, 0 retries.
 
 ---
 

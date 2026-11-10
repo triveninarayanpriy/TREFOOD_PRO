@@ -99,6 +99,11 @@ Destroys session in D1 and invalidates cookie.
 ---
 
 ## 3. Public Student Browsing (`/api`)
+### `GET /api/campuses/:slug`
+Returns campus metadata, active delivery gates, active campus announcements, and vendor availability stats.
+- **Params:** `:slug` (e.g. `nitp`)
+- **Response `200 OK`**: Campus record, `gates[]`, `announcements[]`, and `stats` (`totalVendors`, `openVendorsCount`, `avgEtaMinutes`, `serverTime`).
+
 ### `GET /api/gates`
 Returns all active campus hostel and boundary gates.
 - **Response `200 OK`**:
@@ -108,8 +113,9 @@ Returns all active campus hostel and boundary gates.
     "gates": [
       {
         "id": "gate_main",
-        "name": "Main Gate (Ashok Rajpath)",
-        "curfewTime": "23:30",
+        "name": "Main Gate / Academic Blocks (24x7)",
+        "curfewTime": "23:59",
+        "is24x7": true,
         "bufferMinutes": 15,
         "travelMinutes": 10,
         "active": true
@@ -119,7 +125,7 @@ Returns all active campus hostel and boundary gates.
   ```
 
 ### `GET /api/vendors`
-Lists campus vendors. When `?gate=` is provided, vendors unable to deliver to that gate are excluded.
+Lists campus vendors. When `?gate=` is provided, vendors unable to deliver to that gate are excluded or annotated with curfew status.
 - **Query Params:**
   - `gate`: Gate ID (enforces reachability and curfew calculation)
   - `category`: Filter by category (`meals`, `snacks`, `fruits`, `groceries`, `vegetables`, `raw_chicken`, `late_night`, `beverages`)
@@ -127,8 +133,14 @@ Lists campus vendors. When `?gate=` is provided, vendors unable to deliver to th
   - `veg`: `true` to filter vegetarian offerings
   - `open`: `true` to return only currently open vendors
 
-### `GET /api/vendors/:slug`
-Fetches vendor profile, operating hours, FSSAI licence number, and full menu grouped by category.
+### `GET /api/vendors/:id`
+Fetches vendor profile (accepts either vendor `id` or `slug`), operating hours, FSSAI licence number, `nightSafe` badge, delivery reach, and full menu grouped by category.
+
+### `GET /api/search/suggest?q=`
+Returns quick autocomplete suggestions (up to 6 active vendors and 6 menu items matching substring `q`, minimum 2 chars).
+
+### `GET /api/coupons`
+Returns active, unexpired campus coupons configured for NIT Patna.
 
 ### `POST /api/cart/quote`
 Recalculates cart totals from server truth, verifies item availability, and validates curfew arrival time.
@@ -206,54 +218,46 @@ Order status tracker with HTTP 304 ETag support for efficient polling on 2 bars 
 Cancels an order. Customer can cancel only while status is `placed`.
 
 ### `POST /api/orders/:id/confirm`
-Confirms handover delivery at the gate upon matching the 4-digit code.
-- **Rule:** Only the order owner can confirm delivery, and strictly when status is `at_gate`.
+Confirms handover delivery at the gate (student order owner verification when status is `at_gate`).
+
+### `POST /api/orders/:id/confirm-handover`
+Strict 4-digit handover code verification with brute-force protection.
+- **Body:** `{ "handoverCode": "4729" }`
+- **Rule:** Maximum 5 incorrect attempts (`MAX_HANDOVER_ATTEMPTS = 5`). Exceeding 5 attempts locks verification (`HTTP 423 Locked`) and requires vendor counter assistance (`POST /api/vendor/orders/:id/handover-assist`).
 
 ### `POST /api/orders/:id/review`
 Submits a 1-5 star rating and optional feedback for a delivered order.
 
-### `POST /api/orders/:id/issue`
-Reports an issue (`wrong_item`, `missing_item`, `quality`, `late`, `other`).
+### `POST /api/orders/:id/issue` & `POST /api/orders/:id/report`
+Reports an order issue (`wrong_item`, `missing_item`, `quality`, `late`, `other`).
 
 ---
 
 ## 5. Vendor Console (`/api/vendor`)
 *All vendor endpoints require authentication and `vendor` or `admin` role.*
 
-### `GET /api/vendor/orders?since=`
-Polls the live order board. Cards update incrementally via `since` timestamp.
-
-### `PATCH /api/vendor/orders/:id/status`
-Advances order status (`accepted`, `out_for_delivery`, `at_gate`, `cancelled`).
-- **Body**:
-  ```json
-  { "status": "accepted", "prepMinutes": 20 }
-  ```
-
-### `GET /api/vendor/menu`
-Retrieves vendor's categories and items.
-
-### `PATCH /api/vendor/menu/item/:id/stock`
-One-tap in-stock / out-of-stock toggle.
-- **Body**: `{ "inStock": false }`
-
-### `PATCH /api/vendor/status`
-Toggles vendor status (`isOpen`, `busyMinutes`).
-- **Body**: `{ "isOpen": true, "busyMinutes": 15 }`
-
-### `GET /api/vendor/settlement`
-Calculates daily settlement summary, delivered order counts, and cash to collect at gates.
+- `GET /api/vendor/orders?since=`: Polls the live order board incrementally via `since` timestamp.
+- `PATCH /api/vendor/orders/:id/status`: Advances order status (`accepted`, `out_for_delivery`, `at_gate`, `cancelled`).
+- `POST /api/vendor/orders/:id/accept`: One-tap order acceptance with optional `{ "prepMinutes": 20 }`.
+- `POST /api/vendor/orders/:id/reject`: Cancels/rejects order with required `{ "reason": "..." }`.
+- `POST /api/vendor/orders/:id/ready`: Advances accepted order to `out_for_delivery`.
+- `POST /api/vendor/orders/:id/handover-assist`: Resets 5-attempt handover lock (and optionally completes delivery with audit log).
+- `PATCH /api/vendor/prep-time`: Updates default prep time window (`prepMinutes`, `prepMaxMinutes`).
+- `GET /api/vendor/menu`: Retrieves vendor categories and items.
+- `PATCH /api/vendor/menu/item/:id/stock`: One-tap stock toggle (`{ "inStock": false }`).
+- `PATCH /api/vendor/status`: Toggles store open/busy status (`{ "isOpen": true, "busyMinutes": 15 }`).
+- `GET /api/vendor/settlement`: Calculates daily settlement summary and pay-at-gate totals.
 
 ---
 
 ## 6. Admin Lite (`/api/admin`)
 *All admin endpoints require `admin` role.*
 
-- `GET /api/admin/vendors`
-- `PATCH /api/admin/vendors/:id/status`
-- `GET /api/admin/gates`
-- `PATCH /api/admin/gates/:id` (adjust curfew times or emergency buffers)
-- `GET /api/admin/orders` (global live order monitor)
-- `GET /api/admin/metrics` (revenue, order counts, fulfillment rates)
+- `GET /api/admin/vendors`, `PATCH /api/admin/vendors/:id`, `PATCH /api/admin/vendors/:id/status`, `POST /api/admin/vendors/invite`
+- `GET /api/admin/gates`, `PATCH /api/admin/gates/:id`, `POST /api/admin/gates/festival-override`
+- `GET /api/admin/orders`, `GET /api/admin/orders/:id/timeline`, `POST /api/admin/orders/:id/cancel`
+- `GET /api/admin/metrics` & `GET /api/admin/stats`
+- `GET /api/admin/coupons`, `POST /api/admin/coupons`, `PATCH /api/admin/coupons/:id`
+- `GET /api/admin/reports`, `PATCH /api/admin/reports/:id` (resolve, refund, credit, or reject order issues)
 - `POST /api/admin/announcements`
 - `GET /api/admin/audit-log`

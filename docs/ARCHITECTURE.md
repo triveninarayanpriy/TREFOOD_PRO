@@ -71,13 +71,14 @@ stateDiagram-v2
 
 ## 3. Core Database Entities (Cloudflare D1)
 
-The database schema is defined with Drizzle ORM in `src/worker/db/schema.ts` with strict relational constraints:
+The database schema consists of **20 tables** defined with Drizzle ORM in `src/worker/db/schema.ts` (including `campuses`, `gates`, `vendors`, `vendor_gates`, `menu_categories`, `menu_items`, `users`, `sessions`, `otp_codes`, `orders`, `order_items`, `order_events`, `reviews`, `issues`, `announcements`, `favorites`, `coupons`, `push_subscriptions`, `rate_limits`, and `audit_log`):
 
 ```mermaid
 erDiagram
     campuses ||--o{ gates : contains
     campuses ||--o{ vendors : hosts
     campuses ||--o{ users : registers
+    campuses ||--o{ coupons : offers
 
     vendors ||--o{ vendor_gates : serves
     gates ||--o{ vendor_gates : receives
@@ -96,20 +97,20 @@ erDiagram
 ```
 
 ### Key Schema Design Decisions
-1. **Integer Paise Currency**: All monetary fields (`price_paise`, `subtotal_paise`, `total_paise`, `delivery_fee_paise`) are stored as unsigned 64-bit integers. Float calculations are prohibited.
+1. **Integer Paise Currency**: All monetary fields (`price_paise`, `packing_charge_paise`, `subtotal_paise`, `packing_total_paise`, `discount_paise`, `total_paise`, `delivery_fee_paise`) are stored as integers. Float calculations are prohibited.
 2. **Text ULID Identifiers**: Primary keys are Universally Unique Lexicographically Sortable Identifiers (ULIDs), ensuring chronological sortability and eliminating auto-increment enumeration leaks.
-3. **UTC Timestamps**: Timestamps are stored as UTC Unix epoch seconds. All curfew and operating hour rules are converted dynamically to `Asia/Kolkata` (UTC+05:30).
-4. **Active Order Code Uniqueness**: A partial unique index on `(gate_id, handover_code)` ensures that no two active orders at the same hostel gate share the same 4-digit verification code.
+3. **UTC Timestamps**: Timestamps are stored as UTC Unix epoch seconds. All curfew (`19:30 IST` for Boys/Girls Hostel gates; `24x7` for Main Gate / Academic Blocks) and Campus Night Safety (`>= 19:00 IST`) rules are evaluated in `Asia/Kolkata` (`UTC+05:30`).
+4. **Active Order Code Uniqueness & 5-Attempt Lock**: A partial unique index on `(gate_id, handover_code)` ensures no two active orders at the same hostel gate share the same 4-digit code; verifying `/confirm-handover` allows at most 5 wrong attempts before locking (`HTTP 423`) and requiring vendor assist.
 
 ---
 
 ## 4. Curfew & Delivery Feasibility Logic
 
-Delivery availability is enforced by the pure service `canDeliver` (`src/worker/services/delivery.ts`):
+Delivery availability is enforced by shared pure rules in `src/shared/curfew.ts` (`evaluateCanDeliver`, `computeEta`) and wrapped by `src/worker/services/delivery.ts`:
 
 $$\text{Estimated Arrival} = \text{Current Time (IST)} + \text{Prep Time} + \text{Travel Time} + \text{Buffer Time}$$
 
-If $\text{Estimated Arrival} > \text{Gate Curfew Time}$, delivery is rejected with error code `too_late`. The service evaluates other gates on campus and returns alternative gates where curfew has not passed.
+Unless a gate is marked `is24x7`, if $\text{Estimated Arrival} > \text{Gate Curfew Time}$, delivery is rejected with reason code `too_late`, a `latestOrderTime` hint, and an alternate 24x7/open gate suggestion.
 
 ---
 

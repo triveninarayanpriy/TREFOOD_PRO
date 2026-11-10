@@ -11,6 +11,12 @@ This document records architectural choices and the rationale for every dependen
 - **D1 + Drizzle ORM:** Native edge SQLite database with zero-latency worker bindings, typed queries, and lightweight migrations.
 - **Zod:** Runtime schema validation shared between client and worker to guarantee end-to-end type safety.
 
+## Incremental Prototype Upgrade Decisions (Nov 10, 2026)
+
+- **Preserve Lean React 19 + CSS Transitions Stack (A1 & A2):** Rather than adding `framer-motion` or splitting existing `/src/client` and `/migrations` folders, we evolve the existing Cloudflare Worker + D1 + React 19 SPA incrementally. Using CSS variables and `prefers-reduced-motion` preserves our `< 150 KB` gzip initial JS budget (`~146 KB`) and instant hostel WiFi loads.
+- **24x7 Gates, 19:30 Hostel Curfew & Night Safety (A3):** Added `is_24x7` boolean to `gates` (`Main Gate / Academic Blocks`) and `night_safe` boolean to `vendors` via D1 migration `0001_gate_24x7_night_safe.sql`, updating Boys Hostel & Girls Hostel gate curfews to `19:30` with a `15m` arrival buffer and surfacing Campus Night Safety after `19:00 IST`.
+- **Warm Cream + Deep Maroon-Black Tokens:** Light theme uses warm cream surfaces (`#FAF7F2`) paired with `#830020` maroon and `#FFB400` primary CTA buttons; dark theme uses deep maroon-black surfaces (`#0F0608` / `#180B0E`) with WCAG AA >= 4.5:1 foreground contrast across all token pairs.
+
 ## Dependency Registry
 
 | Package | Reason |
@@ -42,3 +48,4 @@ This document records architectural choices and the rationale for every dependen
 | `wrangler` | Cloudflare developer platform CLI for local simulation, D1, and deployments. |
 | `i18next` | Internationalization framework for multi-language support (English and Hindi). |
 | `react-i18next` | React integration hooks and components for i18next. |
+| `@axe-core/playwright` | Dev-only automated WCAG AA & contrast auditing inside Playwright E2E tests (0 bytes in client bundle). |

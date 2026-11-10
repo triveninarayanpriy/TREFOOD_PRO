@@ -4,6 +4,21 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Design System (/dev/ui) & Expanded Data/API Layer
+- **Design System & Token Architecture**:
+  - Updated `src/client/index.css` with semantic tokens supporting warm-cream light surfaces (`#FBF8F3` / `#FFFFFF` / `#F3EFE6`) and deep maroon-black dark surfaces (`#0E0608` / `#180B0F` / `#241117`).
+  - Added persisted light/dark/system theme preference (`ThemeContext`, `ThemeToggle`), custom `/public/images/*.svg` category/wordmark graphics, `DesktopNavRail` left sidebar at `>= 1024px`, and compact responsive `TopBar` + `BottomNav`.
+  - Added `/dev/ui` (and `/dev/kit` alias) component showcase covering `Button`, `Badge`/`Chip`, `VendorCard`, `MenuItemRow`, `HandoverTicket`, `StatusTimeline`, `CodeDisplay`, `QuantityStepper`, `EmptyState`, `ErrorBanner`, and skeleton states.
+  - Verified light and dark WCAG AA contrast with `@axe-core/playwright` (0 serious/critical violations) and clean responsive behavior at `390x844` and `1440x900`.
+- **Schema, Seed & Shared Domain Logic**:
+  - Extended schema to 20 tables (`migrations/0002_cold_hellcat.sql`) adding `gates.is_24x7`, `vendors.night_safe`/`prep_max_minutes`/`min_order_paise`, `menu_items.packing_charge_paise`/`variants_json`/`addons_json`, `orders.code_attempts`/`packing_total_paise`/`discount_paise`/`coupon_code`, plus `coupons` and `push_subscriptions` tables.
+  - Expanded seed (`scripts/seed.sql`) to 1 campus (`NIT Patna`), 3 gates (`Main Gate / Academic Blocks` 24x7, `Boys Hostel Gate` 19:30 IST, `Girls Hostel Gate` 19:30 IST), **12 vendors** across categories (8+ items each), **6 coupons**, 3 demo users, and 20 historical orders.
+  - Added pure unit-tested shared logic in `src/shared/curfew.ts`, `src/shared/cartRules.ts`, and `src/shared/handover.ts` (`computeEta`, `evaluateCanDeliver`, `isNightSafetyActive`, single-vendor/min-order/packing/coupon calculations, and 5-attempt handover lock).
+- **Expanded Hono REST API & Tests**:
+  - Added `GET /api/campuses/:slug`, `GET /api/search/suggest?q=`, `GET /api/coupons`, `:id`/`:slug` lookup on `GET /api/vendors/:id`, `POST /api/orders/:id/confirm-handover` (`423 Locked` after 5 wrong attempts), `POST /api/orders/:id/report`, vendor `/accept`, `/reject`, `/ready`, `/handover-assist`, `PATCH /api/vendor/prep-time`, and admin `/stats`, `/coupons`, `/reports`.
+  - Added optional `RATE_LIMIT_KV` fast-path alongside strongly-consistent D1 `rate_limits`.
+  - Expanded automated verification to **28 Vitest tests (6 files)** and **12 Playwright E2E tests** across desktop and mobile viewports.
+
 ### Added - Hardening, Quality, E2E & Production Verification
 - **Playwright Full Regression Suite**: 8/8 end-to-end tests passing at both Mobile (390x844) and Desktop (1280x800) viewports:
   - App shell smoke test (branding, header, signature HandoverTicket demo, zero-friction browse navigation).

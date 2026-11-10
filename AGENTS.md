@@ -32,7 +32,8 @@ src/client (React), src/worker (routes, services, db), src/shared (Zod schemas, 
 ## Domain rules
 - Order status: placed → accepted → out_for_delivery → at_gate → delivered. Exits: cancelled, expired. Only valid transitions; each writes an order_events row.
 - Handover code: 4 digits from crypto.getRandomValues, unique among active orders at the same gate. Only the customer who owns the order can confirm delivery, and only when status is at_gate.
-- A vendor is listed only if it is open and can reach the chosen gate. Curfew rule: now + vendor prep time + gate travel minutes + buffer must be before the gate curfew; otherwise return a reason code and alternative gates.
+- Curfew & gates: Main Gate / Academic Blocks operate 24x7; Boys Hostel and Girls Hostel gates close at 19:30 IST. A vendor is listed only if it is open and can reach the chosen gate. Curfew rule: now + vendor prep time + gate travel minutes + buffer (15m window) must be before the gate curfew (unless gate is 24x7); otherwise return a reason code and alternative gates.
+- Campus Night Safety: after 19:00 IST (7 PM), deliveries are handled personally by the vendor owner, co-owner, or senior staff. Surface this clearly on vendor cards and vendor pages.
 - Guests browse everything; sign-in is required only to place an order.
 - Order placement is idempotent via the Idempotency-Key header.
 - Roles: student, vendor, admin. Enforce in middleware, never only in the UI.
