@@ -36,6 +36,20 @@
       "when": 1794328957077,
       "tag": "0004_flimsy_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794333369553,
+      "tag": "0005_rainy_proudstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794374210282,
+      "tag": "0006_flaky_ultragirl",
+      "breakpoints": true
     }
   ]
 }

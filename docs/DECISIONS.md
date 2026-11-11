@@ -15,7 +15,8 @@ This document records architectural choices and the rationale for every dependen
 
 - **Preserve Lean React 19 + CSS Transitions Stack (A1 & A2):** Rather than adding `framer-motion` or splitting existing `/src/client` and `/migrations` folders, we evolve the existing Cloudflare Worker + D1 + React 19 SPA incrementally. Using CSS variables and `prefers-reduced-motion` preserves our `< 150 KB` gzip initial JS budget (`~146 KB`) and instant hostel WiFi loads.
 - **24x7 Gates, 19:30 Hostel Curfew & Night Safety (A3):** Added `is_24x7` boolean to `gates` (`Main Gate / Academic Blocks`) and `night_safe` boolean to `vendors` via D1 migration `0001_gate_24x7_night_safe.sql`, updating Boys Hostel & Girls Hostel gate curfews to `19:30` with a `15m` arrival buffer and surfacing Campus Night Safety after `19:00 IST`.
-- **Warm Cream + Deep Maroon-Black Tokens:** Light theme uses warm cream surfaces (`#FAF7F2`) paired with `#830020` maroon and `#FFB400` primary CTA buttons; dark theme uses deep maroon-black surfaces (`#0F0608` / `#180B0E`) with WCAG AA >= 4.5:1 foreground contrast across all token pairs.
+- **Warm Cream + Deep Maroon-Black Tokens (Legacy)** -> **Superseded by R2 Gate Board & Packet Chit Art Direction (Nov 11, 2026):** Default warm paper `#FBF6EE` + ink `#1C1210` with `#830020` maroon brand, `#B5651D` chai brown accents, and `#FFB400` single primary CTA; derived warm ink dark mode (`#140D0B` / `#1E1412`) opt-in only.
+- **Self-Hosted R2 Typography (`Fraunces`, `DM Sans`, `Caveat`, `Noto Sans Devanagari` pinned `5.3.0`):** Switched from Inter / Plus Jakarta Sans to `Fraunces` (display), `DM Sans` (body), `Noto Sans Devanagari` (Hindi/Hinglish Unicode subset), and `Caveat` (strictly 4-digit handover codes and packet chit notes), using `.woff2` subset `@font-face` declarations to preserve `< 150 KB` gzip JS budget.
 
 ## Dependency Registry
 
@@ -29,8 +30,10 @@ This document records architectural choices and the rationale for every dependen
 | `zod` | Shared runtime schema validation for request/response payloads. |
 | `drizzle-orm` | TypeScript ORM for type-safe Cloudflare D1 SQL queries. |
 | `lucide-react` | Unified, lightweight SVG icon system (no emoji in UI chrome). |
-| `@fontsource-variable/inter` | Self-hosted clean UI variable font family for performance and privacy. |
-| `@fontsource-variable/plus-jakarta-sans` | Self-hosted display variable font family for headers and branding. |
+| `@fontsource-variable/fraunces` (`5.3.0`) | Self-hosted serif display variable font for Gate Board headings. |
+| `@fontsource-variable/dm-sans` (`5.3.0`) | Self-hosted body & UI variable font paired with Fraunces. |
+| `@fontsource-variable/caveat` (`5.3.0`) | Handwriting font strictly scoped to 4-digit packet chit codes & slip annotations. |
+| `@fontsource/noto-sans-devanagari` (`5.3.0`) | Devanagari script support for Hinglish/Hindi campus labels & notices. |
 | `@cloudflare/vite-plugin` | Vite integration for local Workers runtime emulation and static asset bundling. |
 | `@cloudflare/workers-types` | TypeScript definitions for Cloudflare Workers runtime APIs. |
 | `@cloudflare/vitest-pool-workers` | Runs Vitest tests inside the Miniflare / workerd runtime with real bindings. |

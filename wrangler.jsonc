@@ -4,6 +4,7 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-09",
   "compatibility_flags": ["nodejs_compat"],
+  "preview_urls": true,
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
@@ -21,8 +22,19 @@
     {
       "binding": "SESSION_KV",
       "id": "de2256e9754b48bd8d2e4da2e2ee6f4a"
+    },
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "8289eb85cde74a3bbd7f52b255e496be"
     }
   ],
+  // Optional R2 bucket for vendor menu photography (enable R2 in Cloudflare Dashboard before uncommenting):
+  // "r2_buckets": [
+  //   {
+  //     "binding": "MEDIA_BUCKET",
+  //     "bucket_name": "trefood-media"
+  //   }
+  // ],
   "observability": {
     "enabled": true
   },

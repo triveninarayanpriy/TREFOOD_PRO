@@ -45,7 +45,7 @@ When `DEMO_MODE=true` is enabled, all screens display **1-Tap Demo Login** butto
 
 ### Step 5: Kitchen Fulfillment on Vendor Console (`/v`)
 1. In a second browser tab (or side-by-side window), open `/v`.
-2. Click **1-Tap Login as Vendor (Ganga Canteen)**.
+2. Click **1-Tap Login as Vendor (Chai Sutta Bar (CSB))**.
 3. Observe the 4-column kitchen tablet board: the placed order appears in the **New Orders** column.
 4. Click **Accept & Prepare** (56px touch target). The order transitions to **Preparing**.
 5. Click **Dispatch Runner**. The order transitions to **On Route**.
