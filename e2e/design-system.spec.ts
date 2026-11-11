@@ -18,16 +18,16 @@ test.describe('Design System & Accessibility (/dev/ui)', () => {
     await page.goto('/dev/ui');
 
     // Ensure lazy-loaded DevKitPage rendered cleanly
-    await expect(page.getByRole('heading', { name: /TreFood Design System/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /TreFood Component & Print Kit/i })).toBeVisible({ timeout: 15000 });
 
-    // Check every key component section from Prompt 1 is rendered
-    await expect(page.getByText('Primary Maroon').first()).toBeVisible();
-    await expect(page.getByText('Primary CTA Amber').first()).toBeVisible();
-    await expect(page.getByText('VendorCard — Open Variant').first()).toBeVisible();
-    await expect(page.getByText('VendorCard — Compact Closed Variant').first()).toBeVisible();
-    await expect(page.getByText('MenuItemRow & QuantityStepper').first()).toBeVisible();
+    // Check every key R2 signature component is rendered
+    await expect(page.getByText('Warm Paper').first()).toBeVisible();
+    await expect(page.getByText('Primary Action').first()).toBeVisible();
+    await expect(page.getByText(/1\. Gate Board/i).first()).toBeVisible();
+    await expect(page.getByText(/2\. Counter Rows/i).first()).toBeVisible();
+    await expect(page.getByText(/Dotted-Leader Menu Lines/i).first()).toBeVisible();
+    await expect(page.getByText(/5\. Packet Chit/i).first()).toBeVisible();
     await expect(page.getByText('Live Order Progress').first()).toBeVisible();
-    await expect(page.getByText('4-Digit Handover Code').first()).toBeVisible();
 
     // Verify no horizontal overflow at current viewport (390px or 1280px)
     const hasOverflow = await page.evaluate(() => {

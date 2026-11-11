@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('TreFood App Shell Smoke Test', () => {
-  test('loads home page and displays TreFood branding and signature HandoverTicket', async ({ page }) => {
+  test('loads landing page with TreFood branding, GateBoard, and PacketChit 4821', async ({ page }) => {
     await page.goto('/');
 
     // Check title and branding
@@ -9,19 +9,20 @@ test.describe('TreFood App Shell Smoke Test', () => {
     await expect(page.getByText('TreFood').first()).toBeVisible();
     await expect(page.getByText('NIT Patna').first()).toBeVisible();
 
-    // Check hero headline
+    // Check R3 editorial hero headline
     await expect(
-      page.getByRole('heading', { name: /Delivered to your NIT Patna gate/i })
+      page.getByRole('heading', { name: /Midnight chai and hot food, at your hostel gate/i })
     ).toBeVisible();
 
-    // Check signature HandoverTicket demo
-    await expect(page.getByText('Handover Ticket').first()).toBeVisible();
+    // Check signature PacketChit demo (#TF-4821) and GateBoard
+    await expect(page.getByText('TF-4821').first()).toBeVisible();
     await expect(page.getByText('Match 4-Digit Code at Gate').first()).toBeVisible();
+    await expect(page.getByRole('region', { name: /Campus gate departure board/i })).toBeVisible();
 
-    // Check call to action leads to browse, never to sign-in
-    const browseBtn = page.getByRole('button', { name: /Browse Campus Canteens/i });
+    // Check call to action leads to /app, never to sign-in
+    const browseBtn = page.getByRole('button', { name: /Browse open menus/i });
     await expect(browseBtn).toBeVisible();
     await browseBtn.click();
-    await expect(page).toHaveURL(/\/browse/);
+    await expect(page).toHaveURL(/\/app/);
   });
 });

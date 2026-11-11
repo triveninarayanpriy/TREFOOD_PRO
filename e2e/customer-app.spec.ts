@@ -18,25 +18,22 @@ test.describe('Customer Experience (/app, /app/search, /vendor/:slug)', () => {
     // 1. Check /app at 320px width for zero horizontal scroll
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/app');
-    await expect(page.getByText('Campus Offers & Promos')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('region', { name: /Campus gate departure board/i })).toBeVisible({
+      timeout: 15000,
+    });
     const mobileOverflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     }));
     expect(mobileOverflow.scrollWidth).toBeLessThanOrEqual(mobileOverflow.innerWidth);
 
-    // 2. Desktop two-column verification (1280x800)
+    // 2. Desktop two-column verification (1280x800) with PaperBill right column
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByRole('complementary', { name: 'Campus Packet Summary' })).toBeVisible();
 
-    // Promotions carousel visible + apply offer works
-    const promoRegion = page.getByRole('region', { name: 'Campus Promotions' });
-    await expect(promoRegion.getByText('CAMPUS20', { exact: true })).toBeVisible();
-    await promoRegion.getByRole('button', { name: /Apply offer/i }).first().click();
-
-    // Quick picks & Popular vendors & Open now visible
+    // Real category photo tiles + Quick picks + Open now counters visible (no promo carousel)
+    await expect(page.getByRole('region', { name: 'Campus categories' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Quick picks' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Popular vendors' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Open Now/i })).toBeVisible();
 
     // Slim Closed list shows Opens at, Notify me, and Pre-order
@@ -74,7 +71,7 @@ test.describe('Customer Experience (/app, /app/search, /vendor/:slug)', () => {
     await searchInput.click();
     await searchInput.fill('Paneer');
     await expect(page.locator('#app-search-popover')).toBeVisible();
-    await expect(page.locator('#app-search-popover').getByText(/Paneer Butter Masala/i).first()).toBeVisible();
+    await expect(page.locator('#app-search-popover').getByText(/Paneer/i).first()).toBeVisible();
     await searchInput.press('Enter');
 
     await expect(page).toHaveURL(/\/app\/search\?q=Paneer/);
@@ -100,26 +97,27 @@ test.describe('Customer Experience (/app, /app/search, /vendor/:slug)', () => {
     const dayMockTs = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
     await page.setExtraHTTPHeaders({ 'x-mock-time': dayMockTs });
 
-    await page.goto('/vendor/ganga-dhaba');
-    await expect(page.getByRole('heading', { name: 'Ganga Dhaba & Kitchen' })).toBeVisible({
+    await page.goto('/vendor/kolkata-biryani-fast-food-pizza-house');
+    await expect(page.getByRole('heading', { name: 'Kolkata Biryani Fast-Food Pizza House' })).toBeVisible({
       timeout: 15000,
     });
 
     // Call link + Save button + Night Safe notice
-    const callLink = page.getByRole('link', { name: /Call Ganga Dhaba/i });
+    const callLink = page.getByRole('link', { name: /Call Kolkata Biryani/i });
     await expect(callLink).toHaveAttribute('href', /^tel:/);
     await expect(page.getByRole('button', { name: /Save to favourites/i })).toBeVisible();
-    await expect(page.getByText(/Campus Night Safety (Active|Guarantee)/i)).toBeVisible();
+    await expect(page.getByText(/Campus Night Safety:/i)).toBeVisible();
 
-    // Open Item Options Sheet for Paneer Butter Masala (Customise button) -> select Full (500ml) -> ₹240.00
-    await page.getByRole('button', { name: 'Customise' }).first().click();
+    // Open Item Options Sheet for Egg Biryani (Customise button) -> select Full -> ₹199.00
+    const eggBiryaniRow = page.locator('[data-menu-item="Egg Biryani"]').first();
+    await eggBiryaniRow.getByRole('button', { name: 'Customise' }).click();
     await expect(page.getByRole('dialog', { name: 'Customise Item' })).toBeVisible();
-    await page.getByLabel(/Full \(500ml\)/i).check();
-    const addPacketBtn = page.getByRole('button', { name: /Add to Packet • ₹240\.00/i });
+    await page.getByLabel(/Full/i).check();
+    const addPacketBtn = page.getByRole('button', { name: /Add to Packet • ₹199\.00/i });
     await expect(addPacketBtn).toBeVisible();
     await addPacketBtn.click();
 
-    await expect(page.getByRole('button', { name: /View Packet.*₹240\.00/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Open Cart with 1 items/i })).toBeVisible();
 
     // Switch to Reviews tab and verify summary card
     await page.getByRole('tab', { name: /Reviews/i }).click();

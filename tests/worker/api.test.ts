@@ -15,11 +15,11 @@ describe('Worker Full API Integration Tests', () => {
   beforeAll(async () => {
     const db = getDb(env.DB);
 
-    // Ensure v_ganga and gate_main are open 24 hours during test run regardless of real-world wall clock hour
+    // Ensure rest_csb_nitp and gate_main are open 24 hours during test run regardless of real-world wall clock hour
     await db
       .update(vendors)
       .set({ hoursJson: JSON.stringify({ open: '00:00', close: '23:59' }), prepMinutes: 5 })
-      .where(eq(vendors.id, 'v_ganga'));
+      .where(eq(vendors.id, 'rest_csb_nitp'));
 
     await db
       .update(gates)
@@ -37,9 +37,9 @@ describe('Worker Full API Integration Tests', () => {
   it('guarantees idempotent order placement when replaying with same Idempotency-Key', async () => {
     const key = `test-idemp-${ulid()}`;
     const payload = JSON.stringify({
-      vendorId: 'v_ganga',
+      vendorId: 'rest_csb_nitp',
       gateId: 'gate_main',
-      items: [{ itemId: 'it_g1', quantity: 1, expectedPricePaise: 16000 }],
+      items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1, expectedPricePaise: 16900 }],
     });
 
     const makeRequest = async () => {
@@ -83,9 +83,9 @@ describe('Worker Full API Integration Tests', () => {
         'Idempotency-Key': `guest-idemp-${ulid()}`,
       },
       body: JSON.stringify({
-        vendorId: 'v_ganga',
+        vendorId: 'rest_csb_nitp',
         gateId: 'gate_main',
-        items: [{ itemId: 'it_g1', quantity: 1 }],
+        items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
       }),
     });
     const ctx1 = createExecutionContext();
@@ -162,11 +162,11 @@ describe('Worker Full API Integration Tests', () => {
       publicNo: 'TF-OLD1',
       campusId: 'campus_nitp',
       userId: 'usr_student',
-      vendorId: 'v_ganga',
+      vendorId: 'rest_csb_nitp',
       gateId: 'gate_main',
       status: 'placed',
-      subtotalPaise: 16000,
-      totalPaise: 16000,
+      subtotalPaise: 16900,
+      totalPaise: 17900,
       paymentMethod: 'pay_at_gate',
       handoverCode: '9999',
       idempotencyKey: `stale-${ulid()}`,
@@ -230,7 +230,7 @@ describe('Worker Full API Integration Tests', () => {
     expect(campusRes.status).toBe(200);
     const campusBody = (await campusRes.json()) as { ok: boolean; gates: unknown[]; stats: { totalVendors: number } };
     expect(campusBody.ok).toBe(true);
-    expect(campusBody.stats.totalVendors).toBeGreaterThanOrEqual(12);
+    expect(campusBody.stats.totalVendors).toBeGreaterThanOrEqual(8);
 
     const suggestRes = await exec(new Request('http://localhost/api/search/suggest?q=Paneer'));
     expect(suggestRes.status).toBe(200);
@@ -240,9 +240,9 @@ describe('Worker Full API Integration Tests', () => {
     const couponsRes = await exec(new Request('http://localhost/api/coupons'));
     expect(couponsRes.status).toBe(200);
     const couponsBody = (await couponsRes.json()) as { coupons: Array<{ code: string }> };
-    expect(couponsBody.coupons.length).toBeGreaterThanOrEqual(6);
+    expect(couponsBody.coupons.length).toBeGreaterThanOrEqual(4);
 
-    const vendorByIdRes = await exec(new Request('http://localhost/api/vendors/v_ganga'));
+    const vendorByIdRes = await exec(new Request('http://localhost/api/vendors/rest_csb_nitp'));
     expect(vendorByIdRes.status).toBe(200);
 
     // 2. Cart quote with coupon
@@ -251,18 +251,18 @@ describe('Worker Full API Integration Tests', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
           couponCode: 'CAMPUS20',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       })
     );
     expect(quoteRes.status).toBe(200);
-    const quoteBody = (await quoteRes.json()) as { subtotalPaise: number; discountPaise: number; totalPaise: number };
-    expect(quoteBody.subtotalPaise).toBe(16000);
-    expect(quoteBody.discountPaise).toBe(3200); // 20% of 16000
-    expect(quoteBody.totalPaise).toBe(12800);
+    const quoteBody = (await quoteRes.json()) as { subtotalPaise: number; packingTotalPaise: number; discountPaise: number; totalPaise: number };
+    expect(quoteBody.subtotalPaise).toBe(16900);
+    expect(quoteBody.discountPaise).toBe(3380); // 20% of 16900
+    expect(quoteBody.totalPaise).toBe(14520); // 16900 + 1000 packing - 3380 discount
 
     // 3. Place order -> vendor accept & ready & at_gate -> confirm-handover 5-attempt lockout -> assist -> report
     const createRes = await exec(
@@ -274,9 +274,9 @@ describe('Worker Full API Integration Tests', () => {
           Cookie: studentCookie,
         },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       })
     );
@@ -526,7 +526,7 @@ describe('Worker Full API Integration Tests', () => {
     expect(
       (
         await exec(
-          new Request('http://localhost/api/favorites/v_ganga', {
+          new Request('http://localhost/api/favorites/rest_csb_nitp', {
             method: 'POST',
             headers: { Cookie: cookiePair },
           })
@@ -539,12 +539,12 @@ describe('Worker Full API Integration Tests', () => {
     );
     expect(favListRes.status).toBe(200);
     const favBody = (await favListRes.json()) as { vendorIds: string[] };
-    expect(favBody.vendorIds).toContain('v_ganga');
+    expect(favBody.vendorIds).toContain('rest_csb_nitp');
 
     expect(
       (
         await exec(
-          new Request('http://localhost/api/favorites/v_ganga', {
+          new Request('http://localhost/api/favorites/rest_csb_nitp', {
             method: 'DELETE',
             headers: { Cookie: cookiePair },
           })
@@ -589,9 +589,9 @@ describe('Worker Full API Integration Tests', () => {
     };
     expect(vBody.ok).toBe(true);
     expect(vBody.quickPicks.length).toBeGreaterThan(0);
-    const ganga = vBody.vendors.find((v) => v.id === 'v_ganga')!;
-    expect(ganga.startingPricePaise).toBeGreaterThan(0);
-    expect(ganga.offerTags?.length).toBeGreaterThan(0);
+    const csb = vBody.vendors.find((v) => v.id === 'rest_csb_nitp')!;
+    expect(csb.startingPricePaise).toBeGreaterThan(0);
+    expect(csb.offerTags?.length).toBeGreaterThan(0);
 
     // 2. /api/search returns combined vendors & dishes matching query + filters
     const searchRes = await exec(
@@ -632,20 +632,21 @@ describe('Worker Full API Integration Tests', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-mock-time': dayMockTs },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
           items: [
             {
-              itemId: 'it_g1',
+              itemId: 'csb_chocolate_chai',
               quantity: 1,
-              variantId: 'full', // 16000 + 8000 = 24000 paise
-              expectedPricePaise: 24000,
+              variantId: 'opt_size_l', // 2000 + 1500 = 3500
+              addonIds: ['grp_sugar_opt_sugar_free'], // +500 => 4000 paise + 500 packing
+              expectedPricePaise: 4000,
             },
             {
-              itemId: 'it_g8',
+              itemId: 'csb_red_sauce_pasta',
               quantity: 1,
-              addonIds: ['raita'], // 18000 + 2000 = 20000 paise + 1000 packing
-              expectedPricePaise: 20000,
+              addonIds: ['grp_cheese_opt_extra_cheese'], // 16900 + 2000 = 18900 paise + 1000 packing
+              expectedPricePaise: 18900,
             },
           ],
         }),
@@ -659,9 +660,9 @@ describe('Worker Full API Integration Tests', () => {
       totalPaise: number;
     };
     expect(quoteBody.ok).toBe(true);
-    expect(quoteBody.subtotalPaise).toBe(44000);
-    expect(quoteBody.packingTotalPaise).toBe(1000);
-    expect(quoteBody.totalPaise).toBe(45000);
+    expect(quoteBody.subtotalPaise).toBe(22900);
+    expect(quoteBody.packingTotalPaise).toBe(1500);
+    expect(quoteBody.totalPaise).toBe(24400);
   });
 
   it('enforces minimum order shortfall + suggestedAddons, coupon validation, curfew refusal + alternative gates, UPI simulation & double-submit idempotency', async () => {
@@ -681,15 +682,15 @@ describe('Worker Full API Integration Tests', () => {
     );
     const cookie = (studentLogin.headers.get('set-cookie') || '').split(';')[0];
 
-    // 1. Minimum order shortfall (Sone Valley minOrder = 7900, it_s7 Boondi Raita = 2500 -> short by 5400 + returns suggestedAddons)
+    // 1. Minimum order shortfall (Kolkata Biryani minOrder = 4900, kb_veg_roll = 3900 -> short by 1000 + returns suggestedAddons)
     const minQuoteRes = await exec(
       new Request('http://localhost/api/cart/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-mock-time': ts1400Ist },
         body: JSON.stringify({
-          vendorId: 'v_sone',
+          vendorId: 'rest_kolkata_biryani_nitp',
           gateId: 'gate_main',
-          items: [{ itemId: 'it_s7', quantity: 1 }],
+          items: [{ itemId: 'kb_veg_roll', quantity: 1 }],
         }),
       })
     );
@@ -701,8 +702,8 @@ describe('Worker Full API Integration Tests', () => {
       suggestedAddons: Array<{ id: string; pricePaise: number }>;
     };
     expect(minQuote.meetsMinOrder).toBe(false);
-    expect(minQuote.minOrderPaise).toBe(7900);
-    expect(minQuote.shortfallPaise).toBe(5400);
+    expect(minQuote.minOrderPaise).toBe(4900);
+    expect(minQuote.shortfallPaise).toBe(1000);
     expect(minQuote.suggestedAddons.length).toBeGreaterThan(0);
 
     // Placing below minimum order rejected with 409 MIN_ORDER_NOT_MET
@@ -716,9 +717,9 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1400Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_sone',
+          vendorId: 'rest_kolkata_biryani_nitp',
           gateId: 'gate_main',
-          items: [{ itemId: 'it_s7', quantity: 1 }],
+          items: [{ itemId: 'kb_veg_roll', quantity: 1 }],
         }),
       })
     );
@@ -726,7 +727,7 @@ describe('Worker Full API Integration Tests', () => {
     const shortErr = (await shortOrderRes.json()) as { error: { code: string } };
     expect(shortErr.error.code).toBe('MIN_ORDER_NOT_MET');
 
-    // 2. Ineligible coupon rejected with 409 COUPON_NOT_ELIGIBLE (FLAT25 min order 14900, item 9500)
+    // 2. Ineligible coupon rejected with 409 COUPON_NOT_ELIGIBLE (FLAT25 min order 14900, item 6900)
     const badCouponRes = await exec(
       new Request('http://localhost/api/orders', {
         method: 'POST',
@@ -737,10 +738,10 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1400Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_sone',
+          vendorId: 'rest_kolkata_biryani_nitp',
           gateId: 'gate_main',
           couponCode: 'FLAT25',
-          items: [{ itemId: 'it_s3', quantity: 1 }], // 9500 >= 7900 vendor min, < 14900 FLAT25 min
+          items: [{ itemId: 'kb_double_egg_roll', quantity: 1 }], // 6900 >= 4900 vendor min, < 14900 FLAT25 min
         }),
       })
     );
@@ -760,9 +761,9 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1920Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_h5',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       })
     );
@@ -789,12 +790,12 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1400Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
           paymentMethod: 'upi_simulated',
           upiSimulateResult: 'failed',
           contactPhone: '9876543210',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       })
     );
@@ -815,14 +816,14 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1400Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
           paymentMethod: 'upi_simulated',
           upiSimulateResult: 'success',
           paymentRef: 'UPI-TEST-123',
           contactPhone: '9876543210',
           note: 'Call near guard desk',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       });
 
@@ -909,9 +910,9 @@ describe('Worker Full API Integration Tests', () => {
           'x-mock-time': ts1400Ist,
         },
         body: JSON.stringify({
-          vendorId: 'v_ganga',
+          vendorId: 'rest_csb_nitp',
           gateId: 'gate_main',
-          items: [{ itemId: 'it_g1', quantity: 1 }],
+          items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
         }),
       })
     );
@@ -929,7 +930,7 @@ describe('Worker Full API Integration Tests', () => {
     };
     const found = listBody.orders.find((o) => o.id === order.id);
     expect(found).toBeDefined();
-    expect(found?.vendorSlug).toBe('ganga-dhaba');
+    expect(found?.vendorSlug).toBe('chai-sutta-bar-csb');
     expect((found?.items || []).length).toBeGreaterThan(0);
 
     const notifRes = await exec(
@@ -994,7 +995,7 @@ describe('Worker Full API Integration Tests', () => {
 
     const ts1400Ist = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
 
-    // Place 2 orders for Ganga Dhaba
+    // Place 2 orders for Chai Sutta Bar (CSB)
     const placeOrder = async (keySuffix: string) => {
       const r = await exec(
         new Request('http://localhost/api/orders', {
@@ -1006,9 +1007,9 @@ describe('Worker Full API Integration Tests', () => {
             'x-mock-time': ts1400Ist,
           },
           body: JSON.stringify({
-            vendorId: 'v_ganga',
+            vendorId: 'rest_csb_nitp',
             gateId: 'gate_main',
-            items: [{ itemId: 'it_g1', quantity: 1 }],
+            items: [{ itemId: 'csb_red_sauce_pasta', quantity: 1 }],
           }),
         })
       );
@@ -1059,7 +1060,7 @@ describe('Worker Full API Integration Tests', () => {
 
     // 3. Stock toggle + price edit
     const stockOff = await exec(
-      new Request('http://localhost/api/vendor/menu/item/it_g1/stock', {
+      new Request('http://localhost/api/vendor/menu/item/csb_red_sauce_pasta/stock', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
         body: JSON.stringify({ inStock: false }),
@@ -1069,21 +1070,21 @@ describe('Worker Full API Integration Tests', () => {
     expect(((await stockOff.json()) as { inStock: boolean }).inStock).toBe(false);
 
     const priceEdit = await exec(
-      new Request('http://localhost/api/vendor/menu/item/it_g1', {
+      new Request('http://localhost/api/vendor/menu/item/csb_red_sauce_pasta', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
-        body: JSON.stringify({ pricePaise: 9500, inStock: true }),
+        body: JSON.stringify({ pricePaise: 17500, inStock: true }),
       })
     );
     expect(priceEdit.status).toBe(200);
-    expect(((await priceEdit.json()) as { item: { pricePaise: number; inStock: boolean } }).item.pricePaise).toBe(9500);
+    expect(((await priceEdit.json()) as { item: { pricePaise: number; inStock: boolean } }).item.pricePaise).toBe(17500);
 
-    // Restore original price 9000
+    // Restore original price 16900
     await exec(
-      new Request('http://localhost/api/vendor/menu/item/it_g1', {
+      new Request('http://localhost/api/vendor/menu/item/csb_red_sauce_pasta', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: vendorCookie },
-        body: JSON.stringify({ pricePaise: 9000 }),
+        body: JSON.stringify({ pricePaise: 16900 }),
       })
     );
 
@@ -1107,10 +1108,10 @@ describe('Worker Full API Integration Tests', () => {
       })
     );
 
-    // 5. Settlement & Insights payload
+    // 5. Settlement & Insights payload (same IST day clock as placed test orders)
     const insightsRes = await exec(
       new Request('http://localhost/api/vendor/settlement', {
-        headers: { Cookie: vendorCookie },
+        headers: { Cookie: vendorCookie, 'x-mock-time': ts1400Ist },
       })
     );
     expect(insightsRes.status).toBe(200);
@@ -1153,7 +1154,7 @@ describe('Worker Full API Integration Tests', () => {
       { method: 'GET', path: '/api/admin/orders' },
       { method: 'GET', path: '/api/admin/vendors' },
       { method: 'GET', path: '/api/admin/vendor-applications' },
-      { method: 'PUT', path: '/api/admin/vendors/v_ganga/gates', body: { gates: [{ gateId: 'gate_main', extraMinutes: 0 }] } },
+      { method: 'PUT', path: '/api/admin/vendors/rest_csb_nitp/gates', body: { gates: [{ gateId: 'gate_main', extraMinutes: 0 }] } },
       { method: 'PATCH', path: '/api/admin/gates/gate_main', body: { bufferMinutes: 15 } },
       { method: 'GET', path: '/api/admin/coupons' },
       { method: 'POST', path: '/api/admin/coupons', body: { code: 'HACK20', description: 'Unauthorized coupon attempt', discountType: 'flat', discountValue: 2000, minOrderPaise: 0 } },
@@ -1283,5 +1284,71 @@ describe('Worker Full API Integration Tests', () => {
     const auditBody = (await auditRes.json()) as { logs: Array<{ action: string }> };
     expect(auditBody.logs.some((l) => l.action === 'VENDOR_APPLICATION_UPDATED')).toBe(true);
     expect(auditBody.logs.some((l) => l.action === 'GATE_CLOSURE_UPDATED')).toBe(true);
+  });
+
+  it('enforces strict zero-PII schema and DNT opt-out for /api/analytics/events and aggregates into /api/admin/metrics', async () => {
+    const exec = async (req: Request) => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(req, env, ctx);
+      await waitOnExecutionContext(ctx);
+      return res;
+    };
+
+    // 1. Rejects unknown / PII fields via strict Zod schema
+    const piiRes = await exec(
+      new Request('http://localhost/api/analytics/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'view_menu',
+          email: 'student@nitp.ac.in',
+          userId: 'usr_student',
+        }),
+      })
+    );
+    expect(piiRes.status).toBe(400);
+
+    // 2. Honors DNT header cleanly without writing event
+    const dntRes = await exec(
+      new Request('http://localhost/api/analytics/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', DNT: '1' },
+        body: JSON.stringify({ event: 'view_menu', route: '/vendor/chai-sutta-bar-csb' }),
+      })
+    );
+    expect(dntRes.status).toBe(202);
+    expect(((await dntRes.json()) as { recorded: boolean }).recorded).toBe(false);
+
+    // 3. Records valid zero-PII funnel steps & strips query string from route
+    for (const ev of ['view_menu', 'add_to_cart', 'checkout_start', 'order_placed', 'handover_confirmed']) {
+      const res = await exec(
+        new Request('http://localhost/api/analytics/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: ev,
+            route: '/vendor/chai-sutta-bar-csb?token=secret_should_strip',
+            gateId: 'gate_main',
+            vendorId: 'rest_csb_nitp',
+          }),
+        })
+      );
+      expect(res.status).toBe(202);
+      expect(((await res.json()) as { recorded: boolean }).recorded).toBe(true);
+    }
+
+    // 4. Admin metrics surfaces aggregate funnelCounts cleanly
+    const db = getDb(env.DB);
+    const adminSession = await createSession(db, 'usr_admin');
+    const adminCookie = buildSetCookieHeader('session', adminSession.token);
+    const metricsRes = await exec(
+      new Request('http://localhost/api/admin/metrics', { headers: { Cookie: adminCookie } })
+    );
+    expect(metricsRes.status).toBe(200);
+    const metricsBody = (await metricsRes.json()) as {
+      metrics: { funnelCounts: Record<string, number> };
+    };
+    expect(metricsBody.metrics.funnelCounts.view_menu).toBeGreaterThanOrEqual(1);
+    expect(metricsBody.metrics.funnelCounts.handover_confirmed).toBeGreaterThanOrEqual(1);
   });
 });

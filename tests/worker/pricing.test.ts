@@ -23,8 +23,8 @@ describe('Pricing & Cart Service', () => {
       .values([
         {
           id: 'test_item_1',
-          vendorId: 'v_ganga',
-          categoryId: 'cat_g_curries',
+          vendorId: 'rest_csb_nitp',
+          categoryId: 'cat_csb_chai',
           name: 'Test Paneer',
           pricePaise: 16000, // ₹160
           isVeg: true,
@@ -34,8 +34,8 @@ describe('Pricing & Cart Service', () => {
         },
         {
           id: 'test_item_oos',
-          vendorId: 'v_ganga',
-          categoryId: 'cat_g_curries',
+          vendorId: 'rest_csb_nitp',
+          categoryId: 'cat_csb_chai',
           name: 'Test Out of Stock Item',
           pricePaise: 12000,
           isVeg: true,
@@ -49,7 +49,7 @@ describe('Pricing & Cart Service', () => {
 
   it('correctly prices cart items in integer paise with zero delivery fee', async () => {
     const db = getDb(env.DB);
-    const result = await priceCart(db, 'v_ganga', [
+    const result = await priceCart(db, 'rest_csb_nitp', [
       { itemId: 'test_item_1', quantity: 2, expectedPricePaise: 16000 },
     ]);
 
@@ -63,24 +63,24 @@ describe('Pricing & Cart Service', () => {
   it('throws 409 conflict when an item is out of stock', async () => {
     const db = getDb(env.DB);
     await expect(
-      priceCart(db, 'v_ganga', [{ itemId: 'test_item_oos', quantity: 1 }])
+      priceCart(db, 'rest_csb_nitp', [{ itemId: 'test_item_oos', quantity: 1 }])
     ).rejects.toThrowError(CartConflictError);
   });
 
   it('throws 409 conflict when item price has changed', async () => {
     const db = getDb(env.DB);
     await expect(
-      priceCart(db, 'v_ganga', [
+      priceCart(db, 'rest_csb_nitp', [
         { itemId: 'test_item_1', quantity: 1, expectedPricePaise: 15000 }, // Expected 15000, DB is 16000
       ])
     ).rejects.toThrowError(CartConflictError);
   });
 
   it('enforces single-vendor cart rule, minimum order, packing charges, and capped coupon discounts', () => {
-    expect(checkSingleVendor('v_ganga', 'v_ganga', 2).allowed).toBe(true);
-    expect(checkSingleVendor('v_ganga', 'v_chai', 2)).toEqual({
+    expect(checkSingleVendor('rest_csb_nitp', 'rest_csb_nitp', 2).allowed).toBe(true);
+    expect(checkSingleVendor('rest_csb_nitp', 'rest_wrapchik_nitp', 2)).toEqual({
       allowed: false,
-      conflictVendorId: 'v_ganga',
+      conflictVendorId: 'rest_csb_nitp',
     });
 
     const coupon: CouponRule = {

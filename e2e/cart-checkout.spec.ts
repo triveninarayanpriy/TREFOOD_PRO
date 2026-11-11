@@ -8,8 +8,12 @@ test.describe('Cart & Checkout (Zustand Persisted, Coupons, Min Order, Curfew & 
   }) => {
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
+    let allowOfflineNetworkErrors = false;
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
+      if (msg.type() === 'error') {
+        if (allowOfflineNetworkErrors && msg.text().includes('ERR_FAILED')) return;
+        consoleErrors.push(msg.text());
+      }
     });
     page.on('pageerror', (err) => pageErrors.push(err.message));
 
@@ -17,58 +21,61 @@ test.describe('Cart & Checkout (Zustand Persisted, Coupons, Min Order, Curfew & 
     const dayMockTs = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
     await page.setExtraHTTPHeaders({ 'x-mock-time': dayMockTs });
 
-    // 1. Add low-price item from Sone Valley Biryani (min order ₹79; Boondi Raita ₹25 -> short by ₹54)
-    await page.goto('/vendor/sone-valley-biryani');
-    await expect(page.getByRole('heading', { name: 'Sone Valley Thali & Biryani' })).toBeVisible({
+    // 1. Add Packaged Drinking Water (MRP) (₹22) from Chai Sutta Bar (CSB) (min order ₹39 -> short by ₹17)
+    await page.goto('/vendor/chai-sutta-bar-csb');
+    await expect(page.getByRole('heading', { name: 'Chai Sutta Bar (CSB)' })).toBeVisible({
       timeout: 15000,
     });
 
-    const boondiRow = page.locator('[data-menu-item="Boondi Raita Cup"]');
-    await expect(boondiRow).toBeVisible();
-    await boondiRow.getByRole('button', { name: '+ Add' }).click();
+    const waterRow = page.locator('[data-menu-item="Packaged Drinking Water (MRP)"]');
+    await expect(waterRow).toBeVisible();
+    await waterRow.getByRole('button', { name: 'Add', exact: true }).click();
 
-    await expect(page.getByRole('button', { name: /View Packet/i })).toBeVisible();
+    // View Packet bar on mobile OR Open Cart in TopBar
+    await expect(page.getByRole('button', { name: /Open Cart with 1 items/i })).toBeVisible();
 
     // 2. Offline persistence: go offline -> confirm persisted state stays intact -> return online -> reload recovers cart
+    allowOfflineNetworkErrors = true;
     await context.setOffline(true);
     const storedBefore = await page.evaluate(() => localStorage.getItem('trefood_cart_v1'));
-    expect(storedBefore).toContain('Boondi Raita Cup');
+    expect(storedBefore).toContain('Packaged Drinking Water (MRP)');
     await context.setOffline(false);
-
     await page.reload();
-    await expect(page.getByRole('button', { name: /View Packet/i })).toBeVisible({ timeout: 10000 });
+    allowOfflineNetworkErrors = false;
+    await expect(page.getByRole('button', { name: /Open Cart with 1 items/i })).toBeVisible({ timeout: 10000 });
 
-    // 3. Single-vendor conflict dialog ("Start a new cart with Ganga Dhaba & Kitchen?")
-    await page.goto('/vendor/ganga-dhaba');
-    await expect(page.getByRole('heading', { name: 'Ganga Dhaba & Kitchen' })).toBeVisible({
+    // 3. Single-vendor conflict dialog ("Start a new cart with Wrapchik Pizza?")
+    await page.goto('/vendor/wrapchik-pizza');
+    await expect(page.getByRole('heading', { name: 'Wrapchik Pizza' })).toBeVisible({
       timeout: 15000,
     });
-    await page.getByRole('button', { name: '+ Add' }).first().click();
+    await page.getByRole('button', { name: 'Add', exact: true }).first().click();
     await expect(
-      page.getByRole('heading', { name: /Start a new cart with Ganga Dhaba & Kitchen\?/i })
+      page.getByRole('heading', { name: /Start a new cart with Wrapchik Pizza\?/i })
     ).toBeVisible();
-    // Keep existing Sone Valley cart to test min-order progress bar
+    // Keep existing CSB cart to test min-order progress bar
     await page.getByRole('button', { name: /Keep existing items/i }).click();
 
-    // 4. Open CartDrawer -> check min-order progress bar + click suggested add-on -> check coupons & itemized bill
-    await page.getByRole('button', { name: /View Packet/i }).click();
+    // 4. Open CartDrawer -> check min-order progress bar + click suggested add-on -> check coupons & itemized PaperBill
+    await page.getByRole('button', { name: /Open Cart with 1 items/i }).click();
     const cartDialog = page.getByRole('dialog', { name: 'Your Cart' });
     await expect(cartDialog).toBeVisible();
     await expect(cartDialog.getByRole('progressbar', { name: 'Minimum order progress' })).toBeVisible();
-    await expect(cartDialog.getByText(/Add ₹54 more to reach min ₹79/i)).toBeVisible();
+    await expect(cartDialog.getByText(/Add ₹17 more to reach min ₹39/i)).toBeVisible();
 
     // Checkout button disabled while below min order
-    await expect(cartDialog.getByRole('button', { name: /Add ₹54 more to checkout/i })).toBeDisabled();
+    await expect(cartDialog.getByRole('button', { name: /Add ₹17 more to checkout/i })).toBeDisabled();
 
-    // Click suggested quick add-on from Sone Valley
+    // Click suggested quick add-on from CSB until ₹39+ min order is met (e.g. Carry Bag ₹10 x2 -> ₹22 + ₹20 = ₹42)
     const quickAddonBtn = cartDialog
       .getByRole('group', { name: 'Suggested add-ons' })
       .getByRole('button')
       .first();
     await expect(quickAddonBtn).toBeVisible();
     await quickAddonBtn.click();
+    await quickAddonBtn.click();
 
-    // Wait for Checkout button to become active once subtotal meets ₹79+
+    // Wait for Checkout button to become active once subtotal meets ₹39+
     const checkoutBtn = cartDialog.getByRole('button', { name: /Proceed to Checkout/i });
     await expect(checkoutBtn).toBeVisible({ timeout: 10000 });
     await expect(checkoutBtn).toBeEnabled({ timeout: 10000 });
@@ -80,16 +87,16 @@ test.describe('Cart & Checkout (Zustand Persisted, Coupons, Min Order, Curfew & 
       await applyBtn.click();
     }
 
-    // Verify itemized bill lines (Items subtotal, Packing charges, Delivery Fee, Total)
+    // Verify PaperBill itemized lines (Items subtotal, Packing charges, Delivery Fee, Total)
     await expect(cartDialog.getByText(/Items subtotal/i)).toBeVisible();
     await expect(cartDialog.getByText('Packing charges')).toBeVisible();
-    await expect(cartDialog.getByText('FREE')).toBeVisible();
+    await expect(cartDialog.getByText(/FREE/)).toBeVisible();
 
     // 5. Switch mock header to 19:20 IST (13:50 UTC) & choose Boys Hostel gate via URL param -> curfew warning + alternative gate switch inside Cart
     const ts1920Ist = Math.floor(new Date().setUTCHours(13, 50, 0, 0) / 1000).toString();
     await page.setExtraHTTPHeaders({ 'x-mock-time': ts1920Ist });
-    await page.goto('/vendor/sone-valley-biryani?gate=gate_h5');
-    await page.getByRole('button', { name: /View Packet/i }).click();
+    await page.goto('/vendor/chai-sutta-bar-csb?gate=gate_h5');
+    await page.getByRole('button', { name: /Open Cart/i }).first().click();
 
     // Curfew alert offers 1-tap Main Gate switch
     await expect(cartDialog.getByText(/Gate delivery alert/i)).toBeVisible({ timeout: 10000 });
@@ -113,14 +120,19 @@ test.describe('Cart & Checkout (Zustand Persisted, Coupons, Min Order, Curfew & 
     await page.getByRole('button', { name: 'ASAP' }).click();
 
     // Select UPI Simulated + test decline first -> clean alert + uncheck failure -> place order
-    await page.getByLabel(/Pay now with UPI/i).check();
-    await page.getByLabel(/Simulate UPI bank decline/i).check();
-    await page.getByRole('button', { name: /Authorize UPI & Confirm Order/i }).click();
+    const checkoutDialog = page.getByRole('dialog', { name: 'Confirm & Place Order' });
+    await checkoutDialog.getByLabel(/Pay now with UPI/i).check();
+    await checkoutDialog.getByLabel(/Simulate UPI bank decline/i).check();
+    const authBtn = checkoutDialog.getByRole('button', { name: /Authorize UPI & Confirm Order/i });
+    await authBtn.scrollIntoViewIfNeeded();
+    await authBtn.click();
 
-    await expect(page.getByText(/UPI collect request|declined/i)).toBeVisible({ timeout: 10000 });
+    await expect(checkoutDialog.getByText(/UPI collect request|declined/i)).toBeVisible({
+      timeout: 10000,
+    });
 
     // Recover cleanly: uncheck failure simulation and submit
-    await page.getByLabel(/Simulate UPI bank decline/i).uncheck();
+    await checkoutDialog.getByLabel(/Simulate UPI bank decline/i).uncheck();
 
     // Axe check on checkout modal before final submit
     const axeCheckout = await new AxeBuilder({ page })
@@ -132,9 +144,9 @@ test.describe('Cart & Checkout (Zustand Persisted, Coupons, Min Order, Curfew & 
 
     await page.getByRole('button', { name: /Retry Placing Order|Authorize UPI/i }).click();
 
-    // Navigates to /orders/:id with 4-digit handover ticket & itemized receipt
+    // Navigates to /orders/:id with 4-digit Packet Chit & itemized receipt
     await page.waitForURL(/\/orders\/[a-zA-Z0-9_-]+/, { timeout: 15000 });
-    await expect(page.getByText('Handover Ticket').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('packet-chit')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Paid via UPI (Simulated)')).toBeVisible();
     await expect(page.getByText('Call near Main Gate security cabin')).toBeVisible();
 

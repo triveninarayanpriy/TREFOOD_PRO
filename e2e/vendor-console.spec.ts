@@ -37,9 +37,9 @@ test.describe('Vendor Tablet Console (/vendor at 768px & 1024px)', () => {
               'x-mock-time': tsHeader,
             },
             body: JSON.stringify({
-              vendorId: 'v_ganga',
+              vendorId: 'rest_csb_nitp',
               gateId: 'gate_main',
-              items: [{ itemId: 'it_g1', quantity: 1 }],
+              items: [{ itemId: 'csb_chocolate_chai', quantity: 2 }],
             }),
           });
           return r.json();

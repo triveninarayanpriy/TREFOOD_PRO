@@ -4,6 +4,18 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Changed - TreFood Redesign Reset (R1–R4) & Cloudflare Production Verification
+- **Real NIT Patna Catalog & Self-Hosted Assets (R1)**:
+  - Replaced invented vendor fixtures with `db/real-seed.json` (**8** NIT Patna campus vendors, **112** menu categories, **766** items), **789** self-hosted media files in `public/images/`, D1 migration `0006_flaky_ultragirl.sql`, and regenerated `scripts/seed.sql`.
+- **Gate Board & Packet Chit Design System (R2)**:
+  - Established semantic warm-paper (`#FBF6EE`) and `.dark` espresso design tokens in `src/client/index.css` alongside reusable UI components (`GateBoard`, `VendorCounterRow`, `MenuLineRow`, `PaperBill`, `PacketChit`) showcased at `/dev/ui`.
+- **Landing Page Rebuild (R3)**:
+  - Rebuilt `/` (`src/client/pages/LandingPage.tsx`), `VendorOnboardingSection.tsx`, `TopBar.tsx`, and `SplashScreen.tsx`; removed SaaS calculators, badge chrome, `CurfewMiniDemo.tsx`, and `PromotionCarousel.tsx`; added real cropped `1x` DPR workflow captures (`public/images/steps/step-{1..4}.png`).
+- **App Redesign, Routing Fixes & Audit (R4)**:
+  - Redesigned `/app`, `/vendor/:slug`, `/search`, `/favourites`, `CartDrawer.tsx`, `DesktopPacketSidebar.tsx`, `CheckoutModal.tsx`, and `/orders/:id` using the R2 component set without `backdrop-blur*` classes.
+  - Fixed `/vendor/:slug` vs `/vendor` navigation chrome hiding in `src/client/App.tsx`, auto-closed drawers/modals on route transitions, and added ULID tie-breaking to `src/worker/routes/push.ts`.
+  - Documented full visual, Lighthouse Mobile (`97` `/` / `96` `/app` Performance, `100` Accessibility/Best Practices/SEO), Axe (`0` serious/critical violations), bundle (`117.46 kB` gzip), and dependency security findings in `docs/REDESIGN_AUDIT.md`.
+
 ### Added - Desktop-First Admin Console (/admin) & Server-Side RBAC Verification
 - **Overview Cards & Live Orders Monitor (`src/worker/routes/admin.ts`, `src/client/pages/admin/AdminConsolePage.tsx`)**:
   - Updated `/api/admin/metrics` & `/api/admin/stats` to compute **Live Orders**, **Delivered Today** (IST boundary), **Average Gate ETA**, **Complaints Open**, and **Vendors Open** alongside GMV and IST hourly volume histogram.

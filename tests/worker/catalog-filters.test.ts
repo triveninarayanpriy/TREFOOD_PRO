@@ -8,13 +8,13 @@ import type { VendorSummary } from '@shared/types';
 
 const SAMPLE_VENDORS: VendorSummary[] = [
   {
-    id: 'v_ganga',
-    slug: 'ganga-dhaba',
-    name: 'Ganga Dhaba',
+    id: 'rest_wrapchik_nitp',
+    slug: 'wrapchik-pizza',
+    name: 'Wrapchik Pizza',
     category: 'meals',
-    description: 'North Indian curries and biryani',
-    fssaiNo: '104210000001',
-    prepMinutes: 15,
+    description: 'Pizza, Burgers, Wraps, Crispy Chicken, Waffles, Fries',
+    fssaiNo: '10424000000103',
+    prepMinutes: 20,
     minOrderPaise: 4900,
     startingPricePaise: 3500,
     minVegPricePaise: 3500,
@@ -27,14 +27,14 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     status: 'active',
   },
   {
-    id: 'v_chai',
-    slug: 'campus-chai',
-    name: 'Campus Chai Point',
+    id: 'rest_csb_nitp',
+    slug: 'chai-sutta-bar-csb',
+    name: 'Chai Sutta Bar (CSB)',
     category: 'snacks',
-    description: 'Tea, maggi and quick snacks',
-    fssaiNo: '104210000002',
+    description: 'Chai, Coffee, Fast Food, Snacks, Burgers',
+    fssaiNo: '10424000000102',
     prepMinutes: 8,
-    minOrderPaise: 0,
+    minOrderPaise: 3900,
     startingPricePaise: 1500,
     minVegPricePaise: 1500,
     hasVegItems: true,
@@ -46,12 +46,12 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     status: 'active',
   },
   {
-    id: 'v_meat',
-    slug: 'patna-fresh-meat',
-    name: 'Patna Fresh Meat',
+    id: 'rest_crave_nitp',
+    slug: 'crave',
+    name: 'Crave',
     category: 'raw_chicken',
-    description: 'Fresh broiler chicken cuts & eggs',
-    fssaiNo: '104210000003',
+    description: 'Hyderabadi Biryani and chicken specialties',
+    fssaiNo: '10424000000108',
     prepMinutes: 12,
     minOrderPaise: 9900,
     startingPricePaise: 5500,
@@ -64,14 +64,14 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     status: 'active',
   },
   {
-    id: 'v_mithila',
-    slug: 'mithila-tiffin',
-    name: 'Mithila Homestyle Tiffin',
+    id: 'rest_vrindavan_bhog_nitp',
+    slug: 'vrindavan-bhog',
+    name: 'Vrindavan Bhog',
     category: 'meals',
-    description: 'Homestyle tiffin meals',
-    fssaiNo: '104210000004',
+    description: 'Pure Vegetarian North & South Indian Thali',
+    fssaiNo: '10424000000107',
     prepMinutes: 20,
-    minOrderPaise: 0,
+    minOrderPaise: 49900,
     startingPricePaise: 5500,
     minVegPricePaise: 5500,
     hasVegItems: true,
@@ -109,19 +109,19 @@ describe('Catalog Filtering & Zero-Result Prevention', () => {
 
   it('sorts open vendors before closed ones and honors ETA, Rating, and Price sorts', () => {
     const byEta = sortCustomerVendors(SAMPLE_VENDORS, 'eta');
-    expect(byEta.map((v) => v.id)).toEqual(['v_chai', 'v_meat', 'v_ganga', 'v_mithila']);
+    expect(byEta.map((v) => v.id)).toEqual(['rest_csb_nitp', 'rest_crave_nitp', 'rest_wrapchik_nitp', 'rest_vrindavan_bhog_nitp']);
 
-    // Even though Mithila has 4.9 rating, it stays sorted below open vendors
+    // Even though Vrindavan Bhog has 4.9 rating, it stays sorted below open vendors
     const byRating = sortCustomerVendors(SAMPLE_VENDORS, 'rating');
-    expect(byRating.map((v) => v.id)).toEqual(['v_ganga', 'v_chai', 'v_meat', 'v_mithila']);
+    expect(byRating.map((v) => v.id)).toEqual(['rest_wrapchik_nitp', 'rest_csb_nitp', 'rest_crave_nitp', 'rest_vrindavan_bhog_nitp']);
 
     const byPrice = sortCustomerVendors(SAMPLE_VENDORS, 'price', false);
-    expect(byPrice.map((v) => v.id)).toEqual(['v_chai', 'v_ganga', 'v_meat', 'v_mithila']);
+    expect(byPrice.map((v) => v.id)).toEqual(['rest_csb_nitp', 'rest_wrapchik_nitp', 'rest_crave_nitp', 'rest_vrindavan_bhog_nitp']);
   });
 
   it('partitions vendors cleanly into open and closed lists', () => {
     const { openVendors, closedVendors } = partitionCustomerVendors(SAMPLE_VENDORS);
-    expect(openVendors.map((v) => v.id)).toEqual(['v_ganga', 'v_chai', 'v_meat']);
-    expect(closedVendors.map((v) => v.id)).toEqual(['v_mithila']);
+    expect(openVendors.map((v) => v.id)).toEqual(['rest_wrapchik_nitp', 'rest_csb_nitp', 'rest_crave_nitp']);
+    expect(closedVendors.map((v) => v.id)).toEqual(['rest_vrindavan_bhog_nitp']);
   });
 });

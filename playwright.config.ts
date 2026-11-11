@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const targetBaseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
+const isExternalTarget = Boolean(process.env.PLAYWRIGHT_BASE_URL);
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -8,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: targetBaseUrl,
     trace: 'on-first-retry',
   },
   projects: [
@@ -25,10 +28,12 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  webServer: isExternalTarget
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: 'http://localhost:5173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120 * 1000,
+      },
 });

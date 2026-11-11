@@ -20,14 +20,15 @@ test.describe('Orders Tracking, 4-Digit Handover, Notifications & PWA Flow', () 
     const ts1400Ist = Math.floor(new Date().setUTCHours(8, 30, 0, 0) / 1000).toString();
     await page.setExtraHTTPHeaders({ 'x-mock-time': ts1400Ist });
 
-    // 1. Student browses Ganga Dhaba & places an order cleanly
-    await page.goto('/vendor/ganga-dhaba');
-    await expect(page.getByRole('heading', { name: 'Ganga Dhaba & Kitchen' })).toBeVisible({
+    // 1. Student browses Chai Sutta Bar (CSB) & places an order cleanly
+    await page.goto('/vendor/chai-sutta-bar-csb');
+    await expect(page.getByRole('heading', { name: 'Chai Sutta Bar (CSB)' })).toBeVisible({
       timeout: 15000,
     });
-    await page.getByRole('button', { name: '+ Add' }).first().click();
+    const milkRow = page.locator('[data-menu-item="Plain Milk"]').first();
+    await milkRow.getByRole('button', { name: 'Add', exact: true }).click();
 
-    await page.getByRole('button', { name: /View Packet/i }).click();
+    await page.getByRole('button', { name: /Open Cart with 1 items/i }).click();
     const cartDialog = page.getByRole('dialog', { name: 'Your Cart' });
     await expect(cartDialog).toBeVisible();
     const proceedBtn = cartDialog.getByRole('button', { name: /Proceed to Checkout/i });
@@ -49,8 +50,8 @@ test.describe('Orders Tracking, 4-Digit Handover, Notifications & PWA Flow', () 
     const orderId = orderUrl.split('/orders/')[1]?.split('?')[0] || '';
     expect(orderId.length).toBeGreaterThan(5);
 
-    // Verify 6-step StatusTimeline, freshness indicator, manual refresh, and push status card
-    await expect(page.getByText('Handover Ticket').first()).toBeVisible({ timeout: 10000 });
+    // Verify PacketChit, 6-step StatusTimeline, freshness indicator, manual refresh, and push status card
+    await expect(page.getByTestId('packet-chit')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Live Order Progress')).toBeVisible();
     await expect(page.getByText('Placed').first()).toBeVisible();
     await expect(page.getByText('Accepted').first()).toBeVisible();
@@ -96,7 +97,7 @@ test.describe('Orders Tracking, 4-Digit Handover, Notifications & PWA Flow', () 
 
       await expect(orderCard.getByText(`#${publicNo}`)).toBeVisible({ timeout: 10000 });
       await expect(
-        vendorPage.getByText('At Gate (Handover)').first()
+        orderCard.getByText('Packet at gate').first()
       ).toBeVisible({ timeout: 10000 });
     } finally {
       await vendorContext.close();
@@ -127,7 +128,7 @@ test.describe('Orders Tracking, 4-Digit Handover, Notifications & PWA Flow', () 
 
     // 6. Rate via Rate & Review sheet
     await page.getByRole('button', { name: /Rate & Review/i }).click();
-    await expect(page.getByRole('dialog', { name: /Rate Ganga Dhaba/i })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /Rate Chai Sutta Bar/i })).toBeVisible();
     await page.getByRole('button', { name: /Submit Review/i }).click();
     await expect(page.getByText(/Review saved/i)).toBeVisible({ timeout: 10000 });
 
@@ -170,10 +171,12 @@ test.describe('Orders Tracking, 4-Digit Handover, Notifications & PWA Flow', () 
     await page.getByRole('tab', { name: /Past/i }).click();
     await expect(page.getByText(`#${publicNo}`).first()).toBeVisible({ timeout: 10000 });
 
-    // Reorder restores items & opens vendor menu
-    await page.getByRole('button', { name: 'Reorder' }).first().click();
-    await expect(page).toHaveURL(/\/vendor\/ganga-dhaba/);
-    await expect(page.getByRole('button', { name: /View Packet/i })).toBeVisible({ timeout: 10000 });
+    // Reorder restores items & opens vendor menu for this specific order
+    const targetOrderCard = page.locator('article').filter({ hasText: `#${publicNo}` }).first();
+    await expect(targetOrderCard).toBeVisible({ timeout: 10000 });
+    await targetOrderCard.getByRole('button', { name: 'Reorder' }).click();
+    await expect(page).toHaveURL(/\/vendor\/chai-sutta-bar-csb/);
+    await expect(page.getByRole('button', { name: /Open Cart with \d+ items/i })).toBeVisible({ timeout: 10000 });
 
     // Verify Service Worker registration, manifest.json, and offline fallback page
     const swRegistered = await page.evaluate(async () => {

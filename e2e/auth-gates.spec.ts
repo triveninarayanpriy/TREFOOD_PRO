@@ -59,8 +59,9 @@ test.describe('Authentication (/signin), Demo Role Switcher, Gate Picker & Splas
 
     // Open gate picker -> click closed Boys Hostel Gate -> explains why + offers 1-tap nearest open gate
     await gateBtn.click();
-    await expect(page.getByRole('dialog', { name: 'Choose Delivery Gate' })).toBeVisible();
-    await page.getByRole('button', { name: /Boys Hostel Gate/i }).click();
+    const gateDialog = page.getByRole('dialog', { name: 'Choose Delivery Gate' });
+    await expect(gateDialog).toBeVisible();
+    await gateDialog.getByRole('button', { name: /Boys Hostel Gate/i }).click();
 
     await expect(page.getByText(/Boys Hostel Gate is closed right now/i)).toBeVisible();
     await expect(page.getByText(/Curfew ended at 19:30 IST/i)).toBeVisible();
@@ -71,7 +72,8 @@ test.describe('Authentication (/signin), Demo Role Switcher, Gate Picker & Splas
 
     // Select Boys Hostel Gate again and keep it -> refresh retains choice cleanly
     await gateBtn.click();
-    await page.getByRole('button', { name: /Boys Hostel Gate/i }).click();
+    await expect(gateDialog).toBeVisible();
+    await gateDialog.getByRole('button', { name: /Boys Hostel Gate/i }).click();
     await page.getByRole('button', { name: /Keep Closed Gate/i }).click();
     await expect(gateBtn).toContainText(/Boys Hostel/i);
     await expect(gateBtn).toContainText(/Closed/i);
@@ -84,15 +86,15 @@ test.describe('Authentication (/signin), Demo Role Switcher, Gate Picker & Splas
     page,
   }) => {
     // 1. Guest can browse freely; tapping Favourite heart prompts /signin with returnTo
-    await page.goto('/vendor/ganga-dhaba');
+    await page.goto('/vendor/wrapchik-pizza');
     await page.getByRole('button', { name: /Save to favourites/i }).click();
-    await expect(page).toHaveURL(/\/signin\?returnTo=.*ganga-dhaba.*reason=favorites/);
+    await expect(page).toHaveURL(/\/signin\?returnTo=.*wrapchik-pizza.*reason=favorites/);
 
-    // 2. Mock Google Account Chooser returns user to where they were (/vendor/ganga-dhaba)
+    // 2. Mock Google Account Chooser returns user to where they were (/vendor/wrapchik-pizza)
     await page.getByRole('button', { name: /Sign in with Google/i }).click();
     await expect(page.getByRole('heading', { name: 'Choose an NIT Patna Google Account' })).toBeVisible();
     await page.getByRole('button', { name: /Aarav Verma/i }).click();
-    await expect(page).toHaveURL(/\/vendor\/ganga-dhaba/);
+    await expect(page).toHaveURL(/\/vendor\/wrapchik-pizza/);
 
     // Session persists across refresh
     await page.reload();

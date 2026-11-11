@@ -27,9 +27,9 @@ describe('Curfew and Delivery Service', () => {
     active: true,
   };
 
-  const vendorGanga: VendorRecord = {
-    id: 'v_ganga',
-    name: 'Ganga Dhaba',
+  const vendorKitchen: VendorRecord = {
+    id: 'rest_royal_bihar_nitp',
+    name: 'The Royal Bihar Restaurant',
     hoursJson: JSON.stringify({ open: '10:00', close: '23:00' }),
     prepMinutes: 20,
     isOpen: true,
@@ -37,8 +37,8 @@ describe('Curfew and Delivery Service', () => {
   };
 
   const vendorLate: VendorRecord = {
-    id: 'v_late',
-    name: 'Midnight Bites',
+    id: 'rest_crave_nitp',
+    name: 'Crave',
     hoursJson: JSON.stringify({ open: '21:00', close: '03:00' }),
     prepMinutes: 15,
     isOpen: true,
@@ -46,7 +46,7 @@ describe('Curfew and Delivery Service', () => {
   };
 
   const vgMain: VendorGateRecord = {
-    vendorId: 'v_ganga',
+    vendorId: 'rest_royal_bihar_nitp',
     gateId: 'gate_main',
     extraMinutes: 0,
   };
@@ -55,7 +55,7 @@ describe('Curfew and Delivery Service', () => {
     // 20:00 IST (14:30 UTC) -> 1200 minutes of day
     // Current: 20:00, Prep: 20, Travel: 10, Buffer: 15 -> Arrival: 20:45 < Curfew: 23:30
     const nowUtc = 1700058600; // corresponds to 20:00 IST
-    const result = canDeliver(gateMain, vendorGanga, nowUtc, vgMain, [gateMain, gateH5]);
+    const result = canDeliver(gateMain, vendorKitchen, nowUtc, vgMain, [gateMain, gateH5]);
     expect(result.ok).toBe(true);
     expect(result.etaMinutes).toBe(30);
   });
@@ -65,13 +65,13 @@ describe('Curfew and Delivery Service', () => {
     // UTC for 22:50 IST
     // 22:50 IST = 17:20 UTC = 1700068800
     const nowUtc = 1700068800;
-    const result = canDeliver(gateH5, vendorGanga, nowUtc, vgMain, [gateMain, gateH5]);
+    const result = canDeliver(gateH5, vendorKitchen, nowUtc, vgMain, [gateMain, gateH5]);
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('too_late');
   });
 
   it('handles post-midnight curfew and operating hours wrap-around correctly', () => {
-    // Midnight Bites operates 21:00 to 03:00 IST
+    // Crave late-night operating window test: 21:00 to 03:00 IST
     // At 00:30 IST (post-midnight):
     // 00:30 IST = 19:00 UTC previous day = 1700074800
     const nowUtc = 1700074800;
@@ -86,7 +86,7 @@ describe('Curfew and Delivery Service', () => {
     };
 
     const vgLate: VendorGateRecord = {
-      vendorId: 'v_late',
+      vendorId: 'rest_crave_nitp',
       gateId: 'gate_late',
       extraMinutes: 0,
     };
@@ -194,8 +194,8 @@ describe('Curfew and Delivery Service', () => {
     const t1800 = baseIstMidnightUtc + 18 * 3600; // 18:00 IST
 
     const closedMorningVendor: VendorRecord = {
-      id: 'v_tiffin',
-      name: 'Mithila Tiffin',
+      id: 'rest_vrindavan_bhog_nitp',
+      name: 'Vrindavan Bhog',
       hoursJson: JSON.stringify({ open: '09:00', close: '21:00' }),
       prepMinutes: 15,
       isOpen: false, // currently closed, but accepts scheduled slots inside hours
@@ -214,7 +214,7 @@ describe('Curfew and Delivery Service', () => {
     };
 
     const vg: VendorGateRecord = {
-      vendorId: 'v_tiffin',
+      vendorId: 'rest_vrindavan_bhog_nitp',
       gateId: 'gate_h5',
       extraMinutes: 0,
     };
