@@ -52,7 +52,8 @@ export function QuantityStepper({
       </button>
 
       <span
-        className="w-8 text-center font-mono text-sm font-bold text-[var(--color-text)]"
+        key={currentVal}
+        className="tf-animate-pop w-8 text-center font-mono text-sm font-bold text-[var(--color-text)]"
         aria-live="polite"
       >
         {currentVal}

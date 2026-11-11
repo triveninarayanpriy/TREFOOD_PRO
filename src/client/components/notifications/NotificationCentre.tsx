@@ -211,7 +211,7 @@ export function NotificationCentreDrawer({ open, onClose }: NotificationCentreDr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[1px]"
+      className="fixed inset-0 z-50 flex justify-end bg-[#1C1210]/55"
       role="dialog"
       aria-modal="true"
       aria-label="Order notifications centre"

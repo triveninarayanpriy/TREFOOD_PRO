@@ -56,8 +56,13 @@ export interface VendorSummary {
   slug: string;
   name: string;
   nameHi?: string | null;
+  tagline?: string | null;
   category: string;
+  cuisines?: string[];
+  badges?: string[];
+  coverImageUrl?: string | null;
   description: string;
+  nightSafetyNotice?: string | null;
   fssaiNo: string;
   hoursJson?: string;
   prepMinutes: number;
@@ -71,6 +76,8 @@ export interface VendorSummary {
   isOpen: boolean;
   busyUntil?: number | null;
   nightSafe?: boolean;
+  dineInAvailable?: boolean;
+  outOfStockCount?: number;
   status: 'pending' | 'active' | 'suspended';
   ratingAvg: number;
   ratingCount: number;

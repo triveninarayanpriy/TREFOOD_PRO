@@ -38,8 +38,13 @@ export const vendors = sqliteTable(
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     nameHi: text('name_hi'),
+    tagline: text('tagline'),
     category: text('category').notNull(), // meals, snacks, fruits, groceries, vegetables, raw_chicken, late_night, beverages
+    cuisinesJson: text('cuisines_json').notNull().default('[]'),
+    badgesJson: text('badges_json').notNull().default('[]'),
+    coverImageUrl: text('cover_image_url'),
     description: text('description').notNull(),
+    nightSafetyNotice: text('night_safety_notice'),
     fssaiNo: text('fssai_no').notNull(),
     phone: text('phone').notNull(),
     hoursJson: text('hours_json').notNull(), // JSON e.g. {"open":"09:00","close":"23:00"}
@@ -49,6 +54,8 @@ export const vendors = sqliteTable(
     isOpen: integer('is_open', { mode: 'boolean' }).notNull().default(true),
     busyUntil: integer('busy_until'), // UTC seconds nullable
     nightSafe: integer('night_safe', { mode: 'boolean' }).notNull().default(true),
+    dineInAvailable: integer('dine_in_available', { mode: 'boolean' }).notNull().default(false),
+    outOfStockCount: integer('out_of_stock_count').notNull().default(0),
     status: text('status', { enum: ['pending', 'active', 'suspended'] })
       .notNull()
       .default('active'),
@@ -415,4 +422,20 @@ export const vendorApplications = sqliteTable(
     createdAt: integer('created_at').notNull(),
   },
   (table) => [index('idx_vendor_applications_campus_created').on(table.campusId, table.createdAt)]
+);
+
+// Privacy-friendly funnel observability events (no userId, email, IP, or device identifiers)
+export const funnelEvents = sqliteTable(
+  'funnel_events',
+  {
+    id: text('id').primaryKey(),
+    eventName: text('event_name', {
+      enum: ['view_menu', 'add_to_cart', 'checkout_start', 'order_placed', 'handover_confirmed'],
+    }).notNull(),
+    route: text('route'),
+    gateId: text('gate_id'),
+    vendorId: text('vendor_id'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('idx_funnel_events_name_at').on(table.eventName, table.createdAt)]
 );

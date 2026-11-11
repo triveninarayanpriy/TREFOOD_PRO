@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useToast } from '../../components/ui/Toast';
 import { useSeoHead } from '../../components/seo/SeoHead';
 import { getGateCurfewStatus } from '@shared/curfew';
@@ -545,7 +546,7 @@ export function VendorConsolePage() {
             onClick={async () => {
               const res = await loginAsDemo('vendor');
               if (res.ok) {
-                showToast('Signed in as Ganga Canteen Vendor', 'success');
+                showToast('Signed in as Chai Sutta Bar (CSB) Vendor', 'success');
                 fetchOrders(true);
               }
             }}
@@ -553,7 +554,7 @@ export function VendorConsolePage() {
             className="w-full min-h-[56px] text-base font-bold"
           >
             <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
-            1-Tap Login as Vendor (Ganga Canteen)
+            1-Tap Login as Vendor (Chai Sutta Bar (CSB))
           </Button>
         </div>
       </div>
@@ -596,7 +597,7 @@ export function VendorConsolePage() {
                 </span>
               </div>
               <p className="text-xs text-stone-600 dark:text-stone-400">
-                {vendorMeta?.name || 'Ganga Canteen'} • NIT Patna ({defaultPrep}m default prep)
+                {vendorMeta?.name || 'Chai Sutta Bar (CSB)'} • NIT Patna ({defaultPrep}m default prep)
               </p>
             </div>
           </div>
@@ -737,6 +738,8 @@ export function VendorConsolePage() {
             <Power className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{wakeLockActive ? 'Awake ON' : 'Stay Awake'}</span>
           </button>
+
+          <ThemeToggle className="min-h-[56px] min-w-[56px]" />
         </div>
 
         {/* Gate Windows Countdown Strip */}
@@ -745,7 +748,7 @@ export function VendorConsolePage() {
             className="flex flex-wrap items-center gap-2 pt-1 text-xs"
             aria-label="Gate curfew windows"
           >
-            <span className="font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1">
+            <span className="font-bold uppercase tracking-wider text-stone-600 dark:text-stone-300 flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
               Gate Windows:
             </span>
@@ -801,7 +804,7 @@ export function VendorConsolePage() {
 
               <div className="space-y-3 pt-3">
                 {newOrders.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-stone-500">No new incoming orders</div>
+                  <div className="py-10 text-center text-xs text-stone-600 dark:text-stone-400">No new incoming orders</div>
                 ) : (
                   newOrders.map((order) => {
                     const selectedPrep = newOrderPrepDrafts[order.id] ?? defaultPrep;
@@ -944,7 +947,7 @@ export function VendorConsolePage() {
 
               <div className="space-y-3 pt-3">
                 {preparingOrders.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-stone-500">No active kitchen orders</div>
+                  <div className="py-10 text-center text-xs text-stone-600 dark:text-stone-400">No active kitchen orders</div>
                 ) : (
                   preparingOrders.map((order) => {
                     const minsToEta = order.etaAt
@@ -1042,7 +1045,7 @@ export function VendorConsolePage() {
                       Ready
                     </h2>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-500">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-600 dark:text-stone-400">
                     <span>On Route</span>
                     <span>•</span>
                     <span>At Gate (Handover)</span>
@@ -1053,7 +1056,7 @@ export function VendorConsolePage() {
 
               <div className="space-y-3 pt-3">
                 {readyAndGateOrders.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-stone-500">
+                  <div className="py-10 text-center text-xs text-stone-600 dark:text-stone-400">
                     No packets out for delivery or waiting at gate
                   </div>
                 ) : (
@@ -1124,7 +1127,7 @@ export function VendorConsolePage() {
                               <div className="py-1 font-mono text-3xl font-black tracking-widest text-stone-900 dark:text-stone-100">
                                 {order.handoverCode}
                               </div>
-                              <div className="text-[11px] text-stone-500">
+                              <div className="text-[11px] text-stone-600 dark:text-stone-400">
                                 Failed student tries: {order.codeAttempts || 0} / 5
                               </div>
                             </div>
@@ -1185,7 +1188,7 @@ export function VendorConsolePage() {
 
               <div className="space-y-2.5 pt-3">
                 {handedOverOrders.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-stone-500">
+                  <div className="py-10 text-center text-xs text-stone-600 dark:text-stone-400">
                     Completed deliveries appear here
                   </div>
                 ) : (
@@ -1256,7 +1259,7 @@ export function VendorConsolePage() {
             >
               <div className="text-center pb-2 border-b border-stone-300">
                 <div className="text-base font-extrabold">TREFOOD NIT PATNA</div>
-                <div className="text-xs">{vendorMeta?.name || 'Ganga Canteen'} • Campus Delivery</div>
+                <div className="text-xs">{vendorMeta?.name || 'Chai Sutta Bar (CSB)'} • Campus Delivery</div>
               </div>
 
               <div className="flex justify-between font-bold pt-1">

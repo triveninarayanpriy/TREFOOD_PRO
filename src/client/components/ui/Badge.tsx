@@ -98,8 +98,10 @@ export function Chip({
       disabled={disabled}
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-[#FFB400] active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed ${
-        selected
+      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-transform focus:outline-none focus:ring-2 focus:ring-[#FFB400] active:scale-95 disabled:cursor-not-allowed ${
+        disabled
+          ? 'border border-stone-300 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400'
+          : selected
           ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
           : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)]'
       }`}
@@ -109,8 +111,10 @@ export function Chip({
       {typeof count === 'number' && (
         <span
           className={`ml-0.5 rounded-full px-1.5 py-0.2 font-mono text-[11px] font-bold ${
-            selected
-              ? 'bg-white/20 text-white dark:bg-[#1C1917]/15 dark:text-[#1C1917]'
+            disabled
+              ? 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300'
+              : selected
+              ? 'bg-black/25 text-white dark:bg-[#1C1917]/20 dark:text-[#1C1917]'
               : 'bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]'
           }`}
         >

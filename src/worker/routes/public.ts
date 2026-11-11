@@ -14,6 +14,7 @@ import {
   orders,
   users,
   vendorApplications,
+  funnelEvents,
 } from '../db/schema';
 import { canDeliver } from '../services/delivery';
 import { getAvailableScheduleSlots } from '@shared/curfew';
@@ -21,7 +22,11 @@ import { priceCart, CartConflictError } from '../services/cart';
 import { getRequestNow, nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
 import { checkRateLimit } from '../utils/rate-limit';
-import { CartQuoteRequestSchema, VendorApplicationInputSchema } from '@shared/schemas';
+import {
+  CartQuoteRequestSchema,
+  VendorApplicationInputSchema,
+  AnalyticsEventInputSchema,
+} from '@shared/schemas';
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -31,7 +36,12 @@ publicRoutes.get('/campuses/:slug', async (c) => {
   const slug = c.req.param('slug');
   const now = getRequestNow(c);
 
-  const campus = await db.select().from(campuses).where(eq(campuses.slug, slug)).get();
+  const campusSlugToFind = slug === 'nit-patna' ? 'nitp' : slug;
+  const campus = await db
+    .select()
+    .from(campuses)
+    .where(or(eq(campuses.slug, slug), eq(campuses.slug, campusSlugToFind)))
+    .get();
   if (!campus) {
     return c.json({ error: { code: 'CAMPUS_NOT_FOUND', message: 'Campus not found' } }, 404);
   }
@@ -97,21 +107,45 @@ publicRoutes.get('/gates', async (c) => {
   return c.json({ ok: true, gates: gateList });
 });
 
-function deriveVendorOfferTags(vendor: { category: string; minOrderPaise: number; nightSafe: boolean }): string[] {
-  const tags: string[] = [];
-  if (vendor.category === 'meals' || vendor.category === 'snacks') {
-    tags.push('20% OFF • CAMPUS20');
-  } else if (vendor.category === 'fruits' || vendor.category === 'beverages') {
-    tags.push('₹10 OFF • FRUIT10');
-  } else if (vendor.category === 'late_night') {
-    tags.push('15% OFF • NIGHT15');
-  } else {
-    tags.push('₹25 OFF • FLAT25');
+function parseJsonArray(raw?: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(String) : [];
+  } catch {
+    return [];
   }
-  if (vendor.minOrderPaise === 0) {
-    tags.push('No min order');
+}
+
+function matchesRealCategory(
+  vendor: { category: string; cuisinesJson?: string | null; dineInAvailable?: boolean | null },
+  category: string | undefined,
+  hasChickenItems: boolean
+): boolean {
+  if (!category || category === 'all' || category === 'food') return true;
+  if (vendor.category === category) return true;
+  const cuisines = parseJsonArray(vendor.cuisinesJson).map((c) => c.toLowerCase());
+  if (category === 'fruits' || category === 'fruits_juices' || category === 'beverages' || category === 'juices') {
+    return cuisines.some((c) => c.includes('beverage') || c.includes('shake') || c.includes('juice') || c.includes('chai'));
   }
-  return tags.slice(0, 2);
+  if (category === 'groceries') {
+    return cuisines.some((c) => c.includes('snack') || c.includes('cafe') || c.includes('waffle'));
+  }
+  if (category === 'raw_chicken' || category === 'fresh_chicken' || category === 'chicken') {
+    return hasChickenItems;
+  }
+  if (category === 'dine_in') {
+    return Boolean(vendor.dineInAvailable);
+  }
+  return false;
+}
+
+function deriveVendorOfferTags(vendor: { category: string; minOrderPaise: number; nightSafe: boolean; badgesJson?: string | null }): string[] {
+  const badges = parseJsonArray(vendor.badgesJson);
+  if (badges.length > 0) return badges.slice(0, 3);
+  const tags: string[] = ['ZERO Delivery Fee', 'Student Offers'];
+  if (vendor.nightSafe) tags.push('Night Safe');
+  return tags;
 }
 
 // GET /api/vendors?gate&category&q&veg&open
@@ -214,19 +248,24 @@ publicRoutes.get('/vendors', async (c) => {
   for (const v of vendorList) {
     const itemStats = itemStatsByVendor.get(v.id);
     const hasVegItems = itemStats ? itemStats.hasVegItems : v.category !== 'raw_chicken';
+    const hasChickenItems = Boolean(
+      itemStats?.items.some((i) => i.name.toLowerCase().includes('chicken'))
+    );
 
     if (vegOnly && (v.category === 'raw_chicken' || !hasVegItems)) {
       continue;
     }
-    if (category && category !== 'all' && v.category !== category) {
+    if (!matchesRealCategory(v, category, hasChickenItems)) {
       continue;
     }
 
+    const cuisines = parseJsonArray(v.cuisinesJson);
     if (q) {
       const matchName = v.name.toLowerCase().includes(q);
       const matchDesc = v.description.toLowerCase().includes(q);
       const matchCat = v.category.toLowerCase().includes(q);
-      if (!matchName && !matchDesc && !matchCat) {
+      const matchCuisine = cuisines.some((cui) => cui.toLowerCase().includes(q));
+      if (!matchName && !matchDesc && !matchCat && !matchCuisine) {
         continue;
       }
     }
@@ -240,8 +279,13 @@ publicRoutes.get('/vendors', async (c) => {
       slug: v.slug,
       name: v.name,
       nameHi: v.nameHi,
+      tagline: v.tagline,
       category: v.category,
+      cuisines,
+      badges: parseJsonArray(v.badgesJson),
+      coverImageUrl: v.coverImageUrl,
       description: v.description,
+      nightSafetyNotice: v.nightSafetyNotice,
       fssaiNo: v.fssaiNo,
       hoursJson: v.hoursJson,
       prepMinutes: v.prepMinutes,
@@ -255,6 +299,8 @@ publicRoutes.get('/vendors', async (c) => {
       isOpen: v.isOpen,
       busyUntil: v.busyUntil,
       nightSafe: v.nightSafe,
+      dineInAvailable: v.dineInAvailable,
+      outOfStockCount: v.outOfStockCount,
       status: v.status,
       ratingAvg: v.ratingAvg,
       ratingCount: v.ratingCount,
@@ -417,8 +463,13 @@ publicRoutes.get('/vendors/:id', async (c) => {
       slug: vendor.slug,
       name: vendor.name,
       nameHi: vendor.nameHi,
+      tagline: vendor.tagline,
       category: vendor.category,
+      cuisines: parseJsonArray(vendor.cuisinesJson),
+      badges: parseJsonArray(vendor.badgesJson),
+      coverImageUrl: vendor.coverImageUrl,
       description: vendor.description,
+      nightSafetyNotice: vendor.nightSafetyNotice,
       fssaiNo: vendor.fssaiNo,
       phone: vendor.phone,
       hoursJson: vendor.hoursJson,
@@ -428,10 +479,11 @@ publicRoutes.get('/vendors/:id', async (c) => {
       isOpen: vendor.isOpen,
       busyUntil: vendor.busyUntil,
       nightSafe: vendor.nightSafe,
+      dineInAvailable: vendor.dineInAvailable,
       status: vendor.status,
       ratingAvg: vendor.ratingAvg,
       ratingCount: vendor.ratingCount,
-      outOfStockCount,
+      outOfStockCount: outOfStockCount || vendor.outOfStockCount,
       offerTags: deriveVendorOfferTags(vendor),
       categories: structuredCategories,
       reviews: enrichedReviews,
@@ -598,9 +650,12 @@ publicRoutes.get('/search', async (c) => {
 
   for (const [, info] of vendorEvalMap) {
     const v = info.vendor;
-    if (category && category !== 'all' && v.category !== category) continue;
+    const vItemsList = itemsByVendor.get(v.id) || [];
+    const hasChicken = vItemsList.some((it) => it.name.toLowerCase().includes('chicken'));
+    if (!matchesRealCategory(v, category, hasChicken)) continue;
     if (openOnly && !info.canDeliver) continue;
 
+    const cuisines = parseJsonArray(v.cuisinesJson);
     // Match vendor
     if (!vegOnly || info.hasVegItems) {
       const vendorMatches =
@@ -609,7 +664,8 @@ publicRoutes.get('/search', async (c) => {
         (v.nameHi || '').toLowerCase().includes(q) ||
         v.description.toLowerCase().includes(q) ||
         v.category.toLowerCase().replace('_', ' ').includes(q) ||
-        (itemsByVendor.get(v.id) || []).some((it) => it.name.toLowerCase().includes(q));
+        cuisines.some((cui) => cui.toLowerCase().includes(q)) ||
+        vItemsList.some((it) => it.name.toLowerCase().includes(q));
 
       if (vendorMatches) {
         matchedVendors.push({
@@ -617,11 +673,17 @@ publicRoutes.get('/search', async (c) => {
           slug: v.slug,
           name: v.name,
           nameHi: v.nameHi,
+          tagline: v.tagline,
           category: v.category,
+          cuisines,
+          badges: parseJsonArray(v.badgesJson),
+          coverImageUrl: v.coverImageUrl,
           description: v.description,
+          nightSafetyNotice: v.nightSafetyNotice,
           fssaiNo: v.fssaiNo,
           hoursJson: v.hoursJson,
           prepMinutes: v.prepMinutes,
+          prepMaxMinutes: v.prepMaxMinutes,
           minOrderPaise: v.minOrderPaise,
           startingPricePaise: info.startingPricePaise,
           minVegPricePaise: info.minVegPricePaise,
@@ -630,6 +692,8 @@ publicRoutes.get('/search', async (c) => {
           isOpen: v.isOpen,
           busyUntil: v.busyUntil,
           nightSafe: v.nightSafe,
+          dineInAvailable: v.dineInAvailable,
+          outOfStockCount: v.outOfStockCount,
           status: v.status,
           ratingAvg: v.ratingAvg,
           ratingCount: v.ratingCount,
@@ -949,4 +1013,48 @@ publicRoutes.post('/vendor-applications', async (c) => {
     },
     201
   );
+});
+
+// POST /api/analytics/events (Privacy-friendly zero-PII funnel telemetry)
+publicRoutes.post('/analytics/events', async (c) => {
+  if (c.req.header('dnt') === '1' || c.req.header('sec-gpc') === '1') {
+    return c.json({ ok: true, recorded: false }, 202);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = AnalyticsEventInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        error: {
+          code: 'INVALID_INPUT',
+          message: parsed.error.errors[0]?.message || 'Invalid funnel analytics event payload.',
+        },
+      },
+      400
+    );
+  }
+
+  const db = c.get('db');
+  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '127.0.0.1';
+  const maxEventsPerIp = c.env.DEMO_MODE === 'true' ? 500 : 120;
+  const ipLimit = await checkRateLimit(db, `analytics_ip:${clientIp}`, maxEventsPerIp, 600, c.env.RATE_LIMIT_KV);
+  if (!ipLimit.allowed) {
+    return c.json({ ok: true, recorded: false }, 202);
+  }
+
+  const cleanRoute = parsed.data.route
+    ? parsed.data.route.split(/[?#]/)[0].slice(0, 120)
+    : null;
+
+  await db.insert(funnelEvents).values({
+    id: ulid(),
+    eventName: parsed.data.event,
+    route: cleanRoute,
+    gateId: parsed.data.gateId || null,
+    vendorId: parsed.data.vendorId || null,
+    createdAt: nowUtc(),
+  });
+
+  return c.json({ ok: true, recorded: true }, 202);
 });

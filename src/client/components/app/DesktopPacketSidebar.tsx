@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { QtyStepper } from '../ui/QtyStepper';
+import { PaperBill } from '../ui/PaperBill';
 import { Button } from '../ui/Button';
 import { ShoppingBag, ArrowRight, Heart, ShieldCheck, Clock, Trash2 } from 'lucide-react';
 import type { Gate } from '@shared/schemas';
@@ -33,76 +34,77 @@ export function DesktopPacketSidebar({
     couponCode,
     setCouponCode,
     quote,
-    quoteLoading,
     quoteError,
   } = useCart();
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const gateStatus = currentGate ? getGateCurfewStatus(currentGate) : null;
+  const localSubtotalPaise = items.reduce((sum, item) => sum + item.pricePaise * item.quantity, 0);
 
   return (
     <aside
       aria-label="Campus Packet Summary"
       className="hidden lg:block lg:col-span-4 lg:sticky lg:top-20 space-y-4"
     >
-      {/* Active Packet Card */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] space-y-4">
-        <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border-subtle)] pb-3">
-          <div className="flex items-center gap-2">
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] space-y-3">
+          <div className="flex items-center gap-2 border-b border-dashed border-[var(--color-border)] pb-3">
             <ShoppingBag className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
-            <h2 className="text-sm font-bold text-[var(--color-text)]">Your Campus Packet</h2>
+            <h2 className="font-display text-base font-bold text-[var(--color-text)]">
+              Your Campus Packet
+            </h2>
           </div>
-          {itemCount > 0 && (
-            <button
-              type="button"
-              onClick={clearCart}
-              className="inline-flex min-h-[32px] items-center gap-1 text-xs font-semibold text-red-700 hover:underline dark:text-red-400"
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Clear</span>
-            </button>
+          <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+            Pick chai, hot meals, shakes, snacks, or chicken from any open NIT Patna counter. Zero
+            delivery fee; pay Cash or UPI at your gate.
+          </p>
+          {couponCode && (
+            <div className="flex items-center justify-between rounded-lg border border-[#D48942]/40 bg-[#FFF9EE] px-3 py-2 text-xs text-[#1C1210] dark:bg-[#231914] dark:text-[#FBF6EE]">
+              <span>
+                Saved offer: <strong className="font-mono">{couponCode}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setCouponCode('')}
+                className="underline font-semibold text-[#830020] dark:text-[#FFB400]"
+              >
+                Clear
+              </button>
+            </div>
           )}
         </div>
-
-        {items.length === 0 ? (
-          <div className="space-y-3 py-2">
-            <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
-              Pick a meal, fresh fruit, grocery staple, or cut from any open campus vendor. Pay zero delivery fee at your gate.
-            </p>
-            {couponCode && (
-              <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                <span>
-                  Saved offer: <strong className="font-mono">{couponCode}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCouponCode('')}
-                  className="underline font-semibold"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {vendor && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--color-text-muted)]">From</span>
+      ) : (
+        <div className="space-y-3">
+          {/* Interactive Quantity Adjusters for Items Currently in Packet */}
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] space-y-2.5">
+            <div className="flex items-center justify-between gap-2 border-b border-dashed border-[var(--color-border)] pb-2">
+              {vendor ? (
                 <Link
                   to={`/vendor/${vendor.slug}`}
-                  className="font-bold text-[#830020] hover:underline dark:text-[#FFB400] truncate max-w-[200px]"
+                  className="font-display text-sm font-bold text-[#830020] hover:underline dark:text-[#FFB400] truncate"
                 >
                   {vendor.name}
                 </Link>
-              </div>
-            )}
+              ) : (
+                <span className="font-display text-sm font-bold text-[var(--color-text)]">
+                  Your Packet ({itemCount})
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={clearCart}
+                className="inline-flex min-h-[32px] items-center gap-1 text-xs font-semibold text-[#B91C1C] hover:underline dark:text-[#FCA5A5]"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Clear</span>
+              </button>
+            </div>
 
-            <div className="max-h-60 overflow-y-auto divide-y divide-[var(--color-border-subtle)] pr-1">
+            <div className="max-h-52 overflow-y-auto divide-y divide-[var(--color-border-subtle)] pr-1">
               {items.map((item) => {
                 const lineId = item.lineKey || item.itemId;
                 return (
-                  <div key={lineId} className="py-2.5 flex items-center justify-between gap-2">
+                  <div key={lineId} className="py-2 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-[var(--color-text)] truncate">
                         {item.name}
@@ -115,7 +117,7 @@ export function DesktopPacketSidebar({
                         </div>
                       )}
                       <div className="font-mono text-xs text-[var(--color-text-muted)]">
-                        ₹{((item.pricePaise * item.quantity) / 100).toFixed(0)}
+                        ₹{Math.round((item.pricePaise * item.quantity) / 100)}
                       </div>
                     </div>
                     <QtyStepper
@@ -129,68 +131,46 @@ export function DesktopPacketSidebar({
             </div>
 
             {quoteError && (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              <div className="rounded-lg border border-[#D48942] bg-[#FFF9EE] p-2.5 text-xs text-[#824410] dark:bg-[#231914] dark:text-[#FDE68A]">
                 {quoteError}
               </div>
             )}
-
-            <div className="space-y-1.5 border-t border-[var(--color-border-subtle)] pt-3 text-xs">
-              <div className="flex justify-between text-[var(--color-text-muted)]">
-                <span>Subtotal ({itemCount} items)</span>
-                <span className="font-mono">
-                  {quoteLoading ? '...' : `₹${((quote?.subtotalPaise || 0) / 100).toFixed(2)}`}
-                </span>
-              </div>
-              <div className="flex justify-between text-[var(--color-text-muted)]">
-                <span>Packing charges</span>
-                <span className="font-mono">
-                  {quoteLoading ? '...' : `₹${((quote?.packingTotalPaise || 0) / 100).toFixed(2)}`}
-                </span>
-              </div>
-              {(quote?.discountPaise ?? 0) > 0 && (
-                <div className="flex justify-between font-semibold text-[#15803D] dark:text-[#86EFAC]">
-                  <span>Offer ({quote?.couponApplied})</span>
-                  <span className="font-mono">-₹{((quote?.discountPaise || 0) / 100).toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-[var(--color-text-muted)]">
-                <span>Gate delivery</span>
-                <span className="font-bold text-[#15803D] dark:text-[#86EFAC]">FREE</span>
-              </div>
-              <div className="flex justify-between pt-1.5 text-sm font-extrabold text-[var(--color-text)]">
-                <span>Total to Pay</span>
-                <span className="font-mono text-[#830020] dark:text-[#FFB400]">
-                  {quoteLoading ? '...' : `₹${((quote?.totalPaise || 0) / 100).toFixed(2)}`}
-                </span>
-              </div>
-            </div>
-
-            {quote?.meetsMinOrder === false && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                Add ₹{Math.ceil((quote.shortfallPaise || 0) / 100)} more to meet vendor minimum order.
-              </div>
-            )}
-
-            <Button
-              type="button"
-              variant="primary"
-              disabled={
-                Boolean(quoteError) ||
-                items.length === 0 ||
-                quote?.meetsMinOrder === false
-              }
-              onClick={() => setCheckoutOpen(true)}
-              className="w-full min-h-[48px]"
-            >
-              <span>Checkout & Collect</span>
-              <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-            </Button>
           </div>
-        )}
-      </div>
+
+          {/* Torn-edge Campus PaperBill Receipt */}
+          <PaperBill
+            vendorName={vendor?.name || 'Campus Counter'}
+            gateName={currentGate?.name || 'Campus Gate'}
+            items={items.map((it) => ({
+              id: it.lineKey || it.itemId,
+              label: it.name,
+              qty: it.quantity,
+              amountPaise: it.pricePaise * it.quantity,
+            }))}
+            subtotalPaise={quote?.subtotalPaise ?? localSubtotalPaise}
+            packingTotalPaise={quote?.packingTotalPaise ?? 0}
+            discountPaise={quote?.discountPaise ?? 0}
+            couponCode={quote?.couponApplied}
+            totalPaise={quote?.totalPaise ?? localSubtotalPaise}
+            minOrderPaise={quote?.minOrderPaise ?? 0}
+            footerAction={
+              <Button
+                type="button"
+                variant="amber"
+                disabled={Boolean(quoteError) || items.length === 0 || quote?.meetsMinOrder === false}
+                onClick={() => setCheckoutOpen(true)}
+                className="w-full min-h-[48px]"
+              >
+                <span>Checkout &amp; Collect</span>
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       {/* Selected Gate & Night Safety Snapshot */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] space-y-2.5 text-xs">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] space-y-2.5 text-xs">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 font-bold text-[var(--color-text)]">
             <Clock className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
@@ -209,7 +189,7 @@ export function DesktopPacketSidebar({
         {gateStatus && (
           <p className="text-[var(--color-text-muted)]">
             {gateStatus.statusText}
-            {gateStatus.countdownText ? ` • ${gateStatus.countdownText}` : ''}
+            {gateStatus.countdownText ? ` · ${gateStatus.countdownText}` : ''}
           </p>
         )}
         <div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-2.5">

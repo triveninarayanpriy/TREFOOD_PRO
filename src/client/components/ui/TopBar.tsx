@@ -13,7 +13,7 @@ import {
   Heart,
   Bell,
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../../i18n';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Gate } from '@shared/schemas';
 import { getGateCurfewStatus } from '@shared/curfew';
@@ -39,10 +39,10 @@ export interface TopBarProps {
 }
 
 const LANDING_ANCHORS = [
-  { href: '#how-it-works', label: 'How it works' },
-  { href: '#for-vendors', label: 'For vendors' },
-  { href: '#safety', label: 'Safety' },
-  { href: '#faq', label: 'FAQ' },
+  { href: '#how-it-works', key: 'nav.how_it_works', fallback: 'How it works' },
+  { href: '#for-vendors', key: 'nav.for_vendors', fallback: 'For vendors' },
+  { href: '#safety', key: 'nav.safety', fallback: 'Safety' },
+  { href: '#faq', key: 'nav.faq', fallback: 'FAQ' },
 ];
 
 export function TopBar({
@@ -58,19 +58,30 @@ export function TopBar({
   onInstallApp,
   onOpenNotifications,
 }: TopBarProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const toggleLanguage = () => {
-    const nextLang = i18n.language === 'en' ? 'hi' : 'en';
+  const cycleLanguage = () => {
+    const order = ['en', 'hinglish', 'hi'] as const;
+    const idx = order.indexOf((i18n.language as (typeof order)[number]) || 'en');
+    const nextLang = order[(idx + 1) % order.length];
     i18n.changeLanguage(nextLang);
     if (typeof window !== 'undefined') {
       localStorage.setItem('trefood_lang', nextLang);
     }
   };
+
+  const langBadgeLabel =
+    i18n.language === 'hinglish' ? 'Hinglish' : i18n.language === 'hi' ? 'हिन्दी' : 'EN';
+  const nextLangHint =
+    i18n.language === 'en'
+      ? 'Switch to Hinglish mode'
+      : i18n.language === 'hinglish'
+      ? 'Switch to Hindi (हिन्दी)'
+      : 'Switch to English';
 
   const gateStatus = currentGate ? getGateCurfewStatus(currentGate) : null;
   const gateShortName = currentGate ? currentGate.name.split('/')[0].split('(')[0].trim() : 'Choose Gate';
@@ -85,13 +96,14 @@ export function TopBar({
             to="/"
             className="flex items-center gap-1.5 sm:gap-2 group rounded-xl shrink-0 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
           >
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-[#830020] text-[#FFB400] shadow-xs transition-transform group-hover:scale-105 shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 14C4 9.58 7.58 6 12 6C16.42 6 20 9.58 20 14H4Z" fill="#FFB400" />
-                <path d="M3 16.5H21C21 18.7 19.2 20.5 17 20.5H7C4.8 20.5 3 18.7 3 16.5Z" fill="#FFFFFF" />
-                <circle cx="12" cy="4" r="1.5" fill="#FFB400" />
-              </svg>
-            </div>
+            <img
+              src="/images/brand/trefood-brand-logo.jpg"
+              alt=""
+              width={36}
+              height={36}
+              decoding="async"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-cover border border-[var(--color-border)] shadow-xs transition-transform group-hover:scale-105 shrink-0"
+            />
             <div className="flex flex-col leading-tight">
               <span className="font-display text-base sm:text-lg font-extrabold tracking-tight text-[#830020] dark:text-[#FFB400]">
                 TreFood
@@ -162,14 +174,14 @@ export function TopBar({
                 href={item.href}
                 className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 xl:px-3 text-xs xl:text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
               >
-                {item.label}
+                {t(item.key, item.fallback)}
               </a>
             ))}
             <Link
               to="/app"
               className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-xl px-2.5 xl:px-3 text-xs xl:text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
             >
-              Browse menus
+              {t('nav.browse', 'Browse menus')}
             </Link>
           </nav>
         )}
@@ -188,6 +200,18 @@ export function TopBar({
           )}
 
           <ThemeToggle />
+
+          <button
+            type="button"
+            onClick={cycleLanguage}
+            data-testid="language-toggle"
+            className="hidden sm:inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+            aria-label={`Language: ${langBadgeLabel}. ${nextLangHint}`}
+            title={nextLangHint}
+          >
+            <Globe className="h-3.5 w-3.5 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+            <span>{langBadgeLabel}</span>
+          </button>
 
           {!showDesktopLinks && (
             <>
@@ -208,16 +232,6 @@ export function TopBar({
               >
                 <Heart className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
               </Link>
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="hidden sm:inline-flex min-h-[44px] items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
-                aria-label="Switch language between English and Hindi"
-                title="Switch Language (English / हिन्दी)"
-              >
-                <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{i18n.language === 'en' ? 'हिन्दी' : 'EN'}</span>
-              </button>
             </>
           )}
 
@@ -262,7 +276,10 @@ export function TopBar({
             >
               <ShoppingBag className="h-5 w-5" aria-hidden="true" />
               {cartCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#FFB400] font-mono text-xs font-extrabold text-[#1C1917] ring-2 ring-[var(--color-surface)]">
+                <span
+                  key={cartCount}
+                  className="tf-animate-pop absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#FFB400] font-mono text-xs font-extrabold text-[#1C1917] ring-2 ring-[var(--color-surface)]"
+                >
                   {cartCount}
                 </span>
               )}
@@ -285,7 +302,7 @@ export function TopBar({
               onClick={() => setMobileMenuOpen(false)}
               className="flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)]"
             >
-              {item.label}
+              {t(item.key, item.fallback)}
             </a>
           ))}
           <Link
@@ -293,8 +310,21 @@ export function TopBar({
             onClick={() => setMobileMenuOpen(false)}
             className="flex min-h-[44px] items-center rounded-xl px-3 text-sm font-bold text-[#830020] dark:text-[#FFB400] hover:bg-[var(--color-surface-sunken)]"
           >
-            Browse menus
+            {t('nav.browse', 'Browse menus')}
           </Link>
+          <button
+            type="button"
+            onClick={cycleLanguage}
+            className="flex w-full min-h-[44px] items-center justify-between rounded-xl px-3 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)]"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Globe className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+              <span>Language / Hinglish</span>
+            </span>
+            <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-2 py-0.5 text-xs font-bold">
+              {langBadgeLabel}
+            </span>
+          </button>
           {onInstallApp && (
             <button
               type="button"

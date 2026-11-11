@@ -15,6 +15,13 @@ export interface AdminMetrics {
   cancellationRate: number;
   medianDeliveryMinutes: number;
   hourlyDistribution: number[];
+  funnelCounts?: {
+    view_menu: number;
+    add_to_cart: number;
+    checkout_start: number;
+    order_placed: number;
+    handover_confirmed: number;
+  };
 }
 
 export interface VendorGateReachRow {

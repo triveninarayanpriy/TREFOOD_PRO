@@ -10,6 +10,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Button } from '../components/ui/Button';
+import { useTranslation } from '../i18n';
 import {
   Receipt,
   ChevronRight,
@@ -35,6 +36,7 @@ export function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const { addItem, clearCart } = useCart();
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -118,38 +120,41 @@ export function OrdersPage() {
     switch (status) {
       case 'placed':
         return {
-          label: 'Order Placed',
+          label: t('status.placed', 'Order Placed'),
           color: 'bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-200',
           icon: Clock,
         };
       case 'accepted':
         return {
-          label: 'Accepted & Preparing',
+          label: t('status.preparing', 'Accepted & Preparing'),
           color: 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200',
           icon: Clock,
         };
       case 'out_for_delivery':
         return {
-          label: 'Out for delivery',
+          label: t('status.out_for_delivery', 'Out for delivery'),
           color: 'bg-sky-100 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200',
           icon: Clock,
         };
       case 'at_gate':
         return {
-          label: 'At Gate — Match Code',
+          label: t('status.at_gate', 'At Gate — Match Code'),
           color: 'bg-emerald-800 text-white font-bold',
           icon: CheckCircle2,
         };
       case 'delivered':
         return {
-          label: 'Delivered',
+          label: t('status.delivered', 'Delivered'),
           color: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
           icon: CheckCircle2,
         };
       case 'cancelled':
       case 'expired':
         return {
-          label: status === 'cancelled' ? 'Cancelled' : 'Expired',
+          label:
+            status === 'cancelled'
+              ? t('status.cancelled', 'Cancelled')
+              : t('status.expired', 'Expired'),
           color: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300',
           icon: XCircle,
         };
@@ -171,7 +176,7 @@ export function OrdersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
-            Orders
+            {t('nav.orders', 'Orders')}
           </h1>
           <p className="text-xs text-[var(--color-text-muted)]">
             Live gate handover codes, active trackers & quick campus reorders
@@ -195,7 +200,7 @@ export function OrdersPage() {
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
               }`}
             >
-              Active ({activeOrders.length})
+              {t('ticket.active_tab', 'Active')} ({activeOrders.length})
             </button>
             <button
               type="button"
@@ -208,7 +213,7 @@ export function OrdersPage() {
                   : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
               }`}
             >
-              Past ({pastOrders.length})
+              {t('ticket.past_tab', 'Past')} ({pastOrders.length})
             </button>
           </div>
         )}
@@ -321,7 +326,7 @@ export function OrdersPage() {
                         className="min-h-[44px]"
                       >
                         <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Reorder</span>
+                        <span>{t('ticket.reorder', 'Reorder')}</span>
                       </Button>
                     )}
 
@@ -334,7 +339,7 @@ export function OrdersPage() {
                         className="min-h-[44px] text-xs font-bold text-[#830020] dark:text-[#FFB400]"
                       >
                         <Star className="mr-1.5 h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
-                        <span>Rate & Review</span>
+                        <span>{t('ticket.rate_review', 'Rate & Review')}</span>
                       </Button>
                     )}
 

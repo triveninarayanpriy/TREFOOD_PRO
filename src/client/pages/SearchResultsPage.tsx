@@ -5,8 +5,8 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { AppSearchBar, saveRecentSearch } from '../components/app/AppSearchBar';
 import { DesktopPacketSidebar } from '../components/app/DesktopPacketSidebar';
-import { VendorCard, getVendorImageUrl } from '../components/ui/VendorCard';
-import { GatePicker } from '../components/ui/GatePicker';
+import { getVendorImageUrl } from '../components/ui/VendorCard';
+import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { Chip, Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
 import { Button } from '../components/ui/Button';
@@ -22,6 +22,9 @@ import type { CombinedSearchResponse, SearchDishResult } from '@shared/types';
 
 const CartDrawer = lazy(() =>
   import('../components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+);
+const GatePicker = lazy(() =>
+  import('../components/ui/GatePicker').then((m) => ({ default: m.GatePicker }))
 );
 
 type SearchTab = 'all' | 'vendors' | 'dishes';
@@ -289,7 +292,12 @@ export function SearchResultsPage() {
           </div>
 
           {/* Category Chips (Zero-result prevented) */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Filter search by category"
+            className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+          >
             {categoryChips.map((cat) => (
               <Chip
                 key={cat.id}
@@ -391,12 +399,12 @@ export function SearchResultsPage() {
               {/* Matching Vendors */}
               {(effectiveTab === 'all' || effectiveTab === 'vendors') && filteredVendors.length > 0 && (
                 <section aria-label="Matching Vendors" className="space-y-3">
-                  <h2 className="text-base font-bold text-[var(--color-text)]">
-                    Matching Vendors ({filteredVendors.length})
+                  <h2 className="font-display text-lg font-extrabold text-[var(--color-text)]">
+                    Matching Counters ({filteredVendors.length})
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     {filteredVendors.map((v) => (
-                      <VendorCard
+                      <VendorCounterRow
                         key={v.id}
                         vendor={v}
                         isFavorite={Boolean(favData?.vendorIds?.includes(v.id))}
@@ -432,6 +440,7 @@ export function SearchResultsPage() {
                             width={64}
                             height={64}
                             loading="lazy"
+                            decoding="async"
                             className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] ${
                               !dish.inStock ? 'grayscale opacity-70' : ''
                             }`}
@@ -550,17 +559,21 @@ export function SearchResultsPage() {
         </div>
       </Dialog>
 
-      <GatePicker
-        gates={gatesData?.gates || []}
-        selectedGateId={selectedGateId}
-        onSelectGate={(gateOrId) => {
-          const id = typeof gateOrId === 'string' ? gateOrId : gateOrId.id;
-          setSelectedGateId(id);
-          showToast('Updated delivery gate', 'info');
-        }}
-        isOpen={gatePickerOpen}
-        onClose={() => setGatePickerOpen(false)}
-      />
+      {gatePickerOpen && (
+        <Suspense fallback={null}>
+          <GatePicker
+            gates={gatesData?.gates || []}
+            selectedGateId={selectedGateId}
+            onSelectGate={(gateOrId) => {
+              const id = typeof gateOrId === 'string' ? gateOrId : gateOrId.id;
+              setSelectedGateId(id);
+              showToast('Updated delivery gate', 'info');
+            }}
+            isOpen={gatePickerOpen}
+            onClose={() => setGatePickerOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {cartDrawerOpen && (
         <Suspense fallback={null}>

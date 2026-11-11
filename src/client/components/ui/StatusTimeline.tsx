@@ -1,4 +1,5 @@
 import { Check, Clock, ChefHat, Truck, MapPin, ShieldCheck, XCircle } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 import type { TicketStatus } from './HandoverTicket';
 
 export interface StatusTimelineProps {
@@ -16,18 +17,20 @@ export interface StatusTimelineProps {
 
 interface TimelineStepDef {
   key: 'placed' | 'accepted' | 'preparing' | 'out_for_delivery' | 'at_gate' | 'delivered';
+  titleKey: string;
   title: string;
+  subKey: string;
   subtitle: string;
   icon: typeof Check;
 }
 
 const TIMELINE_STEPS: TimelineStepDef[] = [
-  { key: 'placed', title: 'Placed', subtitle: 'Sent to vendor counter tablet', icon: Clock },
-  { key: 'accepted', title: 'Accepted', subtitle: 'Kitchen confirmed your order', icon: Check },
-  { key: 'preparing', title: 'Preparing', subtitle: 'Freshly packed & sealed with code', icon: ChefHat },
-  { key: 'out_for_delivery', title: 'Out for delivery', subtitle: 'On the way to your campus gate', icon: Truck },
-  { key: 'at_gate', title: 'At your gate', subtitle: 'Match the 4-digit code on the packet', icon: MapPin },
-  { key: 'delivered', title: 'Delivered', subtitle: 'Handover confirmed at the gate', icon: ShieldCheck },
+  { key: 'placed', titleKey: 'status.placed', title: 'Placed', subKey: 'statusSub.placed', subtitle: 'Sent to vendor counter tablet', icon: Clock },
+  { key: 'accepted', titleKey: 'status.accepted', title: 'Accepted', subKey: 'statusSub.accepted', subtitle: 'Kitchen confirmed your order', icon: Check },
+  { key: 'preparing', titleKey: 'status.preparing', title: 'Preparing', subKey: 'statusSub.preparing', subtitle: 'Freshly packed & sealed with code', icon: ChefHat },
+  { key: 'out_for_delivery', titleKey: 'status.out_for_delivery', title: 'Out for delivery', subKey: 'statusSub.out_for_delivery', subtitle: 'On the way to your campus gate', icon: Truck },
+  { key: 'at_gate', titleKey: 'status.at_your_gate', title: 'At your gate', subKey: 'statusSub.at_gate', subtitle: 'Match the 4-digit code on the packet', icon: MapPin },
+  { key: 'delivered', titleKey: 'status.delivered', title: 'Delivered', subKey: 'statusSub.delivered', subtitle: 'Handover confirmed at the gate', icon: ShieldCheck },
 ];
 
 function getStepRank(status: TicketStatus): number {
@@ -63,6 +66,7 @@ export function StatusTimeline({
   etaText,
   timestamps,
 }: StatusTimelineProps) {
+  const { t } = useTranslation();
   const isTerminalError = status === 'cancelled' || status === 'expired';
   const activeRank = getStepRank(status);
 
@@ -86,7 +90,7 @@ export function StatusTimeline({
           <XCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <div className="text-sm font-bold">
-              {status === 'cancelled' ? 'Order Cancelled' : 'Order Expired'}
+              {status === 'cancelled' ? t('status.cancelled', 'Order Cancelled') : t('status.expired', 'Order Expired')}
             </div>
             <p className="text-xs text-red-700/80 dark:text-red-300/80">
               {status === 'cancelled'
@@ -160,7 +164,7 @@ export function StatusTimeline({
                         : 'text-[var(--color-text-muted)]'
                     }`}
                   >
-                    {step.title}
+                    {t(step.titleKey, step.title)}
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     {timeStr && (isCompleted || isActive) && (
@@ -169,13 +173,18 @@ export function StatusTimeline({
                       </span>
                     )}
                     {isActive && (
-                      <span className="rounded-md bg-[#830020]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#830020] dark:bg-[#FFB400]/15 dark:text-[#FFB400]">
+                      <span
+                        key={status}
+                        className="tf-animate-status rounded-md bg-[#830020]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#830020] dark:bg-[#FFB400]/15 dark:text-[#FFB400]"
+                      >
                         Current
                       </span>
                     )}
                   </div>
                 </div>
-                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{step.subtitle}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                  {t(step.subKey, step.subtitle)}
+                </p>
               </div>
             </li>
           );

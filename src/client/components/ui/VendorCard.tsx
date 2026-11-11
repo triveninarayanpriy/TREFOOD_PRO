@@ -6,23 +6,23 @@ import { isNightSafetyActive } from '@shared/curfew';
 export function getVendorImageUrl(category: string): string {
   switch (category) {
     case 'meals':
-      return '/images/meals.svg';
+      return '/images/categories/food-cat.png';
     case 'snacks':
-      return '/images/snacks.svg';
+      return '/images/categories/masala-dosa.png';
     case 'fruits':
-      return '/images/fruits.svg';
+      return '/images/categories/fruits-cat.png';
     case 'groceries':
-      return '/images/groceries.svg';
+      return '/images/categories/groceries-cat.png';
     case 'vegetables':
-      return '/images/vegetables.svg';
+      return '/images/categories/vegetables-cat.png';
     case 'raw_chicken':
-      return '/images/raw-chicken.svg';
+      return '/images/categories/chicken-cat.png';
     case 'late_night':
-      return '/images/late-night.svg';
+      return '/images/vendors/crave.png';
     case 'beverages':
-      return '/images/beverages.svg';
+      return '/images/categories/orange-juice-dish.png';
     default:
-      return '/images/meals.svg';
+      return '/images/categories/food-cat.png';
   }
 }
 
@@ -93,7 +93,7 @@ export function VendorCard({
           </div>
           <p className="text-xs text-[var(--color-text-muted)] truncate">
             {statusReason}
-            {vendor.ratingAvg > 0 ? ` • ★ ${vendor.ratingAvg.toFixed(1)}` : ''}
+            {vendor.ratingAvg > 0 ? ` · Rated ${vendor.ratingAvg.toFixed(1)}` : ''}
           </p>
         </div>
 
@@ -172,16 +172,16 @@ export function VendorCard({
           <button
             type="button"
             onClick={onClick}
-            aria-label={`Open ${vendor.name} menu`}
             className="flex flex-1 min-w-0 items-center gap-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
           >
             <img
-              src={getVendorImageUrl(vendor.category)}
+              src={vendor.coverImageUrl || getVendorImageUrl(vendor.category)}
               alt=""
               width={56}
               height={56}
               loading="lazy"
-              className="h-14 w-14 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]"
+              decoding="async"
+              className="h-14 w-14 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] tf-photo-warm"
             />
             <div className="min-w-0">
               <h3 className="text-base font-bold text-[var(--color-text)] leading-snug truncate">

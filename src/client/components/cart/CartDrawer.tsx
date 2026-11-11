@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
 import { QtyStepper } from '../ui/QtyStepper';
+import { PaperBill } from '../ui/PaperBill';
 import { EmptyState } from '../ui/EmptyState';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../ui/Toast';
@@ -37,7 +38,6 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const {
     vendor,
     items,
-    itemCount,
     selectedGateId,
     setSelectedGateId,
     addItem,
@@ -104,8 +104,6 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const minOrderPaise = quote?.minOrderPaise ?? 0;
   const shortfallPaise = quote?.shortfallPaise ?? 0;
   const meetsMinOrder = quote?.meetsMinOrder !== false && shortfallPaise <= 0;
-  const minOrderProgressPct =
-    minOrderPaise > 0 ? Math.min(100, Math.round((subtotalPaise / minOrderPaise) * 100)) : 100;
 
   const handleApplyCouponSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,70 +222,6 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 </div>
               )}
             </div>
-
-            {/* Minimum Order Progress Bar + Suggested Add-ons when short */}
-            {minOrderPaise > 0 && (
-              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className={meetsMinOrder ? 'text-[#15803D] dark:text-[#86EFAC]' : 'text-[var(--color-text)]'}>
-                    {meetsMinOrder
-                      ? `Minimum order of ₹${Math.round(minOrderPaise / 100)} met`
-                      : `Add ₹${Math.ceil(shortfallPaise / 100)} more to reach min ₹${Math.round(minOrderPaise / 100)}`}
-                  </span>
-                  <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
-                    ₹{Math.round(subtotalPaise / 100)} / ₹{Math.round(minOrderPaise / 100)}
-                  </span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="Minimum order progress"
-                  aria-valuemin={0}
-                  aria-valuemax={minOrderPaise}
-                  aria-valuenow={Math.min(subtotalPaise, minOrderPaise)}
-                  className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface-sunken)]"
-                >
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      meetsMinOrder ? 'bg-[#15803D]' : 'bg-[#FFB400]'
-                    }`}
-                    style={{ width: `${minOrderProgressPct}%` }}
-                  />
-                </div>
-
-                {!meetsMinOrder && quote?.suggestedAddons && quote.suggestedAddons.length > 0 && vendor && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                      Quick add-ons from {vendor.name}
-                    </div>
-                    <div
-                      role="group"
-                      aria-label="Suggested add-ons"
-                      className="flex flex-wrap gap-2"
-                    >
-                      {quote.suggestedAddons.map((addon) => (
-                        <button
-                          key={addon.id}
-                          type="button"
-                          onClick={() =>
-                            addItem(vendor, {
-                              itemId: addon.id,
-                              name: addon.name,
-                              pricePaise: addon.pricePaise,
-                              isVeg: addon.isVeg,
-                            })
-                          }
-                          className="inline-flex min-h-[36px] items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
-                        >
-                          <Plus className="h-3.5 w-3.5 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
-                          <span className="max-w-[140px] truncate">{addon.name}</span>
-                          <span className="font-mono font-bold">₹{Math.round(addon.pricePaise / 100)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Price / Stock Conflict Error */}
             {quoteError && (
@@ -426,7 +360,12 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                   <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                     Available Campus Coupons
                   </div>
-                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-0.5">
+                  <div
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Available Campus Coupons"
+                    className="max-h-36 overflow-y-auto space-y-1.5 pr-0.5 focus:outline-none focus:ring-2 focus:ring-[#FFB400] rounded-lg"
+                  >
                     {couponsList.map((cp) => {
                       const eligibleNow = subtotalPaise >= cp.minOrderPaise;
                       const isApplied = couponCode === cp.code && (quote?.discountPaise ?? 0) > 0;
@@ -485,56 +424,74 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               </div>
             )}
 
-            {/* Itemised Bill */}
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 space-y-2">
-              <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-                <span>Items subtotal ({itemCount})</span>
-                <span className="font-mono">
-                  {quoteLoading ? '...' : `₹${(subtotalPaise / 100).toFixed(2)}`}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-                <span>Packing charges</span>
-                <span className="font-mono">
-                  {quoteLoading ? '...' : `₹${((quote?.packingTotalPaise || 0) / 100).toFixed(2)}`}
-                </span>
-              </div>
-              {(quote?.discountPaise ?? 0) > 0 && (
-                <div className="flex justify-between text-xs font-semibold text-[#15803D] dark:text-[#86EFAC]">
-                  <span>Coupon discount ({quote?.couponApplied})</span>
-                  <span className="font-mono">-₹{((quote?.discountPaise || 0) / 100).toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
-                <span>Delivery Fee</span>
-                <span className="font-bold text-[#15803D] dark:text-[#86EFAC]">FREE</span>
-              </div>
-              <div className="flex justify-between border-t border-[var(--color-border-subtle)] pt-2 text-sm font-bold text-[var(--color-text)]">
-                <span>Total to Pay</span>
-                <span className="font-mono text-base text-[#830020] dark:text-[#FFB400]">
-                  {quoteLoading
-                    ? '...'
-                    : `₹${((quote?.totalPaise ?? subtotalPaise) / 100).toFixed(2)}`}
-                </span>
-              </div>
-            </div>
-
-            {/* Proceed to Checkout */}
-            <div className="pt-1">
-              <Button
-                onClick={() => setCheckoutOpen(true)}
-                disabled={!canProceedToCheckout}
-                variant="primary"
-                className="w-full min-h-[48px] text-base"
-              >
-                <span>
-                  {!meetsMinOrder
-                    ? `Add ₹${Math.ceil(shortfallPaise / 100)} more to checkout`
-                    : 'Proceed to Checkout'}
-                </span>
-                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
+            {/* Printed Torn-Edge Campus PaperBill Receipt */}
+            <PaperBill
+              vendorName={vendor?.name || 'Campus Counter'}
+              gateName={currentGate?.name || selectedGateId}
+              items={items.map((it) => ({
+                id: it.lineKey || it.itemId,
+                label: it.name,
+                qty: it.quantity,
+                amountPaise: it.pricePaise * it.quantity,
+              }))}
+              subtotalPaise={subtotalPaise}
+              packingTotalPaise={quote?.packingTotalPaise || 0}
+              discountPaise={quote?.discountPaise || 0}
+              couponCode={quote?.couponApplied}
+              totalPaise={quote?.totalPaise ?? subtotalPaise}
+              minOrderPaise={minOrderPaise}
+              suggestedAddonsSlot={
+                !meetsMinOrder && quote?.suggestedAddons && quote.suggestedAddons.length > 0 && vendor ? (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                      Quick add-ons from {vendor.name}
+                    </div>
+                    <div
+                      role="group"
+                      aria-label="Suggested add-ons"
+                      className="flex flex-wrap gap-2"
+                    >
+                      {quote.suggestedAddons.map((addon) => (
+                        <button
+                          key={addon.id}
+                          type="button"
+                          onClick={() =>
+                            addItem(vendor, {
+                              itemId: addon.id,
+                              name: addon.name,
+                              pricePaise: addon.pricePaise,
+                              isVeg: addon.isVeg,
+                            })
+                          }
+                          className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+                          <span className="max-w-[140px] truncate">{addon.name}</span>
+                          <span className="font-mono font-bold">₹{Math.round(addon.pricePaise / 100)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null
+              }
+              footerAction={
+                <Button
+                  onClick={() => setCheckoutOpen(true)}
+                  disabled={!canProceedToCheckout}
+                  variant="amber"
+                  className="w-full min-h-[48px] text-base"
+                >
+                  <span>
+                    {!meetsMinOrder
+                      ? `Add ₹${Math.ceil(shortfallPaise / 100)} more to checkout`
+                      : quoteLoading
+                      ? 'Verifying bill...'
+                      : 'Proceed to Checkout'}
+                  </span>
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                </Button>
+              }
+            />
           </div>
         )}
       </Sheet>

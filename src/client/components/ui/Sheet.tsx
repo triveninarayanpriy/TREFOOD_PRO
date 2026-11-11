@@ -44,7 +44,7 @@ export function Sheet({ isOpen, open, onClose, title, children, maxWidth = 'max-
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-[#1C1210]/65 transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />

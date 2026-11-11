@@ -1,13 +1,14 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { trackFunnelEvent } from '../utils/analytics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart, buildCartLineKey } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
-import { MenuItemRow } from '../components/ui/MenuItemRow';
-import { QtyStepper } from '../components/ui/QtyStepper';
+import { MenuLineRow } from '../components/ui/MenuLineRow';
+import { DesktopPacketSidebar } from '../components/app/DesktopPacketSidebar';
 import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -24,7 +25,6 @@ import {
   ShieldCheck,
   ArrowLeft,
   ShoppingBag,
-  Sparkles,
   Heart,
   Phone,
   AlertTriangle,
@@ -32,6 +32,7 @@ import {
   CalendarClock,
   MessageSquare,
 } from 'lucide-react';
+import type { Gate } from '@shared/schemas';
 import type { VendorDetail, EnrichedMenuItem } from '@shared/types';
 
 const CartDrawer = lazy(() =>
@@ -62,8 +63,8 @@ export function VendorPage() {
   const {
     vendor: currentCartVendor,
     items: cartItems,
+    selectedGateId,
     itemCount,
-    quote,
     scheduledFor,
     setScheduledFor,
     addItem,
@@ -98,6 +99,15 @@ export function VendorPage() {
 
   const vendor = vendorData?.vendor;
 
+  useEffect(() => {
+    if (vendor?.id) {
+      trackFunnelEvent('view_menu', {
+        gateId: selectedGateId,
+        vendorId: vendor.id,
+      });
+    }
+  }, [vendor?.id, selectedGateId]);
+
   const { data: favData } = useQuery<{ ok: boolean; vendorIds: string[] }>({
     queryKey: ['favorites', user?.id],
     queryFn: async () => {
@@ -107,6 +117,17 @@ export function VendorPage() {
     },
     enabled: Boolean(user),
   });
+
+  const { data: gatesData } = useQuery<{ ok: boolean; gates: Gate[] }>({
+    queryKey: ['gates'],
+    queryFn: async () => {
+      const res = await fetch('/api/gates');
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const currentGate = gatesData?.gates?.find((g) => g.id === selectedGateId) || gatesData?.gates?.[0] || null;
 
   const isFavorite = Boolean(vendor && favData?.vendorIds?.includes(vendor.id));
 
@@ -299,134 +320,157 @@ export function VendorPage() {
       {/* Two-Column Desktop Layout (Menu + Sticky Packet Summary) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-8 min-w-0 space-y-5">
-          {/* Vendor Profile Header Card */}
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6 shadow-[var(--shadow-card)] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[var(--color-text)]">
-                    {vendor.name}
-                  </h1>
-                  {vendor.nameHi && (
-                    <span className="text-sm font-medium text-[var(--color-text-muted)]">
-                      ({vendor.nameHi})
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)] capitalize">
-                  {vendor.category.replace('_', ' ')} • NIT Patna Campus
-                  {(vendor.minOrderPaise ?? 0) > 0
-                    ? ` • Min ₹${Math.round((vendor.minOrderPaise ?? 0) / 100)}`
-                    : ' • No min order'}
-                </p>
-                {vendor.description && (
-                  <p className="mt-2 text-xs text-[var(--color-text-muted)] max-w-xl leading-relaxed">
-                    {vendor.description}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-wrap sm:flex-col items-center sm:items-end gap-2 shrink-0">
-                <div className="flex items-center gap-2">
-                  {phoneHref && (
-                    <a
-                      href={phoneHref}
-                      aria-label={`Call ${vendor.name}`}
-                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
-                    >
-                      <Phone className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
-                      <span>Call</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleFavoriteToggle}
-                    aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
-                    aria-pressed={isFavorite}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
-                      aria-hidden="true"
-                    />
-                    <span>{isFavorite ? 'Saved' : 'Save'}</span>
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {!vendor.isOpen ? (
-                    <Badge variant="closed">Closed • Opens {openHourLabel}</Badge>
-                  ) : isBusy ? (
-                    <Badge variant="warning">Busy Mode</Badge>
-                  ) : (
-                    <Badge variant="success">Open for Orders</Badge>
-                  )}
-
-                  {nightSafe && <Badge variant="night_safe">Night Safe</Badge>}
-
-                  {vendor.ratingAvg > 0 && (
-                    <div className="inline-flex items-center gap-1 rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#78350F] dark:border-[#92400E] dark:bg-[#3B2406] dark:text-[#FDE68A]">
-                      <Star className="h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
-                      <span>{vendor.ratingAvg.toFixed(1)}</span>
-                      <span className="opacity-75 font-normal">({vendor.ratingCount})</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Info Grid: Hours, Prep Time, FSSAI */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[var(--color-border-subtle)] pt-4 text-xs text-[var(--color-text-muted)]">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  Hours: {openHourLabel} – {closeHourLabel} IST
+          {/* Vendor Profile Header Card with Real Cover Photo & Tagline */}
+          <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
+            <div className="relative aspect-[16/9] max-h-56 w-full overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
+              <img
+                src={vendor.coverImageUrl || `/images/vendors/${vendor.slug}.jpg`}
+                alt={vendor.name}
+                width={768}
+                height={432}
+                fetchPriority="high"
+                className="h-full w-full object-cover tf-photo-warm"
+              />
+              {vendor.tagline && (
+                <span className="absolute bottom-3 left-3 rounded-md bg-[#1C1210]/90 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-[#FBF6EE]">
+                  {vendor.tagline}
                 </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#FFB400] shrink-0" aria-hidden="true" />
-                <span>
-                  Prep: ~{vendor.prepMinutes}
-                  {vendor.prepMaxMinutes && vendor.prepMaxMinutes > vendor.prepMinutes
-                    ? `–${vendor.prepMaxMinutes}`
-                    : ''}{' '}
-                  mins
-                </span>
-              </div>
-
-              {vendor.fssaiNo && (
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-[#15803D] shrink-0" aria-hidden="true" />
-                  <span>FSSAI: {vendor.fssaiNo}</span>
-                </div>
               )}
             </div>
 
-            {/* Campus Night Safety Notice */}
-            {nightSafe && (
-              <div className="flex items-center gap-2.5 rounded-xl border border-[#FCD34D] bg-[#FFF8E1] px-3.5 py-2.5 text-xs font-semibold text-[#78350F] dark:border-[#92400E] dark:bg-[#331F04] dark:text-[#FDE68A]">
-                <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  {nightNow
-                    ? 'Campus Night Safety Active (after 7 PM): deliveries are handled personally by owner, co-owner, or senior staff.'
-                    : 'Campus Night Safety Guarantee: after 7:00 PM IST orders are delivered personally by owner or senior staff.'}
-                </span>
-              </div>
-            )}
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--color-text)]">
+                      {vendor.name}
+                    </h1>
+                    {vendor.nameHi && (
+                      <span className="text-sm font-medium text-[var(--color-text-muted)]">
+                        ({vendor.nameHi})
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">
+                    {vendor.cuisines && vendor.cuisines.length > 0
+                      ? vendor.cuisines.join(' · ')
+                      : vendor.category.replace('_', ' ')}
+                    {' · '}NIT Patna
+                    {(vendor.minOrderPaise ?? 0) > 0
+                      ? ` · Min ₹${Math.round((vendor.minOrderPaise ?? 0) / 100)}`
+                      : ' · No min order'}
+                    {vendor.dineInAvailable ? ' · Dine-in available' : ''}
+                  </p>
+                  {vendor.description && (
+                    <p className="mt-2 text-xs text-[var(--color-text-muted)] max-w-xl leading-relaxed">
+                      {vendor.description}
+                    </p>
+                  )}
+                </div>
 
-            {/* Out-of-stock note when any item on menu is unavailable */}
-            {outOfStockCount > 0 && (
-              <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3.5 py-2.5 text-xs text-[var(--color-text-muted)]">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-[#B45309] dark:text-[#FBBF24]" aria-hidden="true" />
-                <span>
-                  <strong className="text-[var(--color-text)]">
-                    {outOfStockCount} {outOfStockCount === 1 ? 'item' : 'items'} temporarily out of stock
-                  </strong>{' '}
-                  and disabled below until restocked by {vendor.name}.
-                </span>
+                <div className="flex flex-wrap sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    {phoneHref && (
+                      <a
+                        href={phoneHref}
+                        aria-label={`Call ${vendor.name}`}
+                        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                      >
+                        <Phone className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+                        <span>Call</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleFavoriteToggle}
+                      aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+                      aria-pressed={isFavorite}
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                    >
+                      <Heart
+                        className={`h-4 w-4 ${isFavorite ? 'fill-[#830020] text-[#830020] dark:fill-[#FFB400] dark:text-[#FFB400]' : ''}`}
+                        aria-hidden="true"
+                      />
+                      <span>{isFavorite ? 'Saved' : 'Save'}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {!vendor.isOpen ? (
+                      <Badge variant="closed">Closed · Opens {openHourLabel}</Badge>
+                    ) : isBusy ? (
+                      <Badge variant="warning">Busy Mode</Badge>
+                    ) : (
+                      <Badge variant="success">Open for Orders</Badge>
+                    )}
+
+                    {nightSafe && <Badge variant="night_safe">Night Safe</Badge>}
+
+                    {vendor.ratingAvg > 0 && (
+                      <div className="inline-flex items-center gap-1 rounded-full border border-[#FDE68A] bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#78350F] dark:border-[#92400E] dark:bg-[#3B2406] dark:text-[#FDE68A]">
+                        <Star className="h-3.5 w-3.5 fill-[#FFB400] text-[#FFB400]" aria-hidden="true" />
+                        <span>{vendor.ratingAvg.toFixed(1)}</span>
+                        <span className="opacity-75 font-normal">({vendor.ratingCount})</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
+
+              {/* Info Grid: Hours, Prep Time, FSSAI */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[var(--color-border-subtle)] pt-4 text-xs text-[var(--color-text-muted)]">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Hours: {openHourLabel} – {closeHourLabel} IST
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-[#830020] dark:text-[#FFB400] shrink-0" aria-hidden="true" />
+                  <span>
+                    Prep: ~{vendor.prepMinutes}
+                    {vendor.prepMaxMinutes && vendor.prepMaxMinutes > vendor.prepMinutes
+                      ? `–${vendor.prepMaxMinutes}`
+                      : ''}{' '}
+                    mins
+                  </span>
+                </div>
+
+                {vendor.fssaiNo && (
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-[#15803D] shrink-0" aria-hidden="true" />
+                    <span>FSSAI: {vendor.fssaiNo}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Quoted Campus Night Safety Notice */}
+              {nightSafe && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-[#FCD34D] border-l-4 border-l-[#830020] bg-[#FFF9EE] px-3.5 py-2.5 text-xs font-semibold text-[#1C1210] dark:border-[#92400E] dark:border-l-[#FFB400] dark:bg-[#231914] dark:text-[#FBF6EE]">
+                  <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+                  <span>
+                    {vendor.nightSafetyNotice ||
+                      (nightNow
+                        ? 'Campus Night Safety Active: After 7:00 PM, deliveries are handled personally by the vendor owner, co-owner, or senior staff with complete trust to ensure campus premises safety.'
+                        : 'Campus Night Safety Guarantee: After 7:00 PM, deliveries are handled personally by the vendor owner, co-owner, or senior staff with complete trust to ensure campus premises safety.')}
+                  </span>
+                </div>
+              )}
+
+              {/* Out-of-stock note when any item on menu is unavailable */}
+              {outOfStockCount > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3.5 py-2.5 text-xs text-[var(--color-text-muted)]">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-[#B45309] dark:text-[#FBBF24]" aria-hidden="true" />
+                  <span>
+                    <strong className="text-[var(--color-text)]">
+                      {outOfStockCount} {outOfStockCount === 1 ? 'item' : 'items'} temporarily out of stock
+                    </strong>{' '}
+                    and marked sold out below until restocked by {vendor.name}.
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Menu vs Reviews Primary Tabs */}
@@ -481,7 +525,12 @@ export function VendorPage() {
           {activeTab === 'menu' ? (
             <>
               {/* Sticky Category Tabs */}
-              <div className="sticky top-[65px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 bg-[var(--color-surface-sunken)]/95 backdrop-blur-xs border-y border-[var(--color-border)] flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Menu categories"
+                className="sticky top-[65px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 py-2.5 bg-[var(--color-surface-sunken)] border-y border-[var(--color-border)] flex items-center gap-2 overflow-x-auto no-scrollbar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+              >
                 {totalCategoryItems.map((cat) => (
                   <button
                     key={cat.id}
@@ -491,8 +540,10 @@ export function VendorPage() {
                       setActiveCategory(cat.id);
                       document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className={`min-h-[40px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] disabled:opacity-45 disabled:cursor-not-allowed ${
-                      activeCategory === cat.id
+                    className={`min-h-[44px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] disabled:cursor-not-allowed ${
+                      cat.filteredItems.length === 0
+                        ? 'border border-stone-300 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400'
+                        : activeCategory === cat.id
                         ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
                         : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-raised)]'
                     }`}
@@ -523,7 +574,7 @@ export function VendorPage() {
                           </span>
                         </h2>
 
-                        <div className="space-y-3">
+                        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 shadow-[var(--shadow-card)]">
                           {cat.filteredItems.map((item) => {
                             const matchingCartLines = isCurrentVendorCart
                               ? cartItems.filter((ci) => ci.itemId === item.id)
@@ -539,20 +590,17 @@ export function VendorPage() {
                             );
 
                             return (
-                              <div key={item.id} className="space-y-2">
-                                <MenuItemRow
-                                  id={item.id}
+                              <div key={item.id} className="border-b border-[var(--color-border-subtle)] last:border-b-0">
+                                <MenuLineRow
                                   name={item.name}
-                                  nameHi={item.nameHi}
                                   description={item.description}
                                   pricePaise={item.pricePaise}
+                                  packingChargePaise={item.packingChargePaise}
                                   isVeg={item.isVeg}
                                   inStock={item.inStock}
-                                  category={vendor.category}
+                                  hasCustomisation={hasCustomisation}
                                   imageUrl={item.imageUrl}
                                   quantity={totalQtyInCart}
-                                  hasCustomisation={hasCustomisation}
-                                  onOpenOptions={() => setSheetItem(item)}
                                   notes={primaryCartLine?.notes}
                                   onAddNote={
                                     primaryCartLine
@@ -562,6 +610,7 @@ export function VendorPage() {
                                           )
                                       : undefined
                                   }
+                                  onOpenOptions={() => setSheetItem(item)}
                                   onAdd={() => handleQuickAddItem(item)}
                                   onIncrease={() =>
                                     primaryCartLine
@@ -584,7 +633,7 @@ export function VendorPage() {
                                 {primaryCartLine &&
                                   editingNoteItemId ===
                                     (primaryCartLine.lineKey || primaryCartLine.itemId) && (
-                                    <div className="flex items-center gap-2 pl-4">
+                                    <div className="flex items-center gap-2 pb-3 pl-4">
                                       <input
                                         type="text"
                                         maxLength={80}
@@ -607,7 +656,7 @@ export function VendorPage() {
                                           }
                                         }}
                                         autoFocus
-                                        className="h-9 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)]"
+                                        className="h-9 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs text-[var(--color-text)]"
                                       />
                                       <Button
                                         size="sm"
@@ -678,8 +727,8 @@ export function VendorPage() {
                         : 5;
                     return (
                       <div key={star} className="flex items-center gap-2 text-xs">
-                        <span className="w-7 font-mono font-bold text-[var(--color-text)]">
-                          {star}★
+                        <span className="w-8 font-mono font-bold text-[var(--color-text)]">
+                          {star} / 5
                         </span>
                         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-sunken)]">
                           <div
@@ -724,7 +773,7 @@ export function VendorPage() {
                 <EmptyState
                   icon={<MessageSquare className="h-7 w-7 text-[var(--color-text-muted)]" />}
                   title="No written reviews yet"
-                  description={`Students rated ${vendor.name} ${vendor.ratingAvg.toFixed(1)}★ across ${vendor.ratingCount} orders. Written comments appear here once submitted on delivered tickets.`}
+                  description={`Students rated ${vendor.name} ${vendor.ratingAvg.toFixed(1)} out of 5 across ${vendor.ratingCount} orders. Written comments appear here once submitted on delivered tickets.`}
                   actionLabel="Back to Menu"
                   onAction={() => setActiveTab('menu')}
                 />
@@ -733,89 +782,43 @@ export function VendorPage() {
           )}
         </div>
 
-        {/* Sticky Desktop Packet Summary Column */}
-        <aside className="lg:col-span-4 lg:sticky lg:top-20 space-y-4">
-          <div className="hidden lg:block rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] space-y-3">
-            <h2 className="text-sm font-bold text-[var(--color-text)] flex items-center justify-between">
-              <span>Your Campus Packet</span>
-              <span className="font-mono text-xs text-[var(--color-text-muted)]">{itemCount} items</span>
-            </h2>
-            {itemCount === 0 ? (
-              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-                Add items from {vendor.name} to inspect server-verified pricing, gate ETA, and place your pay-at-gate order.
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                <div className="max-h-56 overflow-y-auto divide-y divide-[var(--color-border-subtle)] pr-1">
-                  {cartItems.map((ci) => {
-                    const lineId = ci.lineKey || ci.itemId;
-                    return (
-                      <div key={lineId} className="py-2 flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-[var(--color-text)] truncate">
-                            {ci.name}
-                          </div>
-                          {(ci.variantLabel || ci.addonsLabel) && (
-                            <div className="text-[11px] text-[var(--color-text-muted)] truncate">
-                              {[ci.variantLabel, ci.addonsLabel ? `+ ${ci.addonsLabel}` : null]
-                                .filter(Boolean)
-                                .join(' • ')}
-                            </div>
-                          )}
-                          <div className="font-mono text-xs text-[var(--color-text-muted)]">
-                            ₹{((ci.pricePaise * ci.quantity) / 100).toFixed(0)}
-                          </div>
-                        </div>
-                        <QtyStepper
-                          value={ci.quantity}
-                          onIncrease={() => updateQuantity(lineId, ci.quantity + 1)}
-                          onDecrease={() => updateQuantity(lineId, ci.quantity - 1)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between border-t border-[var(--color-border-subtle)] pt-2 text-xs font-bold text-[var(--color-text)]">
-                  <span>Packet Total</span>
-                  <span className="font-mono">
-                    ₹{(((quote?.totalPaise ?? vendorCartTotalPaise) || 0) / 100).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {itemCount > 0 && (
-            <div className="fixed bottom-16 left-4 right-4 z-30 md:bottom-6 lg:static lg:z-auto">
-              <div className="mx-auto max-w-md lg:max-w-none">
-                <button
-                  type="button"
-                  onClick={() => setCartDrawerOpen(true)}
-                  className="flex w-full min-h-[56px] items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1917]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 dark:bg-[#1C1917]/15 font-mono font-bold text-sm">
-                      {itemCount}
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs uppercase tracking-wide opacity-90">
-                        {currentCartVendor?.name}
-                      </div>
-                      <div className="text-sm font-bold">
-                        View Packet • ₹{(vendorCartTotalPaise / 100).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs font-bold bg-white/20 dark:bg-[#1C1917]/15 px-3 py-1.5 rounded-xl">
-                    <span>Open Cart</span>
-                    <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-        </aside>
+        {/* Sticky Desktop PaperBill Summary Column */}
+        <DesktopPacketSidebar
+          currentGate={currentGate}
+          favoritesCount={favData?.vendorIds?.length || 0}
+        />
       </div>
+
+      {/* Floating Cart Bar on Mobile/Tablet (< lg) */}
+      {itemCount > 0 && (
+        <div className="fixed bottom-16 left-4 right-4 z-30 md:bottom-6 lg:hidden">
+          <div className="mx-auto max-w-md">
+            <button
+              type="button"
+              onClick={() => setCartDrawerOpen(true)}
+              className="flex w-full min-h-[56px] items-center justify-between rounded-2xl bg-[#830020] p-4 text-white shadow-xl transition-transform hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1210]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 dark:bg-[#1C1210]/15 font-mono font-bold text-sm">
+                  {itemCount}
+                </div>
+                <div className="text-left">
+                  <div className="text-xs uppercase tracking-wide opacity-90">
+                    {currentCartVendor?.name}
+                  </div>
+                  <div className="text-sm font-bold">
+                    View Packet · ₹{(vendorCartTotalPaise / 100).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs font-bold bg-white/20 dark:bg-[#1C1210]/15 px-3 py-1.5 rounded-xl">
+                <span>Open Cart</span>
+                <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Item Options Sheet (Variants + Add-ons) */}
       <ItemOptionsSheet

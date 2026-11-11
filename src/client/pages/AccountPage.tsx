@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/Button';
 import { ListRow } from '../components/ui/ListRow';
 import { Dialog } from '../components/ui/Dialog';
 import { useToast } from '../components/ui/Toast';
 import { useSeoHead } from '../components/seo/SeoHead';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../i18n';
+import type { SupportedLanguage } from '../i18n';
 import {
   Globe,
   Sun,
@@ -25,32 +27,25 @@ export function AccountPage() {
   });
   const navigate = useNavigate();
   const { user, loginAsDemo, logout, deleteAccount } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const { i18n } = useTranslation();
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
+  const isDark = resolvedTheme === 'dark';
 
-  const toggleTheme = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
-  const toggleLanguage = () => {
-    const nextLang = i18n.language === 'hi' ? 'en' : 'hi';
+  const setLanguage = (nextLang: SupportedLanguage) => {
     i18n.changeLanguage(nextLang);
-    showToast(nextLang === 'hi' ? 'भाषा बदलकर हिंदी कर दी गई है' : 'Language set to English', 'info');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('trefood_lang', nextLang);
+    }
+    const labelMap: Record<SupportedLanguage, string> = {
+      en: 'Language set to English',
+      hinglish: 'Hinglish mode ON! Navigation aur order status ab Hinglish mein hain.',
+      hi: 'भाषा बदलकर हिंदी कर दी गई है',
+    };
+    showToast(labelMap[nextLang], 'info');
   };
 
   const handleDeleteData = async () => {
@@ -69,27 +64,27 @@ export function AccountPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-4 space-y-6 pb-24">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-          Account & Settings
+        <h1 className="text-xl font-bold tracking-tight text-[var(--color-text)]">
+          Account &amp; Settings
         </h1>
-        <p className="text-xs text-stone-500">Preferences, privacy controls and campus profiles</p>
+        <p className="text-xs text-[var(--color-text-muted)]">Preferences, privacy controls and campus profiles</p>
       </div>
 
       {/* User Status Card */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs dark:border-stone-800 dark:bg-stone-900">
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#830020]/10 text-[#830020] dark:bg-amber-400/10 dark:text-amber-400 font-bold text-lg">
             {user?.email?.charAt(0).toUpperCase() || 'G'}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100 truncate">
+            <h2 className="text-sm font-bold text-[var(--color-text)] truncate">
               {user ? user.name || user.email : 'Guest Student'}
-            </h3>
-            <p className="text-xs text-stone-500 truncate">
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted)] truncate">
               {user ? user.email : 'Not signed in • Browse enabled'}
             </p>
             {user && (
-              <span className="mt-1 inline-block rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300 capitalize">
+              <span className="mt-1 inline-block rounded-full bg-[var(--color-surface-sunken)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-text-muted)] capitalize">
                 Role: {user.role}
               </span>
             )}
@@ -98,21 +93,48 @@ export function AccountPage() {
       </div>
 
       {/* App Preferences */}
-      <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden dark:border-stone-800 dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800">
-        <ListRow
-          title="Language / भाषा"
-          subtitle={i18n.language === 'hi' ? 'हिंदी (Hindi)' : 'English'}
-          leftIcon={<Globe className="h-4 w-4" />}
-          rightElement={
-            <Button onClick={toggleLanguage} variant="secondary" size="sm">
-              {i18n.language === 'hi' ? 'English' : 'हिंदी'}
-            </Button>
-          }
-        />
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden divide-y divide-[var(--color-border-subtle)]">
+        <div className="p-4 space-y-2.5">
+          <div className="flex items-center gap-2.5">
+            <Globe className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
+            <div>
+              <div className="text-sm font-semibold text-[var(--color-text)]">Language / Hinglish Toggle</div>
+              <div className="text-xs text-[var(--color-text-muted)]">
+                Switch core navigation and order status strings
+              </div>
+            </div>
+          </div>
+          <div role="group" aria-label="Choose app language" className="grid grid-cols-3 gap-2">
+            {(
+              [
+                { id: 'en', label: 'English' },
+                { id: 'hinglish', label: 'Hinglish' },
+                { id: 'hi', label: 'हिन्दी' },
+              ] as const
+            ).map((opt) => {
+              const active = i18n.language === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setLanguage(opt.id)}
+                  className={`min-h-[44px] rounded-xl border px-3 text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
+                    active
+                      ? 'border-[#830020] bg-[#830020] text-white dark:border-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1917]'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface-sunken)] text-[var(--color-text)] hover:border-[#830020]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <ListRow
           title="Appearance"
           subtitle={isDark ? 'Dark theme' : 'Light theme'}
-          leftIcon={isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          leftIcon={isDark ? <Moon className="h-4 w-4" aria-hidden="true" /> : <Sun className="h-4 w-4" aria-hidden="true" />}
           rightElement={
             <Button onClick={toggleTheme} variant="secondary" size="sm">
               {isDark ? 'Light' : 'Dark'}
@@ -146,7 +168,7 @@ export function AccountPage() {
             onClick={async () => {
               const res = await loginAsDemo('vendor');
               if (res.ok) {
-                showToast('Logged in as Ganga Canteen Vendor', 'success');
+                showToast('Logged in as Chai Sutta Bar (CSB) Vendor', 'success');
                 navigate('/v');
               }
             }}

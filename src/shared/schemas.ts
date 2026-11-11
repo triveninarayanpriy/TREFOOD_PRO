@@ -383,3 +383,27 @@ export const AdminGateUpdateSchema = z.object({
   broadcastBanner: z.boolean().optional(),
   bannerMessage: z.string().min(5).max(300).optional(),
 });
+
+// ==========================================
+// Privacy-Friendly Funnel Analytics (Zero PII)
+// ==========================================
+export const FUNNEL_EVENT_NAMES = [
+  'view_menu',
+  'add_to_cart',
+  'checkout_start',
+  'order_placed',
+  'handover_confirmed',
+] as const;
+
+export type FunnelEventName = (typeof FUNNEL_EVENT_NAMES)[number];
+
+export const AnalyticsEventInputSchema = z
+  .object({
+    event: z.enum(FUNNEL_EVENT_NAMES),
+    route: z.string().trim().min(1).max(120).optional(),
+    gateId: z.string().trim().min(1).max(40).optional(),
+    vendorId: z.string().trim().min(1).max(40).optional(),
+  })
+  .strict();
+
+export type AnalyticsEventInput = z.infer<typeof AnalyticsEventInputSchema>;

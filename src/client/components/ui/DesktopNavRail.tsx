@@ -10,7 +10,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../../i18n';
 import { isNightSafetyActive } from '@shared/curfew';
 
 export function DesktopNavRail() {
@@ -26,8 +26,8 @@ export function DesktopNavRail() {
   ];
 
   const toolLinks = [
-    { to: '/vendor', label: 'Vendor Tablet', icon: Store },
-    { to: '/admin', label: 'Campus Admin', icon: ShieldAlert },
+    { to: '/vendor', label: t('nav.vendor', 'Vendor Console'), icon: Store },
+    { to: '/admin', label: t('nav.admin', 'Admin'), icon: ShieldAlert },
     { to: '/dev/ui', label: 'UI Kit (/dev/ui)', icon: Palette },
   ];
 

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SeoHead } from '../components/seo/SeoHead';
-import { ShieldCheck, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
 
 interface LegalDocLayoutProps {
   title: string;
@@ -26,25 +26,25 @@ function LegalDocLayout({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-[#830020] hover:bg-[var(--color-surface)] dark:text-[#FFB400]"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-[#830020] hover:bg-[var(--color-surface)] dark:text-[#FFB400] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           <span>Back to Home</span>
         </Link>
 
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] px-3 py-1 text-xs font-bold text-[#78350F] dark:bg-[#331F04] dark:text-[#FDE68A]">
-          <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-          DRAFT — PROTOTYPE PLACEHOLDER TEXT
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          NIT PATNA CAMPUS POLICY
         </span>
       </div>
 
-      <article className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-8 shadow-xs space-y-6">
+      <article className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-8 shadow-[var(--shadow-card)] space-y-6">
         <header className="border-b border-[var(--color-border)] pb-5 space-y-2">
           <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[var(--color-text)]">
             {title}
           </h1>
           <p className="text-xs font-medium text-[var(--color-text-muted)]">
-            Last updated: {updatedAt} • Status: Draft placeholder for NIT Patna TreFood Prototype
+            Effective: {updatedAt} • TreFood NIT Patna Hyperlocal Delivery Operating Rules
           </p>
         </header>
 
@@ -59,14 +59,14 @@ function LegalDocLayout({
 
         <footer className="border-t border-[var(--color-border)] pt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
           <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            <ShieldCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
             Questions? Contact support@trefood.in
           </span>
           <div className="flex flex-wrap gap-3 font-semibold">
-            <Link to="/about" className="hover:underline">About</Link>
-            <Link to="/terms" className="hover:underline">Terms</Link>
-            <Link to="/privacy" className="hover:underline">Privacy</Link>
-            <Link to="/refunds" className="hover:underline">Refunds</Link>
+            <Link to="/about" className="inline-flex min-h-[44px] items-center hover:underline">About</Link>
+            <Link to="/terms" className="inline-flex min-h-[44px] items-center hover:underline">Terms</Link>
+            <Link to="/privacy" className="inline-flex min-h-[44px] items-center hover:underline">Privacy</Link>
+            <Link to="/refunds" className="inline-flex min-h-[44px] items-center hover:underline">Refunds</Link>
           </div>
         </footer>
       </article>
@@ -77,7 +77,7 @@ function LegalDocLayout({
 export function AboutPage() {
   return (
     <LegalDocLayout
-      title="About TreFood (NIT Patna Prototype)"
+      title="About TreFood (NIT Patna)"
       seoTitle="About TreFood | NIT Patna Hyperlocal Campus Delivery"
       description="Learn how TreFood connects NIT Patna students with campus canteens, fruit stalls, groceries, and raw chicken counters via hostel gate verification."
       path="/about"
@@ -85,19 +85,19 @@ export function AboutPage() {
       sections={[
         {
           heading: '1. Built Exclusively for Campus Hostels',
-          body: 'Draft overview: TreFood is a hyperlocal campus delivery prototype engineered for NIT Patna. Instead of external riders and surge pricing, verified campus canteens and shops batch orders directly to Main Gate / Academic Blocks (24x7) and Boys/Girls Hostel Gates (before 19:30 IST curfew).',
+          body: 'TreFood is a hyperlocal campus delivery platform built for NIT Patna. Instead of external riders and surge pricing, verified campus canteens and shops batch orders directly to Main Gate / Academic Blocks (24x7) and Boys or Girls Hostel Gates (before the 19:30 IST curfew).',
         },
         {
           heading: '2. Zero Delivery Fee & Pay-at-Gate Trust',
-          body: 'Students never pay platform delivery markups. You browse freely without signing in, inspect your sealed packet at the gate, match the 4-digit handover code on your screen, and pay directly via cash or UPI at handover.',
+          body: 'Students never pay platform delivery fees. You can browse all campus menus freely without signing in, inspect your sealed packet at the gate, match the 4-digit handover code on your phone, and pay directly via cash or UPI at handover.',
         },
         {
           heading: '3. Campus Night Safety Standard',
-          body: 'After 19:00 IST (7:00 PM), campus deliveries are handled personally by the shop owner, co-owner, or designated senior counter staff—not anonymous gig couriers.',
+          body: 'After 19:00 IST (7:00 PM), campus deliveries are handled personally by the shop owner, co-owner, or designated senior counter staff—not anonymous third-party couriers.',
         },
         {
-          heading: '4. Sample Data Notice',
-          body: 'All vendor menus, historical order counts, testimonials, and demo accounts currently seeded in this prototype are synthetic sample data created strictly for evaluation and testing.',
+          heading: '4. Prototype Seed Data Transparency',
+          body: 'All pre-seeded campus vendor listings, telephone numbers, order metrics, and evaluation accounts in this deployment are clearly labelled sample data for demonstration and testing.',
         },
       ]}
     />
@@ -107,27 +107,27 @@ export function AboutPage() {
 export function TermsPage() {
   return (
     <LegalDocLayout
-      title="Terms of Service (Draft)"
-      seoTitle="Terms of Service (Draft) | TreFood NIT Patna"
-      description="Draft prototype Terms of Service for TreFood hyperlocal campus delivery at NIT Patna."
+      title="Terms of Service"
+      seoTitle="Terms of Service | TreFood NIT Patna"
+      description="Operating terms and gate handover rules for TreFood hyperlocal campus delivery at NIT Patna."
       path="/terms"
       updatedAt="November 2026"
       sections={[
         {
-          heading: '1. Prototype & Sample Data Disclaimer',
-          body: 'DRAFT PLACEHOLDER: These Terms of Service apply to evaluation usage of the TreFood NIT Patna prototype. Listed canteens, prices, and telephone numbers in seeded environments are sample records.',
+          heading: '1. Scope & Campus Service Availability',
+          body: 'TreFood facilitates zero-fee food, fruit, vegetable, grocery, and sealed poultry orders between NIT Patna campus counters and designated campus gates. Pre-seeded catalog records in this environment are sample demonstration data.',
         },
         {
           heading: '2. Eligibility & Campus Email Verification',
-          body: 'Guest users may browse all vendor menus without registration. Placing an order requires verifying a valid campus email domain (@nitp.ac.in) or using an enabled evaluation demo profile.',
+          body: 'Guests may browse all vendor menus, filter by gate, and inspect prices without registration. Placing an order or saving favourites requires signing in with an @nitp.ac.in email or an active evaluation account.',
         },
         {
-          heading: '3. Gate Curfew & Order Acceptance',
-          body: 'Orders placed after an applicable hostel gate curfew window (e.g., 19:30 IST with 15-minute arrival buffer for Boys Hostel and Girls Hostel gates) are declined with an explanation and suggested open gates such as Main Gate / Academic Blocks (24x7). Unaccepted vendor orders expire automatically after 5 minutes.',
+          heading: '3. Gate Curfew & Order Acceptance Window',
+          body: 'Orders scheduled after a hostel gate curfew (19:30 IST minus prep time, walk time, and a 15-minute gate handover buffer for Boys Hostel and Girls Hostel gates) are declined with the exact cutoff time and suggested 24x7 gates such as Main Gate / Academic Blocks. Orders unaccepted by the vendor counter within 5 minutes expire automatically.',
         },
         {
           heading: '4. 4-Digit Packet Handover Code',
-          body: 'Students must verify the 4-digit code printed on the sealed packet before confirming delivery. Up to 5 verification attempts are allowed before counter assist is required.',
+          body: 'Every accepted order carries a unique 4-digit handover code written on the sealed packet. Students match the packet digits in the tracker before confirming delivery. Five consecutive mismatched entries lock self-confirmation and route the order to vendor counter handover assist.',
         },
       ]}
     />
@@ -137,27 +137,27 @@ export function TermsPage() {
 export function PrivacyPage() {
   return (
     <LegalDocLayout
-      title="Privacy Policy (Draft)"
-      seoTitle="Privacy Policy (Draft) | TreFood NIT Patna"
-      description="Draft prototype Privacy Policy detailing minimal data collection, session cookies, and instant account deletion."
+      title="Privacy Policy"
+      seoTitle="Privacy Policy | TreFood NIT Patna"
+      description="Privacy standards for TreFood NIT Patna covering minimal session storage, zero-PII funnel telemetry, and instant account deletion."
       path="/privacy"
       updatedAt="November 2026"
       sections={[
         {
           heading: '1. Minimal Campus Data Collected',
-          body: 'DRAFT PLACEHOLDER: TreFood stores only the minimum information required to coordinate gate deliveries: your verified campus email, display name, selected delivery gate, and order history.',
+          body: 'TreFood stores only the information needed to fulfill gate deliveries: your verified campus email, display name, preferred delivery gate, and order history.',
         },
         {
-          heading: '2. Local Preferences & Session Security',
-          body: 'Theme preferences, selected hostel gate, and offline cart items are kept locally in your browser. Authentication relies strictly on HttpOnly, SameSite=Lax, SHA-256 hashed session cookies—never third-party ad trackers.',
+          heading: '2. Privacy-Friendly Funnel Observability',
+          body: 'Core ordering funnel metrics (menu viewed, item added to cart, checkout started, order placed, handover confirmed) record only event type, route path, gate ID, and vendor ID—never names, email addresses, phone numbers, or IP identifiers—and honor browser Do Not Track and Global Privacy Control signals.',
         },
         {
-          heading: '3. Vendor Onboarding Submissions',
-          body: 'Shop details submitted via the For Vendors onboarding form (shop name, category, and mobile number) are persisted securely in Cloudflare D1 solely for campus vendor review.',
+          heading: '3. Local Storage & Session Security',
+          body: 'Theme preference, Hinglish/Hindi language selection, chosen hostel gate, and offline cart backups live locally in your browser. Authentication relies exclusively on HttpOnly, SameSite=Lax, SHA-256 hashed session cookies backed by Cloudflare Workers KV.',
         },
         {
           heading: '4. Instant Account Deletion',
-          body: 'Authenticated students can permanently anonymize their account and purge active sessions anytime from the Account & Settings page (/account).',
+          body: 'Authenticated students can permanently anonymize their profile, revoke active sessions, and clear personal identifiers anytime from Account & Settings (/account).',
         },
       ]}
     />
@@ -167,27 +167,27 @@ export function PrivacyPage() {
 export function RefundsPage() {
   return (
     <LegalDocLayout
-      title="Refund & Issue Resolution Policy (Draft)"
-      seoTitle="Refund Policy (Draft) | TreFood NIT Patna"
-      description="Draft prototype Refund and Issue Resolution Policy for TreFood NIT Patna gate deliveries."
+      title="Refund & Issue Resolution Policy"
+      seoTitle="Refund Policy | TreFood NIT Patna"
+      description="Pay-at-gate inspection protection, cancellations, and admin dispute credit rules for TreFood NIT Patna."
       path="/refunds"
       updatedAt="November 2026"
       sections={[
         {
           heading: '1. Pay-at-Gate Inspection Protection',
-          body: 'DRAFT PLACEHOLDER: Because TreFood defaults to Pay at Gate (Cash or UPI on handover), you only pay once your sealed packet reaches the hostel gate and the 4-digit verification code matches your phone.',
+          body: 'Because TreFood defaults to Pay at Gate via Cash or UPI upon handover, you pay only after your sealed packet reaches the hostel gate and the 4-digit verification code matches your order tracker.',
         },
         {
           heading: '2. Reporting Missing, Wrong, or Quality Issues',
-          body: 'If an item is missing, spilled, wrong, or delayed after delivery confirmation, open your order in /orders and submit an issue report with reason and details. Campus administrators review disputes in the Admin Reports queue.',
+          body: 'If an item is missing, spilled, wrong, or significantly delayed after handover, submit an issue report from the order detail screen (/orders/:id). Campus administrators review every ticket in the Admin Reports queue.',
         },
         {
-          heading: '3. Credits & Refunds',
-          body: 'Approved claims receive either instant vendor replacement to the gate or a recorded credit/refund adjustment in the admin settlement ledger within 24 hours.',
+          heading: '3. Credits & Settlements',
+          body: 'Verified claims receive either an immediate replacement dispatched to the gate or a recorded refund/credit entry in the vendor settlement ledger within 24 hours.',
         },
         {
-          heading: '4. Cancellations Before Preparation',
-          body: 'Students may cancel an order free of charge while its status remains "placed". Once accepted for kitchen preparation or auto-expired after curfew, no fee is owed.',
+          heading: '4. Free Cancellation Before Preparation',
+          body: 'Students can cancel any order with zero penalty while status remains placed. If an order is cancelled or auto-expired after the 5-minute acceptance timeout, no payment is collected.',
         },
       ]}
     />

@@ -13,7 +13,7 @@ import {
 } from '../db/schema';
 import { requireAuth, requireRole } from '../middleware';
 import { nextStatus, StatusTransitionError, type OrderStatus } from '../services/order';
-import { nowUtc } from '../utils/time';
+import { getRequestNow, nowUtc } from '../utils/time';
 import { ulid } from '../utils/ulid';
 import {
   VendorRejectSchema,
@@ -583,7 +583,7 @@ vendorRoutes.get('/settlement', async (c) => {
       .all(),
   ]);
 
-  const now = nowUtc();
+  const now = getRequestNow(c);
   // Start of current IST day in UTC seconds
   const istNowSec = now + IST_OFFSET_SECONDS;
   const istStartOfDaySec = istNowSec - (istNowSec % 86400);

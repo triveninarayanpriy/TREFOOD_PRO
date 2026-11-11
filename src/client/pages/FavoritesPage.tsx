@@ -2,7 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useSeoHead } from '../components/seo/SeoHead';
-import { VendorCard } from '../components/ui/VendorCard';
+import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { VendorCardSkeleton } from '../components/ui/Skeleton';
@@ -101,12 +101,11 @@ export function FavoritesPage() {
           onAction={() => navigate('/browse')}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {list.map((entry) => (
-            <VendorCard
+            <VendorCounterRow
               key={entry.vendor.id}
               vendor={entry.vendor}
-              variant={entry.vendor.isOpen ? 'open' : 'closed'}
               isFavorite
               onToggleFavorite={() => removeMutation.mutate(entry.vendor.id)}
               onClick={() => navigate(`/vendor/${entry.vendor.slug}`)}

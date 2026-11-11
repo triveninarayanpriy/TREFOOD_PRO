@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { HandoverTicket } from '../components/ui/HandoverTicket';
+import { PacketChit } from '../components/ui/PacketChit';
 import { StatusTimeline } from '../components/ui/StatusTimeline';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
@@ -12,6 +12,8 @@ import { useSeoHead } from '../components/seo/SeoHead';
 import { OrderPushStatusCard } from '../components/notifications/NotificationCentre';
 import { RateReviewSheet } from '../components/orders/RateReviewSheet';
 import { isNightSafetyActive } from '@shared/curfew';
+import { trackFunnelEvent } from '../utils/analytics';
+import { useTranslation } from '../i18n';
 import {
   CheckCircle2,
   ArrowLeft,
@@ -66,6 +68,7 @@ export function OrderDetailPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { addItem, clearCart } = useCart();
+  const { t } = useTranslation();
 
   const [order, setOrder] = useState<TrackerOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,6 +262,10 @@ export function OrderDetailPage() {
         return;
       }
 
+      trackFunnelEvent('handover_confirmed', {
+        gateId: order.gateId,
+        vendorId: order.vendorId,
+      });
       showToast('Delivery confirmed! Enjoy your order.', 'success');
       setHandoverInput('');
       setHandoverError(null);
@@ -415,6 +422,7 @@ export function OrderDetailPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-4 space-y-5 pb-24">
+      <h1 className="sr-only">Order #{order.publicNo} Tracker &amp; Handover Code</h1>
       {/* Reconnecting banner on transient polling hiccup */}
       {reconnecting && (
         <div
@@ -459,15 +467,20 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Signature Handover Ticket */}
-      <HandoverTicket
+      {/* Signature R2 Packet Chit */}
+      <PacketChit
         orderNo={order.publicNo}
         handoverCode={order.handoverCode}
         vendorName={order.vendorName || 'Campus Vendor'}
         gateName={order.gateName || 'Hostel Gate'}
         status={order.status}
-        eta={etaMinutesLeft ? `${etaMinutesLeft} mins` : undefined}
+        etaMinutes={etaMinutesLeft ?? undefined}
         totalPaise={order.totalPaise}
+        itemSummary={
+          order.items && order.items.length > 0
+            ? order.items.map((it) => `${it.name} ×${it.quantity}`).join(', ')
+            : undefined
+        }
       />
 
       {/* Gate Handover Verification Zone (strict server verification + 15-min countdown) */}
@@ -498,13 +511,16 @@ export function OrderDetailPage() {
 
           <div className="rounded-2xl border border-emerald-200 bg-white/90 p-3.5 text-center dark:border-emerald-800 dark:bg-stone-900/90">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Your 4-Digit Packet Code
+              {t('ticket.handover_code', 'Your 4-Digit Packet Code')}
             </div>
-            <div className="mt-1 font-mono text-3xl font-black tracking-[0.28em] text-[#830020] dark:text-[#FFB400]">
+            <div className="tf-animate-reveal mt-1 font-mono text-3xl font-black tracking-[0.28em] text-[#830020] dark:text-[#FFB400]">
               {order.handoverCode}
             </div>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              Match the digits written on the packet at the gate, then enter them below to confirm delivery.
+              {t(
+                'ticket.match_digits_notice',
+                'Match the digits written on the packet at the gate, then enter them below to confirm delivery.'
+              )}
             </p>
           </div>
 
@@ -604,7 +620,7 @@ export function OrderDetailPage() {
               onClick={() => setCancelModalOpen(true)}
               variant="ghost"
               size="sm"
-              className="min-h-[44px] text-red-600 hover:bg-red-50 hover:text-red-700 text-xs font-bold"
+              className="min-h-[44px] text-red-700 hover:bg-red-50 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-300 text-xs font-bold"
             >
               Cancel Order
             </Button>
@@ -683,9 +699,9 @@ export function OrderDetailPage() {
 
       {/* Itemized Bill */}
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
           Items Ordered ({order.items?.length || 0})
-        </h3>
+        </h2>
         <div className="divide-y divide-[var(--color-border-subtle)]">
           {order.items?.map((item, idx) => (
             <div key={item.id || idx} className="py-2.5 flex justify-between items-center text-xs">
@@ -725,7 +741,7 @@ export function OrderDetailPage() {
           )}
           <div className="flex justify-between text-[var(--color-text-muted)]">
             <span>Delivery Fee</span>
-            <span className="font-bold text-emerald-600">FREE</span>
+            <span className="font-bold text-emerald-700 dark:text-emerald-400">FREE</span>
           </div>
           <div className="flex justify-between text-[var(--color-text-muted)]">
             <span>Payment</span>

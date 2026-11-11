@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import type { Env } from '../types';
 import {
   vendors,
@@ -13,6 +13,7 @@ import {
   auditLog,
   coupons,
   issues,
+  funnelEvents,
 } from '../db/schema';
 import { requireAuth, requireRole } from '../middleware';
 import { nowUtc } from '../utils/time';
@@ -331,7 +332,7 @@ adminRoutes.post('/vendors/invite', async (c) => {
     name,
     role: 'vendor',
     campusId: 'campus_nitp',
-    vendorId: vendorId || 'v_ganga',
+    vendorId: vendorId || 'rest_csb_nitp',
     createdAt: now,
   });
 
@@ -574,12 +575,33 @@ adminRoutes.post('/orders/:id/cancel', async (c) => {
 });
 
 async function buildAdminMetrics(db: ReturnType<typeof import('../db').getDb>) {
-  const [allOrders, allVendors, allGates, openIssues] = await Promise.all([
+  const [allOrders, allVendors, allGates, openIssues, funnelAgg] = await Promise.all([
     db.select().from(orders).all(),
     db.select().from(vendors).all(),
     db.select().from(gates).where(eq(gates.active, true)).all(),
     db.select().from(issues).where(eq(issues.status, 'open')).all(),
+    db
+      .select({
+        eventName: funnelEvents.eventName,
+        count: sql<number>`count(*)`,
+      })
+      .from(funnelEvents)
+      .groupBy(funnelEvents.eventName)
+      .all(),
   ]);
+
+  const funnelCounts = {
+    view_menu: 0,
+    add_to_cart: 0,
+    checkout_start: 0,
+    order_placed: 0,
+    handover_confirmed: 0,
+  };
+  for (const row of funnelAgg) {
+    if (row.eventName in funnelCounts) {
+      funnelCounts[row.eventName as keyof typeof funnelCounts] = Number(row.count || 0);
+    }
+  }
 
   const now = nowUtc();
   const istToday = getIstDateKey(now);
@@ -640,6 +662,7 @@ async function buildAdminMetrics(db: ReturnType<typeof import('../db').getDb>) {
     cancellationRate,
     medianDeliveryMinutes: avgGateEtaMinutes,
     hourlyDistribution: hourlyCounts,
+    funnelCounts,
   };
 }
 

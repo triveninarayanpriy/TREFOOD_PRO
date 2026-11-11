@@ -23,52 +23,66 @@ export function SplashScreen() {
     if (!visible) return;
     // Mark as seen immediately so reloads / returning users never see splash again
     localStorage.setItem(SPLASH_SEEN_KEY, '1');
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delayMs = prefersReduced ? 400 : 1500;
     const timer = setTimeout(() => {
       setVisible(false);
-    }, 1500);
-    return () => clearTimeout(timer);
+    }, delayMs);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setVisible(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [visible]);
 
   if (!visible) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <aside
+      role="region"
       aria-label="Welcome to TreFood NIT Patna"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-[#830020] px-6 py-10 text-white"
+      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-2xl border border-[#FFB400]/40 bg-[#830020] px-5 py-4 text-white shadow-lg"
     >
-      <div className="flex w-full max-w-md justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <img
+            src="/images/brand/trefood-brand-logo.jpg"
+            alt=""
+            width={48}
+            height={48}
+            decoding="async"
+            className="h-12 w-12 shrink-0 rounded-2xl object-cover border border-[#FFB400]/50 shadow-md"
+          />
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-black tracking-tight text-white leading-tight">
+              TreFood • NIT Patna
+            </h2>
+            <p className="text-xs font-semibold text-[#FDE68A] truncate">
+              ₹0 Delivery Fee • 4-Digit Gate Code
+            </p>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={dismiss}
-          className="inline-flex min-h-[44px] min-w-[76px] items-center justify-center rounded-xl border border-white/40 bg-[#5A0016] px-5 text-sm font-bold text-white shadow-xs transition-colors hover:bg-[#420010] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+          className="inline-flex min-h-[44px] min-w-[68px] shrink-0 items-center justify-center rounded-xl border border-white/40 bg-[#5A0016] px-4 text-xs font-bold text-white shadow-xs transition-colors hover:bg-[#420010] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
         >
           Skip
         </button>
       </div>
 
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#FFB400] text-[#1C1917] shadow-2xl">
-          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 14C4 9.58 7.58 6 12 6C16.42 6 20 9.58 20 14H4Z" fill="#830020" />
-            <path d="M3 16.5H21C21 18.7 19.2 20.5 17 20.5H7C4.8 20.5 3 18.7 3 16.5Z" fill="#1C1917" />
-            <circle cx="12" cy="4" r="1.5" fill="#830020" />
-          </svg>
-        </div>
-
-        <div className="space-y-1">
-          <h2 className="font-display text-4xl font-black tracking-tight text-white">TreFood</h2>
-          <p className="text-sm font-semibold text-[#FDE68A]">
-            NIT Patna Campus Delivery • ₹0 Fee
-          </p>
-        </div>
+      <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1 text-[11px] font-semibold text-amber-100">
+        <ShieldCheck className="h-3.5 w-3.5 text-[#FFB400]" aria-hidden="true" />
+        <span>Curfew-Aware Gate Routing • Night Safety 7 PM+</span>
       </div>
-
-      <div className="inline-flex items-center gap-2 rounded-full bg-black/25 px-4 py-2 text-xs font-semibold text-amber-100">
-        <ShieldCheck className="h-4 w-4 text-[#FFB400]" aria-hidden="true" />
-        <span>4-Digit Gate Code • Curfew Aware</span>
-      </div>
-    </div>
+    </aside>
   );
 }

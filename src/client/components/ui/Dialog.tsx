@@ -49,7 +49,7 @@ export function Dialog({
       aria-labelledby="dialog-title"
     >
       <div
-        className="fixed inset-0 bg-stone-950/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-[#1C1210]/65 transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />

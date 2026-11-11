@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ThemeProvider } from './context/ThemeContext';
@@ -11,11 +11,12 @@ import { BottomNav } from './components/ui/BottomNav';
 import { DesktopNavRail } from './components/ui/DesktopNavRail';
 import { SplashScreen } from './components/ui/SplashScreen';
 import { usePwaInstall } from './hooks/usePwaInstall';
-import { LandingPage } from './pages/LandingPage';
 import { Skeleton } from './components/ui/Skeleton';
 import { EmptyState } from './components/ui/EmptyState';
 import { AlertCircle } from 'lucide-react';
 import type { Gate } from '@shared/schemas';
+
+import { LandingPage } from './pages/LandingPage';
 
 const InstallAppModal = lazy(() =>
   import('./components/ui/InstallAppModal').then((m) => ({ default: m.InstallAppModal }))
@@ -85,6 +86,12 @@ function AppShell() {
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    setGatePickerOpen(false);
+    setCartDrawerOpen(false);
+    setNotificationsOpen(false);
+  }, [location.pathname]);
   const { modalOpen: installModalOpen, setModalOpen: setInstallModalOpen, triggerInstall } =
     usePwaInstall();
 
@@ -103,8 +110,7 @@ function AppShell() {
   const isVendorRoute =
     location.pathname === '/v' ||
     location.pathname.startsWith('/v/') ||
-    location.pathname === '/vendor' ||
-    location.pathname.startsWith('/vendor/');
+    location.pathname === '/vendor';
   const isAdminRoute = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
   const isLandingRoute = location.pathname === '/';
   const isDedicatedConsole = isVendorRoute || isAdminRoute;
@@ -112,6 +118,12 @@ function AppShell() {
 
   return (
     <div className="min-h-screen overflow-x-clip flex flex-col bg-[var(--color-surface-sunken)] text-[var(--color-text)]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-[#830020] focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+      >
+        Skip to main content
+      </a>
       <SplashScreen />
       <OfflineBanner />
 
@@ -136,7 +148,7 @@ function AppShell() {
       <div className={`flex-1 ${showLeftRail ? 'mx-auto flex w-full max-w-7xl' : 'w-full'}`}>
         {showLeftRail && <DesktopNavRail />}
 
-        <main className="min-w-0 flex-1 pb-20 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 pb-20 md:pb-8 focus:outline-none">
           <Suspense
             fallback={
               <div className="mx-auto max-w-3xl px-4 py-12 space-y-4">

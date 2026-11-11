@@ -35,3 +35,14 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     });
   });
 }
+
+// Optional Cloudflare Web Analytics beacon when VITE_CF_WEB_ANALYTICS_TOKEN is configured
+const cfAnalyticsToken = (import.meta as { env?: Record<string, string | undefined> }).env
+  ?.VITE_CF_WEB_ANALYTICS_TOKEN;
+if (typeof document !== 'undefined' && cfAnalyticsToken) {
+  const s = document.createElement('script');
+  s.defer = true;
+  s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+  s.dataset.cfBeacon = JSON.stringify({ token: cfAnalyticsToken });
+  document.head.appendChild(s);
+}

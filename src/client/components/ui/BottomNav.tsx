@@ -1,6 +1,6 @@
 import { Home, Compass, Receipt, User, Heart } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../../i18n';
 
 export function BottomNav() {
   const { t } = useTranslation();
@@ -15,7 +15,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 pb-safe backdrop-blur-md md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-[var(--color-surface)] pb-safe md:hidden"
       aria-label="Mobile Bottom Navigation"
     >
       <div className="flex h-16 items-center justify-around px-2">

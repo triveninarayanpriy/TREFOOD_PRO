@@ -22,8 +22,8 @@ export function ErrorState({
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400">
         <AlertCircle className="h-7 w-7" />
       </div>
-      <h3 className="text-base font-bold text-stone-900 dark:text-stone-100">{title}</h3>
-      <p className="mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">{message}</p>
+      <h3 className="text-base font-bold text-[var(--color-text)]">{title}</h3>
+      <p className="mt-1 max-w-sm text-xs text-[var(--color-text-muted)]">{message}</p>
       {onRetry && (
         <div className="mt-5">
           <Button onClick={onRetry} variant="secondary" size="sm">

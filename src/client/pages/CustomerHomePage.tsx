@@ -1,22 +1,21 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Chip, Badge } from '../components/ui/Badge';
-import { VendorCard, getVendorImageUrl } from '../components/ui/VendorCard';
+import { getVendorImageUrl } from '../components/ui/VendorCard';
+import { GateBoard } from '../components/ui/GateBoard';
+import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { VendorCardSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { GatePicker } from '../components/ui/GatePicker';
 import { CurfewBanner } from '../components/ui/CurfewBanner';
 import { Dialog } from '../components/ui/Dialog';
 import { Button } from '../components/ui/Button';
 import { SeoHead } from '../components/seo/SeoHead';
 import { useToast } from '../components/ui/Toast';
 import { AppSearchBar } from '../components/app/AppSearchBar';
-import { PromotionCarousel } from '../components/app/PromotionCarousel';
-import { DesktopPacketSidebar } from '../components/app/DesktopPacketSidebar';
 import { getGateCurfewStatus, isNightSafetyActive } from '@shared/curfew';
 import {
   computeCategoryChips,
@@ -29,15 +28,62 @@ import {
   ShieldCheck,
   Leaf,
   Flame,
-  TrendingUp,
   ShoppingBag,
   Plus,
 } from 'lucide-react';
 import type { Gate } from '@shared/schemas';
-import type { VendorSummary, QuickPickItem, CouponSummary } from '@shared/types';
+import type { VendorSummary, QuickPickItem } from '@shared/types';
+
+const CUSTOMER_TILE_CATEGORIES = [
+  {
+    id: 'food',
+    label: 'Food',
+    img: '/images/categories/food-cat.png',
+    href: '/app?category=meals',
+  },
+  {
+    id: 'fruits_juices',
+    label: 'Fruits & Juices',
+    img: '/images/categories/fruits-cat.png',
+    href: '/app/search?q=shake',
+  },
+  {
+    id: 'groceries',
+    label: 'Groceries',
+    img: '/images/categories/groceries-cat.png',
+    href: '/app?category=snacks',
+  },
+  {
+    id: 'chicken',
+    label: 'Fresh Chicken',
+    img: '/images/categories/chicken-cat.png',
+    href: '/app/search?q=chicken',
+  },
+  {
+    id: 'vegetables',
+    label: 'Vegetables',
+    img: '/images/categories/vegetables-cat.png',
+    href: '/app/search?q=veg',
+  },
+] as const;
+
+function normalizeCategoryParam(raw: string | null): string {
+  if (!raw) return 'all';
+  if (raw === 'food') return 'meals';
+  if (raw === 'fruits_juices') return 'beverages';
+  return raw;
+}
 
 const CartDrawer = lazy(() =>
   import('../components/cart/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+);
+const GatePicker = lazy(() =>
+  import('../components/ui/GatePicker').then((m) => ({ default: m.GatePicker }))
+);
+const DesktopPacketSidebar = lazy(() =>
+  import('../components/app/DesktopPacketSidebar').then((m) => ({
+    default: m.DesktopPacketSidebar,
+  }))
 );
 
 const NOTIFY_STORAGE_KEY = 'trefood_notify_vendors';
@@ -64,8 +110,19 @@ export function CustomerHomePage() {
 
   const [gatePickerOpen, setGatePickerOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [isDesktopSidebarViewport, setIsDesktopSidebarViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setIsDesktopSidebarViewport(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    searchParams.get('category') || 'all'
+    normalizeCategoryParam(searchParams.get('category'))
   );
   const [vegOnly, setVegOnly] = useState<boolean>(
     searchParams.get('veg') === 'true' || searchParams.get('veg') === '1'
@@ -163,32 +220,6 @@ export function CustomerHomePage() {
     staleTime: 30000,
   });
 
-  const { data: couponsData, isLoading: couponsLoading } = useQuery<{
-    ok: boolean;
-    coupons: CouponSummary[];
-  }>({
-    queryKey: ['coupons'],
-    queryFn: async () => {
-      const res = await fetch('/api/coupons');
-      if (!res.ok) return { ok: false, coupons: [] };
-      return res.json();
-    },
-    staleTime: 60000,
-  });
-
-  const { data: annData } = useQuery<{
-    ok: boolean;
-    announcements: Array<{ id: string; message: string }>;
-  }>({
-    queryKey: ['announcements'],
-    queryFn: async () => {
-      const res = await fetch('/api/announcements');
-      if (!res.ok) return { ok: false, announcements: [] };
-      return res.json();
-    },
-    staleTime: 60000,
-  });
-
   const rawVendors = vendorsData?.vendors || [];
 
   // Category chips with live counts & zero-result prevention
@@ -223,14 +254,6 @@ export function CustomerHomePage() {
     () => partitionCustomerVendors(sortedVendors),
     [sortedVendors]
   );
-
-  // Popular vendors shelf (only open + reachable vendors matching vegOnly)
-  const popularVendors = useMemo(() => {
-    const pool = baseMatched.filter((v) => v.isOpen && v.canDeliverToGate !== false);
-    return [...pool]
-      .sort((a, b) => b.ratingAvg * Math.log10(Math.max(10, b.ratingCount)) - a.ratingAvg * Math.log10(Math.max(10, a.ratingCount)))
-      .slice(0, 4);
-  }, [baseMatched]);
 
   // Quick picks filtered cleanly by vegOnly & selected category when filtered
   const visibleQuickPicks = useMemo(() => {
@@ -281,38 +304,43 @@ export function CustomerHomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Primary Feed Column */}
         <div className="lg:col-span-8 min-w-0 space-y-5">
-          {/* Gate & Curfew Strip */}
+          <div className="space-y-1.5">
+            <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-[var(--color-text)] leading-tight">
+              NIT Patna Campus Menus &amp; Hostel Gate Delivery
+            </h1>
+            <p className="text-xs sm:text-sm text-[var(--color-text-muted)] leading-relaxed">
+              Zero delivery fee across every NIT Patna hostel gate • Verified 4-digit packet code handover • Pay Cash or UPI at the gate
+            </p>
+          </div>
+          {/* Gate Board & Curfew Strip */}
           {gatesLoading ? (
-            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-[144px] w-full rounded-xl" />
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)]">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF8E1] text-[#830020] dark:bg-[#331F04] dark:text-[#FFB400]">
-                  <MapPin className="h-5 w-5" aria-hidden="true" />
+            <div className="space-y-3">
+              <GateBoard
+                compact
+                gates={gatesData?.gates || []}
+                selectedGateId={selectedGateId}
+                onSelectGate={(g) => setSelectedGateId(g.id)}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-xs">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <MapPin className="h-3.5 w-3.5 text-[#830020] dark:text-[#FFB400] shrink-0" aria-hidden="true" />
+                  <span className="font-semibold text-[var(--color-text-muted)]">Delivering to Gate:</span>
+                  <span className="font-bold text-[var(--color-text)] truncate">
+                    {currentGate ? currentGate.name : 'Select Gate'}
+                  </span>
+                  {gateStatus && (
+                    <Badge variant={gateStatus.is24x7 ? 'success' : gateStatus.isOpen ? 'warning' : 'closed'}>
+                      {gateStatus.label}
+                    </Badge>
+                  )}
+                  {nightSafeNow && <Badge variant="night_safe">Night Safe Active</Badge>}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Delivering to Gate
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-bold text-[var(--color-text)] truncate">
-                      {currentGate ? currentGate.name : 'Select Gate'}
-                    </span>
-                    {gateStatus && (
-                      <Badge variant={gateStatus.is24x7 ? 'success' : gateStatus.isOpen ? 'warning' : 'closed'}>
-                        {gateStatus.label}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {nightSafeNow && <Badge variant="night_safe">Night Safe Active</Badge>}
                 <button
                   type="button"
                   onClick={() => setGatePickerOpen(true)}
-                  className="min-h-[44px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3.5 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+                  className="min-h-[36px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 text-xs font-bold text-[var(--color-text)] hover:border-[#830020] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
                 >
                   Change gate
                 </button>
@@ -335,21 +363,40 @@ export function CustomerHomePage() {
           {/* Search Bar with Live Suggestions & Recent Searches */}
           <AppSearchBar gateId={selectedGateId} vegOnly={vegOnly} />
 
-          {/* Promotions Carousel */}
-          <PromotionCarousel
-            coupons={couponsData?.coupons || []}
-            announcements={annData?.announcements || []}
-            loading={couponsLoading}
-          />
+          {/* Category Visual Strip (/images/categories/*) */}
+          <section aria-label="Campus categories" className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            {CUSTOMER_TILE_CATEGORIES.map((tile) => (
+              <Link
+                key={tile.id}
+                to={tile.href}
+                className="group overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              >
+                <div className="aspect-[4/3] overflow-hidden border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
+                  <img
+                    src={tile.img}
+                    alt={tile.label}
+                    width={160}
+                    height={120}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover tf-photo-warm transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="px-2.5 py-2 text-center text-xs font-bold text-[var(--color-text)] truncate">
+                  {tile.label}
+                </div>
+              </Link>
+            ))}
+          </section>
 
           {/* Quick Picks Shelf */}
           {vendorsLoading ? (
             <div className="space-y-2.5">
               <Skeleton className="h-5 w-36 rounded-md" />
-              <div className="flex gap-3 overflow-hidden">
-                <Skeleton className="h-24 w-56 shrink-0 rounded-2xl" />
-                <Skeleton className="h-24 w-56 shrink-0 rounded-2xl" />
-                <Skeleton className="h-24 w-56 shrink-0 rounded-2xl" />
+              <div className="flex gap-3 overflow-hidden pb-1">
+                <Skeleton className="h-[106px] w-[236px] sm:w-[252px] shrink-0 rounded-2xl" />
+                <Skeleton className="h-[106px] w-[236px] sm:w-[252px] shrink-0 rounded-2xl" />
+                <Skeleton className="h-[106px] w-[236px] sm:w-[252px] shrink-0 rounded-2xl" />
               </div>
             </div>
           ) : visibleQuickPicks.length > 0 ? (
@@ -363,7 +410,12 @@ export function CustomerHomePage() {
                   Popular &amp; ready fast
                 </span>
               </div>
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 no-scrollbar">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Quick picks carousel"
+                className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 no-scrollbar rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              >
                 {visibleQuickPicks.map((pick) => (
                   <div
                     key={pick.id}
@@ -380,6 +432,7 @@ export function CustomerHomePage() {
                         width={48}
                         height={48}
                         loading="lazy"
+                        decoding="async"
                         className="h-12 w-12 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]"
                       />
                       <div className="min-w-0">
@@ -419,14 +472,19 @@ export function CustomerHomePage() {
           {/* Category Chips with Live Counts (Disabled if Count === 0) */}
           <div aria-label="Filter by category" className="space-y-3">
             {vendorsLoading ? (
-              <div className="flex gap-2 overflow-hidden">
-                <Skeleton className="h-9 w-28 rounded-full shrink-0" />
-                <Skeleton className="h-9 w-24 rounded-full shrink-0" />
-                <Skeleton className="h-9 w-24 rounded-full shrink-0" />
-                <Skeleton className="h-9 w-24 rounded-full shrink-0" />
+              <div className="flex gap-2 overflow-hidden pb-1">
+                <Skeleton className="h-[44px] w-28 rounded-full shrink-0" />
+                <Skeleton className="h-[44px] w-24 rounded-full shrink-0" />
+                <Skeleton className="h-[44px] w-24 rounded-full shrink-0" />
+                <Skeleton className="h-[44px] w-24 rounded-full shrink-0" />
               </div>
             ) : (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              <div
+                tabIndex={0}
+                role="region"
+                aria-label="Category filter chips"
+                className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+              >
                 {categoriesWithCounts.map((cat) => (
                   <Chip
                     key={cat.id}
@@ -490,37 +548,9 @@ export function CustomerHomePage() {
             </div>
           </div>
 
-          {/* Popular Vendors Highlight (when viewing 'all') */}
-          {!vendorsLoading && !vendorsError && effectiveCategory === 'all' && popularVendors.length > 0 && (
-            <section aria-label="Popular campus vendors" className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-[#830020] dark:text-[#FFB400]" aria-hidden="true" />
-                  <h2 className="text-base font-bold text-[var(--color-text)]">Popular vendors</h2>
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  Student favourites at NIT Patna
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {popularVendors.map((vendor) => (
-                  <VendorCard
-                    key={`pop-${vendor.id}`}
-                    vendor={vendor}
-                    variant="open"
-                    isFavorite={Boolean(favData?.vendorIds?.includes(vendor.id))}
-                    onToggleFavorite={() => handleToggleFavorite(vendor.id)}
-                    onClick={() => navigate(`/vendor/${vendor.slug}`)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Open Now Sorted First + Slim Closed List */}
+          {/* Open Now Sorted First + Slim Closed List (Signature VendorCounterRow) */}
           {vendorsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <VendorCardSkeleton />
+            <div className="space-y-3">
               <VendorCardSkeleton />
               <VendorCardSkeleton />
               <VendorCardSkeleton />
@@ -542,20 +572,19 @@ export function CustomerHomePage() {
               {openVendors.length > 0 && (
                 <section aria-label="Open campus vendors" className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-base font-bold text-[var(--color-text)]">
+                    <h2 className="font-display text-lg font-extrabold text-[var(--color-text)]">
                       Open Now ({openVendors.length})
                     </h2>
                     <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
                       <ShieldCheck className="h-3.5 w-3.5 text-[#15803D]" aria-hidden="true" />
-                      <span>Zero delivery fee • Verified packets</span>
+                      <span>Zero delivery fee · Verified packets</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     {openVendors.map((vendor) => (
-                      <VendorCard
+                      <VendorCounterRow
                         key={vendor.id}
                         vendor={vendor}
-                        variant="open"
                         isFavorite={Boolean(favData?.vendorIds?.includes(vendor.id))}
                         onToggleFavorite={() => handleToggleFavorite(vendor.id)}
                         onClick={() => navigate(`/vendor/${vendor.slug}`)}
@@ -567,15 +596,14 @@ export function CustomerHomePage() {
 
               {closedVendors.length > 0 && (
                 <section aria-label="Closed vendors" className="space-y-3">
-                  <h2 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  <h2 className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
                     Closed right now ({closedVendors.length})
                   </h2>
-                  <div className="space-y-2.5">
+                  <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
                     {closedVendors.map((vendor) => (
-                      <VendorCard
+                      <VendorCounterRow
                         key={vendor.id}
                         vendor={vendor}
-                        variant="closed"
                         isFavorite={Boolean(favData?.vendorIds?.includes(vendor.id))}
                         onToggleFavorite={() => handleToggleFavorite(vendor.id)}
                         isNotified={notifiedVendorIds.includes(vendor.id)}
@@ -592,11 +620,15 @@ export function CustomerHomePage() {
         </div>
 
         {/* Sticky Desktop Packet Sidebar (Right Column on >= lg) */}
-        <DesktopPacketSidebar
-          currentGate={currentGate}
-          onOpenGatePicker={() => setGatePickerOpen(true)}
-          favoritesCount={favData?.vendorIds?.length || 0}
-        />
+        {isDesktopSidebarViewport && (
+          <Suspense fallback={null}>
+            <DesktopPacketSidebar
+              currentGate={currentGate}
+              onOpenGatePicker={() => setGatePickerOpen(true)}
+              favoritesCount={favData?.vendorIds?.length || 0}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* Floating Cart Bar on Mobile/Tablet (< lg) */}
@@ -652,18 +684,22 @@ export function CustomerHomePage() {
         </div>
       </Dialog>
 
-      {/* Gate Picker Sheet / Popover */}
-      <GatePicker
-        gates={gatesData?.gates || []}
-        selectedGateId={selectedGateId}
-        onSelectGate={(gateOrId) => {
-          const id = typeof gateOrId === 'string' ? gateOrId : gateOrId.id;
-          setSelectedGateId(id);
-          showToast('Updated delivery gate', 'info');
-        }}
-        isOpen={gatePickerOpen}
-        onClose={() => setGatePickerOpen(false)}
-      />
+      {/* Lazy Gate Picker Sheet / Popover */}
+      {gatePickerOpen && (
+        <Suspense fallback={null}>
+          <GatePicker
+            gates={gatesData?.gates || []}
+            selectedGateId={selectedGateId}
+            onSelectGate={(gateOrId) => {
+              const id = typeof gateOrId === 'string' ? gateOrId : gateOrId.id;
+              setSelectedGateId(id);
+              showToast('Updated delivery gate', 'info');
+            }}
+            isOpen={gatePickerOpen}
+            onClose={() => setGatePickerOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {/* Lazy Cart Drawer */}
       {cartDrawerOpen && (

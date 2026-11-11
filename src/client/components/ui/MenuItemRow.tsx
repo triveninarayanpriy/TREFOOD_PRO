@@ -62,6 +62,7 @@ export function MenuItemRow({
             width={64}
             height={64}
             loading="lazy"
+            decoding="async"
             className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] ${
               !inStock ? 'grayscale opacity-75' : ''
             }`}

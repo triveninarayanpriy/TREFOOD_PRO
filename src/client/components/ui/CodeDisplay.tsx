@@ -30,11 +30,12 @@ export function CodeDisplay({
         <span>{label}</span>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2.5">
         {digits.map((digit, idx) => (
           <span
-            key={idx}
-            className="flex h-14 w-12 items-center justify-center rounded-xl border-2 border-[#830020]/25 bg-[var(--color-surface-sunken)] font-mono text-3xl font-black text-[#830020] shadow-xs dark:border-[#FFB400]/35 dark:text-[#FFB400]"
+            key={`${idx}-${digit}`}
+            style={{ animationDelay: `${idx * 70}ms` }}
+            className="tf-digit-flip h-16 w-12 items-center justify-center rounded-lg border-2 border-[#830020]/30 bg-white font-handwriting text-5xl font-bold leading-none text-[#830020] shadow-xs dark:border-[#FFB400]/40 dark:bg-[#140D0B] dark:text-[#FFB400]"
           >
             {digit}
           </span>

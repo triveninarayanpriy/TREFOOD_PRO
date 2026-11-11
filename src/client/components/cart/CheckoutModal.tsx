@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../ui/Toast';
 import { simulatedUpiAdapter } from '../../services/paymentAdapter';
+import { trackFunnelEvent } from '../../utils/analytics';
 import type { Gate } from '@shared/schemas';
 import {
   ShieldCheck,
@@ -102,6 +103,15 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
       setPhoneError(null);
     }
   }, [open, cartSig]);
+
+  useEffect(() => {
+    if (open && vendor?.id) {
+      trackFunnelEvent('checkout_start', {
+        gateId: selectedGateId,
+        vendorId: vendor.id,
+      });
+    }
+  }, [open, vendor?.id, selectedGateId]);
 
   useEffect(() => {
     setScheduleEnabled(Boolean(scheduledFor));
@@ -312,6 +322,10 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
           setOrderError(data.error?.message || 'Could not place order. Please try again.');
         }
       } else {
+        trackFunnelEvent('order_placed', {
+          gateId: selectedGateId,
+          vendorId: vendor.id,
+        });
         showToast('Order placed! Match your 4-digit code at the gate.', 'success');
         clearCart();
         onClose();
@@ -722,7 +736,10 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
           </div>
 
           {orderError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 space-y-2">
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 space-y-2"
+            >
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" aria-hidden="true" />
                 <div>{orderError}</div>
@@ -745,6 +762,7 @@ export function CheckoutModal({ open, onClose }: CheckoutModalProps) {
 
           <div className="pt-1">
             <Button
+              type="button"
               onClick={handlePlaceOrder}
               loading={isPlacingOrder || quoteLoading}
               disabled={isPlacingOrder || quoteLoading || Boolean(quote && !quote.canDeliver)}

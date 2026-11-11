@@ -215,7 +215,7 @@ export function GatePicker({
       <>
         {/* Backdrop: dims on mobile bottom sheet; transparent click-away on desktop popover */}
         <div
-          className="fixed inset-0 z-40 bg-stone-950/55 sm:bg-transparent backdrop-blur-[1px] sm:backdrop-blur-none"
+          className="fixed inset-0 z-40 bg-[#1C1210]/60 sm:bg-transparent"
           onClick={onClose}
           aria-hidden="true"
         />

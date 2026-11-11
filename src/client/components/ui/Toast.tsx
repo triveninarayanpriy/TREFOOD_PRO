@@ -61,10 +61,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => dismissToast(toast.id)}
-                className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200"
+                className="inline-flex min-h-[44px] min-w-[44px] -mr-2 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
                 aria-label="Dismiss toast"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           );

@@ -169,7 +169,7 @@ notificationRoutes.get('/', requireAuth, async (c) => {
     .innerJoin(vendors, eq(orders.vendorId, vendors.id))
     .innerJoin(gates, eq(orders.gateId, gates.id))
     .where(eq(orders.userId, user.id))
-    .orderBy(desc(orders.createdAt))
+    .orderBy(desc(orders.createdAt), desc(orders.id))
     .limit(40)
     .all();
 
@@ -180,12 +180,12 @@ notificationRoutes.get('/', requireAuth, async (c) => {
   const orderMap = new Map(recentOrders.map((r) => [r.order.id, r]));
   const orderIds = recentOrders.map((r) => r.order.id);
 
-  // Indexed batch query on idx_order_events_order_at
+  // Indexed batch query on idx_order_events_order_at (break ties by monotonic ULID id)
   const events = await db
     .select()
     .from(orderEvents)
     .where(inArray(orderEvents.orderId, orderIds))
-    .orderBy(desc(orderEvents.at))
+    .orderBy(desc(orderEvents.at), desc(orderEvents.id))
     .limit(120)
     .all();
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { trackFunnelEvent } from '../utils/analytics';
 import {
   useCartStore,
   buildCartLineKey,
@@ -129,6 +130,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
   const pendingVendorSwitch = useCartStore((s) => s.pendingVendorSwitch);
+
+  const trackedAddItem = useCallback(
+    (newVendor: CartVendor, newItem: Omit<CartItem, 'quantity'> & { quantity?: number }) => {
+      addItem(newVendor, newItem);
+      trackFunnelEvent('add_to_cart', {
+        gateId: selectedGateId,
+        vendorId: newVendor.id,
+      });
+    },
+    [addItem, selectedGateId]
+  );
+
+  const trackedConfirmVendorSwitch = useCallback(() => {
+    if (pendingVendorSwitch) {
+      trackFunnelEvent('add_to_cart', {
+        gateId: selectedGateId,
+        vendorId: pendingVendorSwitch.vendor.id,
+      });
+    }
+    confirmVendorSwitch();
+  }, [confirmVendorSwitch, pendingVendorSwitch, selectedGateId]);
 
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -278,7 +300,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setContactPhone,
         paymentMethod,
         setPaymentMethod,
-        addItem,
+        addItem: trackedAddItem,
         updateQuantity,
         updateNotes,
         removeItem,
@@ -289,7 +311,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         quoteError,
         isOfflineEstimate,
         pendingVendorSwitch,
-        confirmVendorSwitch,
+        confirmVendorSwitch: trackedConfirmVendorSwitch,
         cancelVendorSwitch,
         refetchQuote: fetchQuote,
       }}

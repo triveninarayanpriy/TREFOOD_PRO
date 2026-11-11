@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { useToast } from '../../components/ui/Toast';
 import { useSeoHead } from '../../components/seo/SeoHead';
 import {
@@ -64,7 +65,12 @@ function OrdersPerHourSvgChart({ data }: { data: number[] }) {
   const labels = ['00h', '02h', '04h', '06h', '08h', '10h', '12h', '14h', '16h', '18h', '20h', '22h'];
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div
+      className="w-full overflow-x-auto rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+      tabIndex={0}
+      role="region"
+      aria-label="Hourly orders distribution chart"
+    >
       <svg
         viewBox={`0 0 ${width} ${height + 30}`}
         className="w-full h-36 min-w-[400px]"
@@ -679,7 +685,7 @@ export function AdminConsolePage() {
                 className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition-all ${
                   activeTab === tab.id
                     ? 'bg-white text-stone-900 shadow-xs dark:bg-stone-700 dark:text-stone-100'
-                    : 'text-stone-600 hover:text-stone-900 dark:text-stone-400'
+                    : 'text-stone-600 hover:text-stone-900 dark:text-stone-300'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -687,6 +693,7 @@ export function AdminConsolePage() {
               </button>
             );
           })}
+          <ThemeToggle className="ml-1" />
         </nav>
       </header>
 
@@ -734,6 +741,41 @@ export function AdminConsolePage() {
             <OrdersPerHourSvgChart data={metrics?.hourlyDistribution || [2, 0, 0, 1, 3, 5, 8, 4, 3, 6, 9, 4]} />
           </div>
 
+          {/* Privacy-Friendly Funnel Telemetry Card */}
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900 space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                Privacy-Friendly Funnel Telemetry (Zero PII)
+              </h2>
+              <p className="text-xs text-stone-600 dark:text-stone-400">
+                Aggregate gate funnel steps (respects DNT/GPC; zero student identifiers stored)
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              {(
+                [
+                  { label: 'View Menu', key: 'view_menu' },
+                  { label: 'Add to Cart', key: 'add_to_cart' },
+                  { label: 'Checkout Start', key: 'checkout_start' },
+                  { label: 'Order Placed', key: 'order_placed' },
+                  { label: 'Handover Confirmed', key: 'handover_confirmed' },
+                ] as const
+              ).map((step) => (
+                <div
+                  key={step.key}
+                  className="rounded-xl border border-stone-200 bg-stone-50 p-3 dark:border-stone-800 dark:bg-stone-850"
+                >
+                  <div className="text-[11px] font-semibold text-stone-600 dark:text-stone-300">
+                    {step.label}
+                  </div>
+                  <div className="mt-0.5 font-mono text-lg font-extrabold text-stone-900 dark:text-stone-100">
+                    {metrics?.funnelCounts?.[step.key] ?? 0}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => setFestivalModalOpen(true)} variant="secondary" size="sm" className="min-h-[44px]">
               <AlertTriangle className="mr-1.5 h-4 w-4 text-amber-600" aria-hidden="true" />
@@ -765,7 +807,7 @@ export function AdminConsolePage() {
           {/* Filter Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-850">
             <div>
-              <label htmlFor="admin-order-search" className="text-[11px] font-bold block mb-1 text-stone-600">
+              <label htmlFor="admin-order-search" className="text-[11px] font-bold block mb-1 text-stone-600 dark:text-stone-300">
                 Search Order / Code
               </label>
               <input
@@ -783,7 +825,7 @@ export function AdminConsolePage() {
             </div>
 
             <div>
-              <label htmlFor="admin-order-status-filter" className="text-[11px] font-bold block mb-1 text-stone-600">
+              <label htmlFor="admin-order-status-filter" className="text-[11px] font-bold block mb-1 text-stone-600 dark:text-stone-300">
                 Status
               </label>
               <select
@@ -808,7 +850,7 @@ export function AdminConsolePage() {
             </div>
 
             <div>
-              <label htmlFor="admin-order-gate-filter" className="text-[11px] font-bold block mb-1 text-stone-600">
+              <label htmlFor="admin-order-gate-filter" className="text-[11px] font-bold block mb-1 text-stone-600 dark:text-stone-300">
                 Gate
               </label>
               <select
@@ -831,7 +873,7 @@ export function AdminConsolePage() {
             </div>
 
             <div>
-              <label htmlFor="admin-order-vendor-filter" className="text-[11px] font-bold block mb-1 text-stone-600">
+              <label htmlFor="admin-order-vendor-filter" className="text-[11px] font-bold block mb-1 text-stone-600 dark:text-stone-300">
                 Vendor
               </label>
               <select
