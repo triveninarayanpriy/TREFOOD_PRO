@@ -183,7 +183,7 @@ test.describe('Whole-App Accessibility, Hinglish, Keyboard & Motion Audit', () =
     });
 
     await page.goto('/app');
-    await expect(page.getByText('Quick picks')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Campus Counters|Campus Food Counters/i).first()).toBeVisible({ timeout: 10000 });
 
     // Keyboard flow: Tab focuses "Skip to main content" link
     await page.keyboard.press('Tab');

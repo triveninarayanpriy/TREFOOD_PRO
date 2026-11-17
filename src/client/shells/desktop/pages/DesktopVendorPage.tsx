@@ -174,7 +174,7 @@ export function DesktopVendorPage() {
             <div className="space-y-3 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold">
                 {vendor.isOpen ? (
-                  <span className="rounded-full bg-emerald-600 px-3 py-1 text-white">
+                  <span className="rounded-full bg-emerald-800 px-3 py-1 text-white">
                     Open Now
                   </span>
                 ) : (

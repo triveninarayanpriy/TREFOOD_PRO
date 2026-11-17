@@ -6,16 +6,15 @@ export function MobileBottomNav() {
   const { t } = useTranslation();
 
   const links = [
-    { to: '/app', label: t('nav.home', 'Home'), icon: Home },
-    { to: '/browse', label: t('nav.browse', 'Browse'), icon: Compass },
+    { to: '/app', label: t('nav.browse', 'Menus Dekho'), icon: Compass },
     { to: '/favorites', label: t('nav.favorites', 'Saved'), icon: Heart },
-    { to: '/orders', label: t('nav.orders', 'Orders'), icon: Receipt },
+    { to: '/orders', label: t('nav.orders', 'Mere Orders'), icon: Receipt },
     { to: '/account', label: t('nav.account', 'Account'), icon: User },
   ];
 
   return (
     <nav
-      aria-label="Mobile Navigation"
+      aria-label="Mobile Bottom Navigation"
       className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md px-2"
     >
       {links.map((link) => {

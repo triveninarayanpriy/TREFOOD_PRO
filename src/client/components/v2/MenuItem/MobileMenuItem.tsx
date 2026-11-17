@@ -39,10 +39,11 @@ export function MobileMenuItem({
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-1.5">
           <span
+            role="img"
+            aria-label={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
             className={`inline-block h-3 w-3 rounded-full border-2 ${
               isVeg ? 'border-emerald-600 bg-emerald-600' : 'border-red-600 bg-red-600'
             }`}
-            aria-label={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
           />
           <h4 className="font-sans text-[16px] font-bold text-[var(--color-text)] leading-snug">
             {name}

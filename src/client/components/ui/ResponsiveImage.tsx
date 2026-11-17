@@ -85,8 +85,9 @@ export function ResponsiveImage({
   if (isBroken || !currentPath) {
     return (
       <div
-        role="img"
-        aria-label={alt}
+        role={alt ? 'img' : 'presentation'}
+        aria-label={alt || undefined}
+        aria-hidden={!alt ? 'true' : undefined}
         className={`flex items-center justify-center overflow-hidden transition-colors ${containerClassName} ${className}`}
         style={{
           backgroundColor: dominantColor,
@@ -123,8 +124,7 @@ export function ResponsiveImage({
           height={explicitHeight}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
-          // @ts-expect-error HTML fetchpriority attribute
-          fetchpriority={priority ? 'high' : 'auto'}
+          fetchPriority={priority ? 'high' : 'auto'}
           onError={handleError}
           onLoad={handleLoaded}
           className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-90'} ${className}`}

@@ -183,7 +183,7 @@ export function MobileVendorPage() {
         <div className="absolute bottom-3 left-3 right-3 text-white">
           <div className="flex items-center gap-2 text-[12px] font-bold">
             {vendor.isOpen ? (
-              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-white">Open Now</span>
+              <span className="rounded-full bg-emerald-800 px-2 py-0.5 text-white">Open Now</span>
             ) : (
               <span className="rounded-full bg-stone-700 px-2 py-0.5 text-white">Opens {hours?.open || '10:00'}</span>
             )}

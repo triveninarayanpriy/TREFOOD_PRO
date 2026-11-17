@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingBag } from 'lucide-react';
 import { DesktopGateStatus } from '../../components/v2/GateStatus/DesktopGateStatus';
+import { useTranslation } from '../../i18n';
 import type { Gate } from '@shared/schemas';
 
 export interface DesktopTopNavProps {
@@ -24,6 +25,7 @@ export function DesktopTopNav({
   className = '',
 }: DesktopTopNavProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearch = (e: React.FormEvent) => {
@@ -68,7 +70,7 @@ export function DesktopTopNav({
         </div>
 
         {/* Centre: Generous Search Bar */}
-        <div className="flex-1 max-w-xl mx-4">
+        <div className="flex-1 max-w-md mx-2">
           <form onSubmit={handleSearch} className="relative w-full">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
@@ -81,8 +83,29 @@ export function DesktopTopNav({
           </form>
         </div>
 
-        {/* Right: Minimal Cart Pill (item count + subtotal) — No dev links, no extra icon clutter */}
-        <div className="shrink-0">
+        {/* Right Navigation & Cart */}
+        <div className="flex items-center gap-3 shrink-0">
+          <nav aria-label="Desktop Navigation Rail" className="hidden lg:flex items-center gap-1">
+            <Link
+              to="/app"
+              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+            >
+              {t('nav.browse', 'Browse Canteens')}
+            </Link>
+            <Link
+              to="/orders"
+              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+            >
+              {t('nav.orders', 'My Orders')}
+            </Link>
+            <Link
+              to="/account"
+              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+            >
+              {t('nav.account', 'Account')}
+            </Link>
+          </nav>
+
           <button
             type="button"
             onClick={onOpenCart}

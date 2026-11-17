@@ -64,7 +64,7 @@ export function DesktopShell({ children }: { children?: React.ReactNode }) {
   const isLandingRoute = location.pathname === '/';
 
   return (
-    <div className="min-h-screen bg-[var(--color-canvas-paper)] text-[var(--color-ink)] flex flex-col font-sans">
+    <div className="min-h-screen overflow-x-clip bg-[var(--color-canvas-paper)] text-[var(--color-ink)] flex flex-col font-sans">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-[#830020] focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#FFB400]"

@@ -178,7 +178,7 @@ export function DevKitPage() {
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[#6B5B54] p-4 text-white shadow-xs">
             <div className="text-[14px] font-bold">Muted</div>
-            <div className="font-mono text-[12px] opacity-75">#6B5B54</div>
+            <div className="font-mono text-[12px] text-white font-bold">#6B5B54</div>
           </div>
         </div>
 
