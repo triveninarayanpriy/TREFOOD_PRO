@@ -96,6 +96,57 @@ describe('Curfew and Delivery Service', () => {
     expect(result.etaMinutes).toBe(25);
   });
 
+  it('correctly evaluates Kolkata Biryani overnight operating hours (10:00 to 01:00 IST)', () => {
+    // Base midnight 2026-11-10 IST = 2026-11-09 18:30 UTC
+    const baseIstMidnightUtc = Math.floor(Date.UTC(2026, 10, 9, 18, 30, 0) / 1000);
+    const vendorKolkata: VendorRecord = {
+      id: 'rest_kolkata_biryani_nitp',
+      name: 'Kolkata Biryani Fast-Food Pizza House',
+      hoursJson: JSON.stringify({ open: '10:00', close: '01:00' }),
+      prepMinutes: 15,
+      isOpen: true,
+      status: 'active',
+    };
+    const gate24x7: GateRecord = {
+      id: 'gate_main',
+      name: 'Main Gate',
+      curfewTime: '23:59',
+      bufferMinutes: 15,
+      travelMinutes: 8,
+      active: true,
+      is24x7: true,
+    };
+    const vg: VendorGateRecord = {
+      vendorId: 'rest_kolkata_biryani_nitp',
+      gateId: 'gate_main',
+      extraMinutes: 0,
+    };
+
+    // 14:00 IST (afternoon): Open
+    const t1400 = baseIstMidnightUtc + 14 * 3600;
+    expect(canDeliver(gate24x7, vendorKolkata, t1400, vg, [gate24x7]).ok).toBe(true);
+
+    // 23:30 IST (night before midnight): Open
+    const t2330 = baseIstMidnightUtc + 23 * 3600 + 30 * 60;
+    expect(canDeliver(gate24x7, vendorKolkata, t2330, vg, [gate24x7]).ok).toBe(true);
+
+    // 00:30 IST (post-midnight): Open
+    const t0030 = baseIstMidnightUtc + 30 * 60;
+    expect(canDeliver(gate24x7, vendorKolkata, t0030, vg, [gate24x7]).ok).toBe(true);
+
+    // 01:15 IST (past overnight closing 01:00): Closed
+    const t0115 = baseIstMidnightUtc + 1 * 3600 + 15 * 60;
+    const r0115 = canDeliver(gate24x7, vendorKolkata, t0115, vg, [gate24x7]);
+    expect(r0115.ok).toBe(false);
+    expect(r0115.reason).toBe('vendor_closed');
+
+    // 09:30 IST (morning before 10:00 opening): Closed
+    const t0930 = baseIstMidnightUtc + 9 * 3600 + 30 * 60;
+    const r0930 = canDeliver(gate24x7, vendorKolkata, t0930, vg, [gate24x7]);
+    expect(r0930.ok).toBe(false);
+    expect(r0930.reason).toBe('vendor_closed');
+  });
+
   it('correctly parses time strings to minutes of day', () => {
     expect(parseTimeToMinutes('00:00')).toBe(0);
     expect(parseTimeToMinutes('10:30')).toBe(630);

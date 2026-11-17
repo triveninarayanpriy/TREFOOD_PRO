@@ -63,7 +63,8 @@ export interface VendorSummary {
   coverImageUrl?: string | null;
   description: string;
   nightSafetyNotice?: string | null;
-  fssaiNo: string;
+  fssaiNo?: string;
+  licence?: string;
   hoursJson?: string;
   prepMinutes: number;
   prepMaxMinutes?: number;

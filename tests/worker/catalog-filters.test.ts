@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import seedData from '../../db/real-seed.json';
 import {
   computeCategoryChips,
   sortCustomerVendors,
@@ -13,7 +14,7 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     name: 'Wrapchik Pizza',
     category: 'meals',
     description: 'Pizza, Burgers, Wraps, Crispy Chicken, Waffles, Fries',
-    fssaiNo: '10424000000103',
+    licence: 'FSSAI: pending verification',
     prepMinutes: 20,
     minOrderPaise: 4900,
     startingPricePaise: 3500,
@@ -32,7 +33,7 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     name: 'Chai Sutta Bar (CSB)',
     category: 'snacks',
     description: 'Chai, Coffee, Fast Food, Snacks, Burgers',
-    fssaiNo: '10424000000102',
+    licence: 'FSSAI: pending verification',
     prepMinutes: 8,
     minOrderPaise: 3900,
     startingPricePaise: 1500,
@@ -51,7 +52,7 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     name: 'Crave',
     category: 'raw_chicken',
     description: 'Hyderabadi Biryani and chicken specialties',
-    fssaiNo: '10424000000108',
+    licence: 'FSSAI: pending verification',
     prepMinutes: 12,
     minOrderPaise: 9900,
     startingPricePaise: 5500,
@@ -69,7 +70,7 @@ const SAMPLE_VENDORS: VendorSummary[] = [
     name: 'Vrindavan Bhog',
     category: 'meals',
     description: 'Pure Vegetarian North & South Indian Thali',
-    fssaiNo: '10424000000107',
+    licence: 'FSSAI: pending verification',
     prepMinutes: 20,
     minOrderPaise: 49900,
     startingPricePaise: 5500,
@@ -123,5 +124,33 @@ describe('Catalog Filtering & Zero-Result Prevention', () => {
     const { openVendors, closedVendors } = partitionCustomerVendors(SAMPLE_VENDORS);
     expect(openVendors.map((v) => v.id)).toEqual(['rest_wrapchik_nitp', 'rest_csb_nitp', 'rest_crave_nitp']);
     expect(closedVendors.map((v) => v.id)).toEqual(['rest_vrindavan_bhog_nitp']);
+  });
+
+  it('guarantees Egg Fried Rice and all egg items are isVeg: false and excluded by veg filter', () => {
+    const eggRegex = /\b(egg|eggs|anda|omelet|omelette)\b/i;
+    
+    // Find Egg Fried Rice specifically
+    const eggFriedRice = seedData.menuItems.find(
+      (m: { id: string; name: string }) => m.name.toLowerCase() === 'egg fried rice'
+    );
+    expect(eggFriedRice).toBeDefined();
+    expect(eggFriedRice?.isVeg).toBe(false);
+
+    // Check all items containing egg in name or description
+    const eggItems = seedData.menuItems.filter(
+      (m: { name: string; description?: string }) =>
+        eggRegex.test(m.name) || eggRegex.test(m.description || '')
+    );
+    expect(eggItems.length).toBeGreaterThan(0);
+    for (const item of eggItems) {
+      expect(item.isVeg, `Expected ${item.name} (${item.id}) to have isVeg: false`).toBe(false);
+    }
+
+    // Verify veg-only filter strictly hides every egg item
+    const vegOnlyFiltered = seedData.menuItems.filter((m: { isVeg: boolean }) => m.isVeg);
+    for (const vegItem of vegOnlyFiltered) {
+      const text = `${vegItem.name} ${vegItem.description || ''}`;
+      expect(eggRegex.test(text), `Veg filter contained egg dish: ${vegItem.name}`).toBe(false);
+    }
   });
 });

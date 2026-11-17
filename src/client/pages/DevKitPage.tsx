@@ -42,7 +42,7 @@ const REAL_OPEN_VENDOR: VendorSummary = {
   cuisines: ['Pizza', 'Burgers', 'Wraps', 'Waffles'],
   coverImageUrl: '/images/vendors/wrapchik-pizza.jpg',
   description: 'Gourmet Pizzas, Crispy Fried Chicken, Juicy Burgers, Loaded Wraps, Waffles & Coolers.',
-  fssaiNo: '10424000000103',
+  licence: 'FSSAI: pending verification',
   hoursJson: JSON.stringify({ open: '10:00', close: '23:00' }),
   prepMinutes: 20,
   prepMaxMinutes: 25,

@@ -1021,7 +1021,7 @@ export function AdminConsolePage() {
                       <tr key={v.id}>
                         <td className="py-3">
                           <div className="font-bold text-stone-900 dark:text-stone-100">{v.name}</div>
-                          <div className="text-[10px] font-mono text-stone-600 dark:text-stone-400">FSSAI {v.fssaiNo}</div>
+                          <div className="text-[10px] text-stone-600 dark:text-stone-400">FSSAI: pending verification</div>
                         </td>
                         <td className="font-mono">
                           {hrs.open}–{hrs.close}

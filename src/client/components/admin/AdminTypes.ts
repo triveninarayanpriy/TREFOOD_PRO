@@ -34,7 +34,8 @@ export interface AdminVendor {
   name: string;
   slug: string;
   category: string;
-  fssaiNo: string;
+  fssaiNo?: string;
+  licence?: string;
   phone: string;
   hoursJson: string;
   prepMinutes: number;

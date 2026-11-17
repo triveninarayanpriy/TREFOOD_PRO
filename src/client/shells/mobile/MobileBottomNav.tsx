@@ -1,4 +1,4 @@
-import { Home, Compass, Heart, Receipt, User } from 'lucide-react';
+import { Compass, Heart, Receipt, User } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from '../../i18n';
 

@@ -4,6 +4,29 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - Seed Data Quality, Veg Filter Accuracy & Overnight Operating Hours (Prompt 10)
+- **FSSAI Number Removal & Verification State (`db/real-seed.json`, `src/worker/routes/`, `src/client/pages/`)**:
+  - Removed numeric FSSAI numbers across all 8 vendors in catalog seed, D1 database, and API responses.
+  - API endpoints (`/api/vendors`, `/api/vendors/:id`, `/api/search`, `/api/favorites`) return `licence: 'FSSAI: pending verification'` without leaking raw numeric strings.
+  - Admin and DevKit UI updated to display `"FSSAI: pending verification"`.
+  - Schema & TypeScript definitions updated: `fssaiNo` is optional and `licence` is provided.
+- **Strict Veg/Non-Veg Audit & Egg Fried Rice Correction (`db/real-seed.json`, `scripts/sync-seed.mjs`)**:
+  - Corrected `isVeg: false` for "Egg Fried Rice" (`item_0mw86q2bi1add96b8d1d41156`), "egg kathi roll", "Double egg dosa", "Plain Omelette", and "Masala Omelette".
+  - Audited and corrected all 13 egg and non-veg dishes previously marked as vegetarian.
+  - Added Vitest integration test in `tests/worker/catalog-filters.test.ts` guaranteeing that all egg dishes are `isVeg: false` and strictly excluded when the veg-only filter is active.
+- **Vrindavan Bhog Description & Kolkata Biryani Overnight Hours (`db/real-seed.json`, `src/shared/curfew.ts`)**:
+  - Added concise editorial description for Vrindavan Bhog: `"Pure vegetarian North Indian thalis, paneer delicacies, South Indian dosas and homestyle campus meals."`
+  - Set Kolkata Biryani operating hours to `{ open: '10:00', close: '01:00' }` IST.
+  - Verified overnight wrap-around operating hours evaluation in `evaluateCanDeliver` (open during 10:00–23:59 and 00:00–01:00, closed post-close and pre-open). Added dedicated Vitest test cases in `tests/worker/curfew.test.ts`.
+- **Verification & Cloudflare Deployment**:
+  - `npm run verify:images` passed (780 canonical assets).
+  - `npm run typecheck` passed (0 errors).
+  - `npm run lint` passed (0 errors).
+  - `npm test` passed (7/7 test suites, 42/42 tests passed).
+  - `npm run build` passed with mobile/desktop chunks cleanly under 150 KB gzip budget.
+  - Executed remote D1 database update (`wrangler d1 execute trefood-db --remote`) and confirmed live production endpoint returns `ok: true`, `licence: 'FSSAI: pending verification'`, `fssaiNo: undefined`, and accurate hours/descriptions.
+  - Deployed to Cloudflare Workers (`https://trefood-prototype.technicaltriveniyt.workers.dev`).
+
 ### Added - Design System v2 & Dual-Shell Code-Splitting (<MobileShell> & <DesktopShell>) (Prompt P2)
 - **Dual-Shell Architecture & Strict Shell-Level Code-Splitting (`src/client/shells/`, `src/client/App.tsx`)**:
   - Built `<MobileShell>` (<768px) and `<DesktopShell>` (>=768px) as two completely distinct layout trees with separate page compositions.

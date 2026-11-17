@@ -39,7 +39,7 @@ favoritesRoutes.get('/', async (c) => {
         nameHi: r.vendor.nameHi,
         category: r.vendor.category,
         description: r.vendor.description,
-        fssaiNo: r.vendor.fssaiNo,
+        licence: 'FSSAI: pending verification',
         prepMinutes: r.vendor.prepMinutes,
         isOpen: r.vendor.isOpen,
         busyUntil: r.vendor.busyUntil,

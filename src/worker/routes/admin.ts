@@ -278,7 +278,7 @@ adminRoutes.patch('/vendor-applications/:id', async (c) => {
       category: parsed.data.category || application.shopType || 'snacks',
       coverImageUrl: defaultCover,
       description: `Verified NIT Patna partner (${application.shopType}).`,
-      fssaiNo: '10426000000000',
+      fssaiNo: 'FSSAI: pending verification',
       phone: application.phone,
       hoursJson: JSON.stringify({ open: '09:00', close: '22:00' }),
       prepMinutes,

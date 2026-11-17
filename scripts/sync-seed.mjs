@@ -23,7 +23,7 @@ for (const cat of seed.categories) {
 // 2. Audit & clean vendor metadata against live trefood.in/c/nit-patna
 const vendorFixes = {
   rest_kolkata_biryani_nitp: {
-    hours: { open: '10:00', close: '22:30' },
+    hours: { open: '10:00', close: '01:00' },
     tagline: 'Biryani, Rolls & Campus Pizza',
     coverImageUrl: '/images/vendors/kolkata-biryani-fast-food-pizza-house.jpg',
   },
@@ -71,17 +71,23 @@ const vendorFixes = {
     hours: { open: '08:30', close: '22:00' },
     tagline: 'Best in Pure Vegetarian',
     description:
-      'Vrindavan Bhog - Pure vegetarian North Indian thalis, South Indian dosas, paneer specials, sweets, and homestyle meals near NIT Patna.',
+      'Pure vegetarian North Indian thalis, paneer delicacies, South Indian dosas and homestyle campus meals.',
   },
 };
 
 for (const v of seed.vendors) {
+  v.fssaiNo = 'FSSAI: pending verification';
   const fix = vendorFixes[v.id];
   if (fix) {
     if (fix.tagline) v.tagline = fix.tagline;
-    if (fix.hours) v.hours = fix.hours;
+    if (fix.hours) {
+      v.hours = fix.hours;
+      v.hoursJson = JSON.stringify(fix.hours);
+    }
     if (fix.coverImageUrl) v.coverImageUrl = fix.coverImageUrl;
     if (fix.description) v.description = fix.description;
+  } else if (v.hours) {
+    v.hoursJson = JSON.stringify(v.hours);
   }
 }
 
@@ -94,9 +100,22 @@ const exactNameFixes = {
 for (const c of seed.menuCategories) {
   c.name = c.name.replace(/\s+/g, ' ').trim();
 }
+const eggRegex = /\b(egg|eggs|anda|omelet|omelette)\b/i;
+const nonVegRegex = /\b(chicken|mutton|fish|prawn|prawns|meat|keema|non-veg|nonveg)\b/i;
 for (const item of seed.menuItems) {
   const cleanRaw = item.name.trim();
   item.name = exactNameFixes[cleanRaw] || cleanRaw.replace(/\s+/g, ' ');
+  const text = `${item.name} ${item.description || ''}`;
+  if (eggRegex.test(text)) {
+    item.isVeg = false;
+  } else if (nonVegRegex.test(text)) {
+    const isActuallyVeg =
+      /\b(veg|paneer|soya|mushroom|corn)\b/i.test(item.name) &&
+      !/\b(chicken|mutton|fish|prawn|egg|eggs|anda|omelet|meat)\b/i.test(item.name);
+    if (!isActuallyVeg) {
+      item.isVeg = false;
+    }
+  }
 }
 
 // 4. Sync QuickPicks strictly to real catalog items & hi-res item paths

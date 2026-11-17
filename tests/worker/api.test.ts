@@ -244,6 +244,10 @@ describe('Worker Full API Integration Tests', () => {
 
     const vendorByIdRes = await exec(new Request('http://localhost/api/vendors/rest_csb_nitp'));
     expect(vendorByIdRes.status).toBe(200);
+    const vendorByIdBody = (await vendorByIdRes.json()) as { ok: boolean; vendor: { fssaiNo?: string; licence?: string } };
+    expect(vendorByIdBody.ok).toBe(true);
+    expect(vendorByIdBody.vendor.fssaiNo).toBeUndefined();
+    expect(vendorByIdBody.vendor.licence).toBe('FSSAI: pending verification');
 
     // 2. Cart quote with coupon
     const quoteRes = await exec(
@@ -592,6 +596,13 @@ describe('Worker Full API Integration Tests', () => {
     const csb = vBody.vendors.find((v) => v.id === 'rest_csb_nitp')!;
     expect(csb.startingPricePaise).toBeGreaterThan(0);
     expect(csb.offerTags?.length).toBeGreaterThan(0);
+    // Guarantees fssaiNo is removed from API response and licence is pending verification
+    for (const v of vBody.vendors as unknown as Array<{ fssaiNo?: string; licence?: string }>) {
+      expect(v.fssaiNo).toBeUndefined();
+      if (v.licence) {
+        expect(v.licence).toBe('FSSAI: pending verification');
+      }
+    }
 
     // 2. /api/search returns combined vendors & dishes matching query + filters
     const searchRes = await exec(

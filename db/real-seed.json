@@ -146,8 +146,8 @@
       "coverImageUrl": "/images/vendors/kolkata-biryani-fast-food-pizza-house.jpg",
       "description": "Kolkata Biryani Fast-Food Pizza House - Delicious Kolkata Dum Biryani, Rolls, Fried Rice, Chowmein, Chilli Starters, Momos & Pizzas. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000101",
-      "hoursJson": "{\"open\":\"10:00\",\"close\":\"09:00\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"10:00\",\"close\":\"01:00\"}",
       "scrapedHoursText": "10:00 AM – 9:00 AM",
       "prepMinutes": 15,
       "prepMaxMinutes": 20,
@@ -161,7 +161,7 @@
       "ratingCount": 37,
       "hours": {
         "open": "10:00",
-        "close": "22:30"
+        "close": "01:00"
       }
     },
     {
@@ -192,8 +192,8 @@
       "coverImageUrl": "/images/vendors/chai-sutta-bar-csb.jpg",
       "description": "Chai Sutta Bar (CSB) - Cuddle the Kulhad. Hot Chai, Coffee, Maggi, Pizzas, Burgers, Pastas, Sandwiches & Shakes. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000102",
-      "hoursJson": "{\"open\":\"09:00\",\"close\":\"01:00\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"10:30\",\"close\":\"01:00\"}",
       "scrapedHoursText": "10:30 AM – 1:00 AM",
       "prepMinutes": 40,
       "prepMaxMinutes": 45,
@@ -235,7 +235,7 @@
       "coverImageUrl": "/images/vendors/wrapchik-pizza.jpg",
       "description": "Wrapchik Pizza - Gourmet Pizzas, Crispy Fried Chicken, Juicy Burgers, Loaded Wraps, Waffles & Coolers. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000103",
+      "fssaiNo": "FSSAI: pending verification",
       "hoursJson": "{\"open\":\"10:00\",\"close\":\"23:00\"}",
       "scrapedHoursText": "10:00 AM – 11:00 AM",
       "prepMinutes": 20,
@@ -275,8 +275,8 @@
       "coverImageUrl": "/images/vendors/shwami-ji.jpg",
       "description": "Shwami Ji - Authentic Malai Chaap, Soya Chaap, Tandoori specialties and North Indian delicacies on campus.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000104",
-      "hoursJson": "{\"open\":\"00:00\",\"close\":\"23:59\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"10:00\",\"close\":\"22:00\"}",
       "scrapedHoursText": "12:00 AM – 11:59 PM",
       "prepMinutes": 15,
       "prepMaxMinutes": 20,
@@ -319,8 +319,8 @@
       "coverImageUrl": "/images/vendors/the-royal-bihar-restaurant.jpg",
       "description": "The Royal Bihar Restaurant - Authentic Bihari Dehati curries, Handi Mutton, Tandoori Kebabs, Dum Biryanis & North Indian delicacies. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000105",
-      "hoursJson": "{\"open\":\"11:00\",\"close\":\"22:30\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"11:00\",\"close\":\"23:00\"}",
       "scrapedHoursText": "11:00 AM – 10:30 PM",
       "prepMinutes": 40,
       "prepMaxMinutes": 45,
@@ -364,8 +364,8 @@
       "coverImageUrl": "/images/vendors/sone-zone-cafe.jpg",
       "description": "Sone Zone Cafe - Hot Tea, Shakes, Mocktails, Pizzas, Burgers, South Indian Dosas, Thalis, Momos & Chinese Delicacies. Deliveries after 7 PM are handled personally by the owner/co-owner for campus safety.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000106",
-      "hoursJson": "{\"open\":\"10:00\",\"close\":\"22:00\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"11:00\",\"close\":\"22:00\"}",
       "scrapedHoursText": "10:00 AM – 10:00 PM",
       "prepMinutes": 15,
       "prepMaxMinutes": 20,
@@ -403,10 +403,10 @@
         "Night Safe"
       ],
       "coverImageUrl": "/images/vendors/vrindavan-bhog.jpg",
-      "description": "Vrindavan Bhog - Pure vegetarian North Indian thalis, South Indian dosas, paneer specials, sweets, and homestyle meals near NIT Patna.",
+      "description": "Pure vegetarian North Indian thalis, paneer delicacies, South Indian dosas and homestyle campus meals.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000107",
-      "hoursJson": "{\"open\":\"10:00\",\"close\":\"21:00\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"08:30\",\"close\":\"22:00\"}",
       "scrapedHoursText": "10:00 AM – 9:00 PM",
       "prepMinutes": 20,
       "prepMaxMinutes": 25,
@@ -445,8 +445,8 @@
       "coverImageUrl": "/images/vendors/crave.png",
       "description": "Crave - Authentic, flavorful Dum Biryani, North Indian specialties and late-night cravings on campus.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
-      "fssaiNo": "10424000000108",
-      "hoursJson": "{\"open\":\"12:00\",\"close\":\"02:00\"}",
+      "fssaiNo": "FSSAI: pending verification",
+      "hoursJson": "{\"open\":\"18:00\",\"close\":\"03:00\"}",
       "scrapedHoursText": "12:00 PM – 2:00 AM",
       "prepMinutes": 15,
       "prepMaxMinutes": 20,
@@ -1647,7 +1647,7 @@
       "pricePaise": 9900,
       "packingChargePaise": 0,
       "imageUrl": "/images/items/kolkata-biryani-fast-food-pizza-house--egg-fried-rice.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -5283,7 +5283,7 @@
       "pricePaise": 13900,
       "packingChargePaise": 1000,
       "imageUrl": "/images/items/wrapchik-pizza--chicken-corn-pizza.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [
         "chicken"
@@ -6667,7 +6667,7 @@
       "pricePaise": 15900,
       "packingChargePaise": 1000,
       "imageUrl": "/images/items/wrapchik-pizza--chicken-sandwich.webp",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [
         "chicken"
@@ -6726,7 +6726,7 @@
       "pricePaise": 16000,
       "packingChargePaise": 1000,
       "imageUrl": "/images/items/wrapchik-pizza--chicken-pasta.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [
         "chicken"
@@ -7482,7 +7482,7 @@
       "pricePaise": 12900,
       "packingChargePaise": 1000,
       "imageUrl": "/images/items/wrapchik-pizza--chicken-maggi.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [
         "chicken"
@@ -7602,7 +7602,7 @@
       "pricePaise": 8000,
       "packingChargePaise": 500,
       "imageUrl": "/images/items/wrapchik-pizza--egg-kathi-roll.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [],
       "variants": [],
@@ -7862,7 +7862,7 @@
       "pricePaise": 14900,
       "packingChargePaise": 500,
       "imageUrl": "/images/items/wrapchik-pizza--hyderabadi-chicken-biryani-750gm.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -8871,7 +8871,7 @@
       "pricePaise": 29900,
       "packingChargePaise": 0,
       "imageUrl": "/images/items/shwami-ji--chicken-curry-fullenough-for-2-members.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -8894,7 +8894,7 @@
       "pricePaise": 24900,
       "packingChargePaise": 0,
       "imageUrl": "/images/items/shwami-ji--chicken-lolipop.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [
         "chicken"
@@ -9772,7 +9772,7 @@
       "pricePaise": 14900,
       "packingChargePaise": 0,
       "imageUrl": "/images/items/the-royal-bihar-restaurant--chicken-chilli-bone-8-pcs.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -15452,7 +15452,7 @@
       "pricePaise": 14000,
       "packingChargePaise": 1000,
       "imageUrl": "/images/items/sone-zone-cafe--double-egg-dosa.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -16820,7 +16820,7 @@
       "pricePaise": 4400,
       "packingChargePaise": 500,
       "imageUrl": "/images/items/sone-zone-cafe--plain-omelette.jpg",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": true,
       "tags": [
         "popular",
@@ -16842,7 +16842,7 @@
       "pricePaise": 5400,
       "packingChargePaise": 500,
       "imageUrl": "/images/items/sone-zone-cafe--masala-omelette.webp",
-      "isVeg": true,
+      "isVeg": false,
       "isPopular": false,
       "tags": [],
       "variants": [],
