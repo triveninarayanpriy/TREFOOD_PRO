@@ -4,6 +4,40 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Design System v2 & Dual-Shell Code-Splitting (<MobileShell> & <DesktopShell>) (Prompt P2)
+- **Dual-Shell Architecture & Strict Shell-Level Code-Splitting (`src/client/shells/`, `src/client/App.tsx`)**:
+  - Built `<MobileShell>` (<768px) and `<DesktopShell>` (>=768px) as two completely distinct layout trees with separate page compositions.
+  - Phones never download desktop top navigation rails or slide-over panels; desktop never downloads mobile bottom navigation or drawer trees.
+  - Route components (`CustomerHomePage`, `VendorPage`) refactored into thin adapters delegating to `<MobileXxxPage>` or `<DesktopXxxPage>` via `useViewport()` with server-safe UA snapshot and zero layout flash.
+  - Production build outputs distinct chunks: `MobileShell-*.js` (4.93 kB), `DesktopShell-*.js` (5.43 kB), `MobileHomePage-*.js` (3.21 kB), `DesktopHomePage-*.js` (4.22 kB), `MobileVendorPage-*.js` (7.34 kB), `DesktopVendorPage-*.js` (8.23 kB).
+- **Design System v2 Tokens (`src/client/tokens/index.ts`, `src/client/index.css`)**:
+  - Strict 9-step Spacing tokens: 4, 8, 12, 16, 24, 32, 48, 72, 96px (`--space-1` to `--space-9`).
+  - Radius tokens: 8, 12, 20, pill (`--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-full`).
+  - Max content width 1280px on desktop with 12-column grid and 32px gutters (`.tf-desktop-container`, `.tf-desktop-grid`).
+  - Strict Type scale: Display 64/40, H1 44/30, H2 32/24, H3 22/18, Body 17/16, Small 14/13 (minimum 13px anywhere; zero tiny monospace labels). Display face Fraunces, body DM Sans, Devanagari fallback Noto Sans Devanagari, handwriting Caveat strictly for the 4-digit code.
+  - Color palette: Warm paper `#FBF6EE`, surface `#FFFFFF`, ink `#1C1210`, muted `#6B5B54`, TreFood maroon `#830020`, checkout amber `#FFB400` reserved exclusively for checkout action.
+  - Motion tokens: 150ms hovers/presses, 250ms sheets/panels, 400ms page transitions with ease-out curves and `prefers-reduced-motion` compliance.
+- **10 Design System v2 Components with Mobile & Desktop Variations (`src/client/components/v2/`)**:
+  1. `VendorCard`: `MobileVendorCard` (compact list card with 4:3 photo, night-safe shield) and `DesktopVendorCard` (spacious 4:3 card with generous photo, details, minimum 13px type).
+  2. `MenuItem`: `MobileMenuItem` and `DesktopMenuItem` (1:1 square photo >=120x120, veg badge, stepper).
+  3. `CategoryNav`: `MobileCategoryNav` (horizontal scroll snap pills with 24x24 photo) and `DesktopCategoryNav` (category tiles with 32x32 photo).
+  4. `CartSummary`: `MobileCartSummary` (sticky floating bottom bar) and `DesktopCartSummary` (slide-over right panel with 250ms ease-out).
+  5. `GateStatus`: `MobileGateStatus` (pill with live curfew countdown) and `DesktopGateStatus` (popover gate picker with curfew badge).
+  6. `OrderStatus`: `MobileOrderStatus` and `DesktopOrderStatus` (handover card with Caveat handwriting 4-digit code, 15m window countdown).
+  7. `Sheet` (`SheetV2` mobile bottom sheet) & `Dialog` (`DialogV2` desktop centered modal).
+  8. `Toast` (`ToastV2` status notification with responsive placement).
+  9. `EmptyState` (`EmptyStateV2` with Lucide icons, descriptive help copy, and call-to-action).
+  10. `Skeleton` (`MobileCardSkeleton` and `DesktopCardSkeleton` matching final layout exactly).
+- **Interactive Component Lab (`/dev/ui`, `src/client/pages/DevKitPage.tsx`)**:
+  - Side-by-side shell switcher (Mobile 390px, Desktop 1280px, Side-by-Side).
+  - All 10 V2 components interactive in both shells and both themes (Light paper and Dark ink).
+- **Verification**:
+  - `npm run verify:images` passed (780 canonical assets).
+  - `npm run typecheck` passed (0 errors).
+  - `npm run lint` passed (0 errors).
+  - `npm test` passed (7 test files, 40 tests passed).
+  - `npm run build` passed with separate mobile & desktop chunks under 150 kB gzip budget.
+
 ### Added - Production-Level Catalog Stabilization, Responsive Image Pipeline & Clean Navigation (Prompt P1)
 - **Data Audit & Duplicate Vendor Elimination (`docs/DATA_AUDIT.md`)**:
   - Audited `db/real-seed.json` against live `https://www.trefood.in/c/nit-patna`.
