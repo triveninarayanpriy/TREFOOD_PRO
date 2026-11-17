@@ -41,16 +41,16 @@ export function MobileOrderStatus({
         </span>
       </div>
 
-      {/* Handover Code Card */}
-      <div className="rounded-[16px] bg-[#1C1210] p-4 text-center text-white space-y-1">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-          Handover 4-Digit Code
+      {/* Handover Code Card: 96px High-Contrast Code */}
+      <div className="rounded-[20px] bg-[#1C1210] p-6 text-center text-white space-y-2 shadow-[var(--elevation-2)]">
+        <div className="text-[13px] font-bold uppercase tracking-wider text-stone-400">
+          Handover 4-Digit Packet Code
         </div>
-        <div className="font-handwriting text-5xl font-black tracking-widest text-[#FFB400]">
+        <div data-testid="handover-code-display" className="font-caveat text-[96px] font-black tracking-widest text-[#FFB400] leading-none select-all my-2">
           {handoverCode}
         </div>
-        <p className="text-[12px] text-stone-300">
-          Match this marker number on the bag at the gate.
+        <p className="text-[13px] text-stone-300">
+          Match this marker number on the bag at the gate. Screen kept awake.
         </p>
       </div>
 

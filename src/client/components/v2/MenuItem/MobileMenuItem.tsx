@@ -63,13 +63,13 @@ export function MobileMenuItem({
 
       <div className="flex flex-col items-center gap-2 shrink-0">
         {imageUrl && (
-          <div className="relative h-20 w-20 overflow-hidden rounded-[12px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
+          <div className="relative h-[88px] w-[88px] overflow-hidden rounded-[14px] border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] shadow-xs">
             <ResponsiveImage
               src={imageUrl}
               alt={name}
               crop="1x1"
-              width={80}
-              height={80}
+              width={176}
+              height={176}
               className={`h-full w-full object-cover tf-photo-warm ${!inStock ? 'grayscale opacity-70' : ''}`}
             />
           </div>
@@ -77,32 +77,33 @@ export function MobileMenuItem({
 
         {inStock ? (
           quantity > 0 ? (
-            <div className="flex items-center gap-2 rounded-full border border-[#830020] bg-[var(--color-surface)] px-2 py-1 shadow-xs">
+            <div className="flex items-center gap-1 rounded-full border border-[#830020] bg-[var(--color-surface)] px-2 py-0.5 shadow-xs">
               <button
                 type="button"
                 onClick={onDecrease}
                 aria-label={`Decrease ${name}`}
-                className="flex h-7 w-7 min-h-[44px] min-w-[44px] items-center justify-center text-[#830020] dark:text-[#FFB400] font-bold"
+                className="flex h-8 w-8 min-h-[44px] min-w-[44px] items-center justify-center text-[#830020] dark:text-[#FFB400] font-bold active:scale-90 transition-transform cursor-pointer"
               >
-                <Minus className="h-3.5 w-3.5" />
+                <Minus className="h-4 w-4" />
               </button>
-              <span className="font-bold text-[14px] min-w-[16px] text-center">{quantity}</span>
+              <span className="font-bold text-[14px] min-w-[20px] text-center text-[var(--color-text)]">{quantity}</span>
               <button
                 type="button"
                 onClick={onIncrease}
                 aria-label={`Increase ${name}`}
-                className="flex h-7 w-7 min-h-[44px] min-w-[44px] items-center justify-center text-[#830020] dark:text-[#FFB400] font-bold"
+                className="flex h-8 w-8 min-h-[44px] min-w-[44px] items-center justify-center text-[#830020] dark:text-[#FFB400] font-bold active:scale-90 transition-transform cursor-pointer"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <button
               type="button"
               onClick={onOpenOptions || onAdd}
-              className="flex min-h-[44px] min-w-[76px] items-center justify-center rounded-full bg-[#830020] px-3 text-[13px] font-bold text-white shadow-xs active:scale-95 transition-transform"
+              className="flex min-h-[44px] min-w-[80px] items-center justify-center gap-1 rounded-full bg-[#830020] px-4 py-2 text-[14px] font-bold text-white shadow-xs hover:bg-[#680019] active:scale-95 transition-all cursor-pointer"
             >
-              Add +
+              <Plus className="h-4 w-4" />
+              <span>Add</span>
             </button>
           )
         ) : (

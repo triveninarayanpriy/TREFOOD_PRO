@@ -54,9 +54,12 @@ export function DesktopShell({ children }: { children?: React.ReactNode }) {
   };
 
   const isDedicatedConsole =
-    location.pathname.startsWith('/v') ||
-    location.pathname.startsWith('/vendor') ||
-    location.pathname.startsWith('/admin');
+    location.pathname === '/v' ||
+    location.pathname === '/vendor' ||
+    location.pathname === '/vendor/login' ||
+    location.pathname === '/admin' ||
+    location.pathname === '/admin/login' ||
+    location.pathname.startsWith('/admin/');
   const isLandingRoute = location.pathname === '/';
 
   return (

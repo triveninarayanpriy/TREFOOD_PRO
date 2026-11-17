@@ -209,7 +209,7 @@ export function ItemOptionsSheet({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g. less oil, extra green chutney"
-            className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)] focus:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+            className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[16px] text-[var(--color-text)] focus:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
           />
         </div>
 

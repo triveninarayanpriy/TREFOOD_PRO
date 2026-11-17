@@ -213,7 +213,7 @@ export function CheckoutPage() {
   };
 
   return (
-    <div className="space-y-10 pb-24">
+    <div className="space-y-10 pb-32 lg:pb-24">
       {/* Back Link */}
       <div>
         <Link
@@ -300,7 +300,7 @@ export function CheckoutPage() {
                 value={deliveryInstruction}
                 onChange={(e) => setDeliveryInstruction(e.target.value)}
                 placeholder="e.g. Ganga Hostel Room 304, call once you reach gate"
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-4 py-3 text-[14px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-4 py-3 text-[16px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
               />
             </div>
           </section>
@@ -378,7 +378,7 @@ export function CheckoutPage() {
                   setPhoneError(null);
                 }}
                 placeholder="10-digit mobile number (e.g. 9876543210)"
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-4 py-3 text-[14px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-4 py-3 text-[16px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
               />
               {phoneError && (
                 <p className="text-[13px] text-red-600 font-semibold mt-1">{phoneError}</p>
@@ -523,7 +523,7 @@ export function CheckoutPage() {
                   value={couponInput}
                   onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                   placeholder="e.g. CAMPUS20"
-                  className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-2 text-[13px] uppercase font-bold text-[var(--color-text)]"
+                  className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-3 py-2 text-[16px] uppercase font-bold text-[var(--color-text)]"
                 />
                 {couponCode ? (
                   <button
@@ -606,6 +606,25 @@ export function CheckoutPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Sticky Bottom Action Button for Mobile: Always reachable by thumb */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 p-3 bg-[var(--color-surface)]/95 backdrop-blur-md border-t border-[var(--color-border)] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        <button
+          type="button"
+          disabled={isPlacingOrder || !user}
+          onClick={handlePlaceOrder}
+          className="w-full min-h-[52px] rounded-full bg-[#FFB400] text-stone-950 font-display text-[16px] font-extrabold shadow-md hover:bg-[#E5A200] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isPlacingOrder ? (
+            <span>Confirming Order...</span>
+          ) : (
+            <>
+              <span>Place Order • Pay ₹{Math.round(totalPaise / 100)} at Gate</span>
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

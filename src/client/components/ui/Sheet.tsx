@@ -55,11 +55,11 @@ export function Sheet({ isOpen, open, onClose, title, children, maxWidth = 'max-
         role="dialog"
         aria-modal="true"
         aria-label={title || 'Modal Sheet'}
-        className={`relative z-10 flex max-h-[88vh] w-full ${maxWidth} flex-col rounded-t-3xl bg-white shadow-xl sm:rounded-3xl dark:bg-stone-900`}
+        className={`relative z-10 flex max-h-[92vh] h-[92vh] sm:h-auto w-full ${maxWidth} flex-col rounded-t-[28px] bg-white shadow-2xl sm:rounded-3xl dark:bg-stone-900 animate-in slide-in-from-bottom duration-250 ease-out`}
       >
         {/* Drag handle pill on mobile */}
         <div className="flex justify-center pt-3 sm:hidden">
-          <div className="h-1.5 w-12 rounded-full bg-stone-200 dark:bg-stone-700" />
+          <div className="h-1.5 w-12 rounded-full bg-stone-300 dark:bg-stone-600" />
         </div>
 
         {/* Header */}

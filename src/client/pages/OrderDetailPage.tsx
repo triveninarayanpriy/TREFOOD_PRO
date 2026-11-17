@@ -180,6 +180,54 @@ export function OrderDetailPage() {
     [id, showToast]
   );
 
+  // Screen Wake Lock API - keeps the screen awake while order is active at gate
+  useEffect(() => {
+    let wakeLockSentinel: { release: () => Promise<void> } | null = null;
+    const requestWakeLock = async () => {
+      try {
+        if (
+          typeof navigator !== 'undefined' &&
+          'wakeLock' in navigator &&
+          order &&
+          (order.status === 'placed' ||
+            order.status === 'accepted' ||
+            order.status === 'out_for_delivery' ||
+            order.status === 'at_gate')
+        ) {
+          wakeLockSentinel = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => Promise<void> }> } }).wakeLock.request('screen');
+        }
+      } catch {
+        // Non-blocking wake lock fallback
+      }
+    };
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+      }
+    };
+  }, [order?.status]);
+
+  // Record completed order for native install prompt
+  useEffect(() => {
+    if (order?.status === 'delivered') {
+      try {
+        localStorage.setItem('trefood_has_completed_order', 'true');
+      } catch {
+        // LocalStorage fallback
+      }
+    }
+  }, [order?.status]);
+
   // 1-second local clock for freshness label ("Updated just now") and 15-min gate countdown
   useEffect(() => {
     const ticker = setInterval(() => setNowMs(Date.now()), 1000);
@@ -486,6 +534,27 @@ export function OrderDetailPage() {
             }
           />
 
+          {/* 96px High-Contrast Handover Code Screen (Active orders) */}
+          {isActive && (
+            <div className="rounded-[24px] bg-[#1C1210] p-6 text-center text-white space-y-2 shadow-[var(--elevation-3)]">
+              <div className="text-[13px] font-bold uppercase tracking-wider text-stone-400">
+                {t('ticket.handover_code', 'Your 4-Digit Packet Code')}
+              </div>
+              <div
+                data-testid="handover-code-display"
+                className="tf-animate-reveal my-2 font-caveat text-[96px] font-black tracking-widest text-[#FFB400] leading-none select-all drop-shadow-md"
+              >
+                {order.handoverCode}
+              </div>
+              <p className="text-[13px] text-stone-300">
+                {t(
+                  'ticket.match_digits_notice',
+                  'Match this 4-digit code on the packet chit at the gate. Screen is kept awake.'
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Gate Handover Verification Zone (strict server verification + 15-min countdown) */}
           {isAtGate && (
             <section
@@ -510,21 +579,6 @@ export function OrderDetailPage() {
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Gate window: {formatCountdown(gateWindowRemainingSec)}</span>
                 </div>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-200 bg-white/90 p-3.5 text-center dark:border-emerald-800 dark:bg-stone-900/90">
-                <div className="text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  {t('ticket.handover_code', 'Your 4-Digit Packet Code')}
-                </div>
-                <div className="tf-animate-reveal mt-1 font-mono text-3xl font-black tracking-[0.28em] text-[#830020] dark:text-[#FFB400]">
-                  {order.handoverCode}
-                </div>
-                <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-                  {t(
-                    'ticket.match_digits_notice',
-                    'Match the digits written on the packet at the gate, then enter them below to confirm delivery.'
-                  )}
-                </p>
               </div>
 
               {isLocked ? (

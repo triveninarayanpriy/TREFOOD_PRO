@@ -2,12 +2,14 @@ import { useViewport } from '../../../hooks/useViewport';
 
 export function MobileCardSkeleton() {
   return (
-    <div className="flex items-start gap-3 rounded-[16px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs animate-pulse">
-      <div className="aspect-[4/3] w-28 shrink-0 rounded-[12px] bg-stone-200 dark:bg-stone-800" />
-      <div className="flex-1 space-y-2 py-1">
-        <div className="h-4 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
-        <div className="h-3 w-1/2 rounded bg-stone-200 dark:bg-stone-800" />
-        <div className="h-3 w-1/3 rounded bg-stone-200 dark:bg-stone-800" />
+    <div className="overflow-hidden rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xs animate-pulse">
+      <div className="aspect-[16/10] w-full bg-stone-200 dark:bg-stone-800" />
+      <div className="p-3.5 space-y-2">
+        <div className="h-5 w-2/3 rounded bg-stone-200 dark:bg-stone-800" />
+        <div className="flex justify-between">
+          <div className="h-4 w-1/3 rounded bg-stone-200 dark:bg-stone-800" />
+          <div className="h-4 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,46 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Native-Feeling Mobile Experience Built for One Thumb (Prompt P4)
+- **Decluttered Mobile Top Bar (`src/client/shells/mobile/MobileTopBar.tsx`)**:
+  - Slim 56px (`h-14`) header containing strictly ONLY the gate selector with live curfew countdown and a search button (`min-h-[44px]`).
+  - Completely eliminated hamburger menu, notifications icon clutter, and dev links.
+- **Compact Gate Selector Pill (`src/client/components/v2/GateStatus/MobileGateStatus.tsx`)**:
+  - Full-width touch-friendly pill with `MapPin` badge, gate title, live curfew countdown or 24x7 indicator, and >=44px touch target.
+- **56px Tall Bottom Tab Bar (`src/client/shells/mobile/MobileBottomNav.tsx`)**:
+  - Pinned bottom bar respecting safe area insets (`pb-[env(safe-area-inset-bottom)]`) with 4 essential tabs: **Home** (`/app`), **Menus** (`/app/search`), **Orders** (`/orders`), and **Account** (`/account`).
+  - Active styling in `#830020`/`#FFB400` with CSS haptic press feedback (`active:scale-95`).
+- **Floating Cart Bar (`src/client/components/v2/CartSummary/MobileCartSummary.tsx`)**:
+  - Floating pill elevated above the bottom tab bar (`bottom-[calc(56px+0.75rem+env(safe-area-inset-bottom))]`) showing item count, total price in ₹, and opening the full-height cart bottom sheet on tap.
+- **Mobile Home Page (`src/client/shells/mobile/pages/MobileHomePage.tsx`)**:
+  - Touch pull-to-refresh with animated spinner and haptic vibration feedback.
+  - Compact gate notice with live curfew countdown.
+  - Horizontal snap-scrolling row of category photo chips (`no-scrollbar snap-x`).
+  - "Open now" full-width vendor cards with **16:10 aspect ratio photography** (`MobileVendorCard.tsx`).
+  - "Popular dishes" as a **2-column grid** with 1:1 dish photography, veg dots, and instant one-click Add buttons.
+  - Campus Night Safety banner after 19:00 IST.
+- **Mobile Vendor Page with Collapsing Header (`src/client/shells/mobile/pages/MobileVendorPage.tsx`)**:
+  - Collapsing cover header: shrinks from full 16:9 banner to a slim 56px sticky title bar on scroll.
+  - Sticky horizontal category chips with `IntersectionObserver` scroll-spy (`sticky top-14 z-20`).
+  - Menu items as rows with an **88px square photo on the right**, name and price on the left, and a clear Add button (min 44px touch target).
+  - Item customisation opens as a bottom sheet (`ItemOptionsSheet.tsx`) with large touch targets.
+- **Thumb-Reachable Full-Screen Checkout & Tracking (`src/client/pages/CheckoutPage.tsx`, `OrderDetailPage.tsx`)**:
+  - Pinned sticky bottom mobile action bar with Amber button (`bg-[#FFB400] text-stone-950 font-extrabold min-h-[52px]`) always reachable by thumb.
+  - All form input fields standardized to `text-[16px]` to prevent iOS Safari auto-zoom.
+  - Handover code displayed at **96px (`text-[96px]`)** in high contrast `#FFB400` on `#1C1210` with Caveat handwriting font.
+  - **Screen Wake Lock API (`navigator.wakeLock.request('screen')`)** keeps the screen awake during active gate pickup.
+- **Mobile Shell Gestures & Resilience (`src/client/shells/mobile/MobileShell.tsx`)**:
+  - Left-edge swipe back gesture (`touchStartX < 45`, drag > 75px triggers `navigate(-1)` with haptic feedback).
+  - Sticky top offline banner (`WifiOff` icon) when connection drops.
+  - Install prompt modal (`InstallAppModal`) triggered after first completed order.
+- **Automated Playwright Mobile Suite & Screenshot Audit (`e2e/mobile-native.spec.ts`)**:
+  - Automated tests across 3 mobile viewports: **360x800** (Android baseline), **390x844** (iPhone 12/13/14), and **430x932** (iPhone Pro Max).
+  - Verified zero horizontal overflow (`scrollWidth <= innerWidth`), min 44px touch targets on primary actions, min 16px input fonts, 56px bottom bar height, and 96px handover code display.
+  - Captured 15 responsive screenshots in `docs/screenshots/mobile/`: `home-360`, `home-390`, `home-430`, `vendor-360`, `vendor-390`, `vendor-430`, `cart-360`, `cart-390`, `cart-430`, `checkout-360`, `checkout-390`, `checkout-430`, `tracking-360`, `tracking-390`, `tracking-430`.
+  - All 9 mobile Playwright tests, 10 desktop Playwright tests, and 42 Vitest unit tests passed.
+  - JavaScript bundle sizes verified under 180KB gzip per route (`MobileShell` 2.71 kB, `MobileHomePage` 3.53 kB, `MobileVendorPage` 3.45 kB gzip).
+
+
 ### Added - Desktop Editorial Storefront Experience (Prompt P3)
 - **Top Navigation (`src/client/shells/desktop/DesktopTopNav.tsx`)**:
   - Slim 72px top bar only: brand wordmark, gate status dropdown with live countdown, command-style search overlay trigger with Cmd/Ctrl+K shortcut, Orders, Favourites, live Cart button, and Account.

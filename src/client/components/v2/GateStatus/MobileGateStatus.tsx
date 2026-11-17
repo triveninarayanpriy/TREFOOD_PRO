@@ -23,14 +23,14 @@ export function MobileGateStatus({
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-1 text-left active:bg-[var(--color-surface-sunken)] transition-colors ${className}`}
+      className={`flex w-full min-h-[44px] items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-1 text-left active:scale-[0.98] transition-all cursor-pointer ${className}`}
     >
-      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#830020]/10 text-[#830020] dark:bg-[#FFB400]/20 dark:text-[#FFB400]">
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#830020]/10 text-[#830020] dark:bg-[#FFB400]/20 dark:text-[#FFB400] shrink-0">
         <MapPin className="h-3.5 w-3.5" />
       </div>
 
       <div className="min-w-0 flex-1 leading-tight">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] truncate">
           Deliver to
         </div>
         <div className="font-bold text-[13px] text-[var(--color-text)] truncate">
@@ -39,16 +39,16 @@ export function MobileGateStatus({
       </div>
 
       {is24x7 ? (
-        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 shrink-0">
           24x7
         </span>
       ) : isClosingSoon ? (
-        <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+        <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200 shrink-0">
           {countdownMinutes}m left
         </span>
       ) : curfewTime ? (
-        <span className="text-[11px] font-semibold text-[var(--color-text-muted)]">
-          Curfew {curfewTime}
+        <span className="text-[11px] font-semibold text-[var(--color-text-muted)] shrink-0">
+          {curfewTime}
         </span>
       ) : null}
 

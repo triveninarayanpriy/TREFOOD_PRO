@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Sheet } from '../ui/Sheet';
 import { Button } from '../ui/Button';
@@ -33,6 +33,7 @@ export interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useToast();
   const {
@@ -475,21 +476,26 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                 ) : null
               }
               footerAction={
-                <Button
-                  onClick={() => setCheckoutOpen(true)}
-                  disabled={!canProceedToCheckout}
-                  variant="amber"
-                  className="w-full min-h-[48px] text-base"
-                >
-                  <span>
-                    {!meetsMinOrder
-                      ? `Add ₹${Math.ceil(shortfallPaise / 100)} more to checkout`
-                      : quoteLoading
-                      ? 'Verifying bill...'
-                      : 'Proceed to Checkout'}
-                  </span>
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                </Button>
+                <div className="sticky bottom-0 bg-white dark:bg-stone-900 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <Button
+                    onClick={() => {
+                      onClose();
+                      navigate('/checkout');
+                    }}
+                    disabled={!canProceedToCheckout}
+                    variant="amber"
+                    className="w-full min-h-[52px] text-base font-extrabold bg-[#FFB400] text-stone-950 hover:bg-[#E5A200] shadow-md active:scale-[0.98] transition-transform"
+                  >
+                    <span>
+                      {!meetsMinOrder
+                        ? `Add ₹${Math.ceil(shortfallPaise / 100)} more to checkout`
+                        : quoteLoading
+                        ? 'Verifying bill...'
+                        : 'Proceed to Gate Checkout'}
+                    </span>
+                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
               }
             />
           </div>
