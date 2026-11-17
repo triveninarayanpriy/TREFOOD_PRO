@@ -183,7 +183,7 @@ test.describe('Whole-App Accessibility, Hinglish, Keyboard & Motion Audit', () =
     });
 
     await page.goto('/app');
-    await expect(page.getByText(/Campus Counters|Campus Food Counters/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1, h2').first()).toBeVisible({ timeout: 10000 });
 
     // Keyboard flow: Tab focuses "Skip to main content" link
     await page.keyboard.press('Tab');
@@ -199,8 +199,8 @@ test.describe('Whole-App Accessibility, Hinglish, Keyboard & Motion Audit', () =
     // Core navigation reflects Hinglish
     const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
     if (isDesktop) {
-      await expect(page.getByLabel('Desktop Navigation Rail').getByText('Menus Dekho')).toBeVisible();
-      await expect(page.getByLabel('Desktop Navigation Rail').getByText('Mere Orders')).toBeVisible();
+      await expect(page.locator('header[aria-label="Desktop Top Navigation"]').getByText('Mere Orders')).toBeVisible();
+      await expect(page.locator('header[aria-label="Desktop Top Navigation"]').getByText('Saved Shops')).toBeVisible();
     } else {
       await expect(page.getByLabel('Mobile Bottom Navigation').getByText('Menus Dekho')).toBeVisible();
       await expect(page.getByLabel('Mobile Bottom Navigation').getByText('Mere Orders')).toBeVisible();

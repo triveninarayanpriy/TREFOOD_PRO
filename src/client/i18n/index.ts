@@ -91,6 +91,7 @@ export const resources = {
       nav: {
         home: 'Home',
         browse: 'Browse menus',
+        menus: 'Menus',
         favorites: 'Favourites',
         orders: 'Orders',
         account: 'Account',
@@ -199,6 +200,7 @@ export const resources = {
       nav: {
         home: 'Home',
         browse: 'Menus Dekho',
+        menus: 'Menus Dekho',
         favorites: 'Saved Shops',
         orders: 'Mere Orders',
         account: 'Account',
@@ -307,6 +309,7 @@ export const resources = {
       nav: {
         home: 'होम',
         browse: 'ब्राउज़',
+        menus: 'मेन्यू देखें',
         favorites: 'पसंदीदा',
         orders: 'ऑर्डर',
         account: 'खाता',

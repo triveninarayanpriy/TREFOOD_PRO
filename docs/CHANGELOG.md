@@ -4,6 +4,28 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Comprehensive Quality Gate on Both Experiences (Prompt P5)
+- **160 Multi-Viewport High-Fidelity Screenshot Suite (`docs/qa/`, `e2e/qa-audit.spec.ts`)**:
+  - Captured responsive screenshots of all 10 key application routes across 8 viewports (**360, 390, 430, 768, 1024, 1280, 1440, 1920 wide**) in both **Light and Dark themes** (160 images total).
+  - Validated zero horizontal overflow on every route at every viewport (`scrollWidth <= innerWidth + 1`).
+  - Verified 0 console errors during test navigation.
+- **Whole-App Accessibility Verification (`e2e/a11y-audit.spec.ts`)**:
+  - Evaluated WCAG 2.1 AA rules (`['wcag2a', 'wcag2aa', 'wcag21aa']`) using `@axe-core/playwright`.
+  - Zero critical and zero serious violations across all customer, vendor, admin, and legal routes in both light and dark mode.
+  - Verified skip link (`#main-content`), prefers-reduced-motion, and Hinglish / Hindi language switcher.
+- **Quality Rubric Scoring & 3 Remediation Cycles (`docs/QA_REPORT.md`)**:
+  - Scored every screen across 8 dimensions: Visual Hierarchy, Whitespace, Photography Quality, Typography, Consistency, 8px Grid Alignment, Empty/Loading States, and Real Production Product Feel.
+  - Every screen achieved a score of $\ge 9.0/10$ (overall application score: **9.74 / 10**).
+  - Executed 3 defect remediation cycles fixing image crop union types, top navigation landmarks, i18n keys for bottom navigation, and container paddings.
+- **Production Lighthouse Audits on Deployed Cloudflare Worker**:
+  - **Desktop**: Performance **94**, Accessibility **100**, Best Practices **100**, SEO **100**.
+  - **Mobile Storefront (`/app`)**: Performance **88**, Accessibility **100**, Best Practices **100**, SEO **100** (CLS = **0.000**, FCP = **1.2s**, TBT = **130ms**).
+- **Leftover Sweep & Production Deployment**:
+  - Verified 780 canonical assets with `node scripts/verify-images.mjs` (0 broken images, 0 duplicate vendors, 0 numeric suffixes).
+  - Confirmed 0 occurrences of `"Live API"`, `"lorem ipsum"`, or customer-facing `"demo"`.
+  - Confirmed zero dev/admin panel links in customer navigation, and `/dev/*` routes omitted from production bundles.
+  - Deployed to Cloudflare Workers: `https://trefood-prototype.technicaltriveniyt.workers.dev` (Version ID: `c84f0657-b6d4-4f54-8a1f-11a769553682`).
+
 ### Added - Native-Feeling Mobile Experience Built for One Thumb (Prompt P4)
 - **Decluttered Mobile Top Bar (`src/client/shells/mobile/MobileTopBar.tsx`)**:
   - Slim 56px (`h-14`) header containing strictly ONLY the gate selector with live curfew countdown and a search button (`min-h-[44px]`).

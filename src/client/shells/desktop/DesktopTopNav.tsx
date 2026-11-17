@@ -45,6 +45,8 @@ export function DesktopTopNav({
   return (
     <>
       <header
+        role="banner"
+        aria-label="Desktop Top Navigation"
         className={`sticky top-0 z-40 h-[72px] border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md transition-shadow ${className}`}
       >
         <div className="tf-desktop-container h-full flex items-center justify-between gap-6">
