@@ -53,3 +53,4 @@ This document records architectural choices and the rationale for every dependen
 | `react-i18next` | React integration hooks and components for i18next. |
 | `zustand` (`5.1.0`) | Tiny persisted client cart store (`~1.2 KB` gzip) for offline-safe cart, coupons, and checkout preferences. |
 | `@axe-core/playwright` | Dev-only automated WCAG AA & contrast auditing inside Playwright E2E tests (0 bytes in client bundle). |
+| `sharp` (`0.35.5`, devOnly) | Offline/pre-build responsive image processor generating 320/640/960/1440w AVIF & WebP derivatives, 21:9/4:3/1:1 crops, and dominant-color metadata (0 bytes in Worker/client bundles). |

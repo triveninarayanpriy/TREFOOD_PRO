@@ -4,6 +4,24 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Production-Level Catalog Stabilization, Responsive Image Pipeline & Clean Navigation (Prompt P1)
+- **Data Audit & Duplicate Vendor Elimination (`docs/DATA_AUDIT.md`)**:
+  - Audited `db/real-seed.json` against live `https://www.trefood.in/c/nit-patna`.
+  - Identified root cause of `Patliputra Juices 3713` and `0294` as dynamic E2E onboarding test fixtures persisting in local D1. Added pre- and post-test cleanup to `e2e/admin-console.spec.ts`.
+  - Added server-side duplicate slug/name guard (`409 DUPLICATE_VENDOR`) and category cover fallback to `src/worker/routes/admin.ts`, plus `DELETE /api/admin/vendors/:id` with zero-order validation.
+  - Verified `Kolkata Biryani Fast-Food Pizza House` is authentic and verbatim on live `trefood.in`.
+  - Corrected Chai Sutta Bar (CSB) opening time to `10:30` IST and cleaned dish whitespace anomalies.
+- **Responsive AVIF + WebP Image Pipeline (`scripts/build-images.mjs`, `scripts/verify-images.mjs`)**:
+  - Implemented automated pipeline resizing all 780+ canonical seed assets to 320, 640, 960, and 1440px in AVIF (`effort: 1`) and WebP (`effort: 2`).
+  - Extracted dominant hex placeholders for layout stability (`src/shared/image-manifest.ts`).
+  - Added `<ResponsiveImage>` component with zero Cumulative Layout Shift (`CLS = 0`), `<picture>` srcset, and fallback cascade avoiding broken boxes or spilled alt text.
+  - Added `verify:images` build gate enforcing canonical width >= 640px, 21:9 & 4:3 vendor covers, 1:1 menu items, and responsive variant availability.
+- **Customer Navigation Decoupling**:
+  - Removed developer and role links (`Vendor Console`, `Admin`, `UI Kit (/dev/ui)`) from customer sidebar (`DesktopNavRail.tsx`) and `AccountPage.tsx`.
+  - Dedicated `/vendor/login` and `/admin/login` entry points, with a quiet `For vendors` link in the footer.
+  - Restricted `/dev/*` routes to `import.meta.env.DEV` (rendered as 404 in production builds).
+- **Verification**: `npm run verify:images` passed (780 canonical assets >=640px, 0 failures), `npm run typecheck` passed (0 errors), `npm run lint` passed (0 errors), `npm test` passed (7 test files, 40 tests passed), `npm run build` completed (117.93 kB gzip).
+
 ### Changed - TreFood Redesign Reset (R1–R4) & Cloudflare Production Verification
 - **Real NIT Patna Catalog & Self-Hosted Assets (R1)**:
   - Replaced invented vendor fixtures with `db/real-seed.json` (**8** NIT Patna campus vendors, **112** menu categories, **766** items), **789** self-hosted media files in `public/images/`, D1 migration `0006_flaky_ultragirl.sql`, and regenerated `scripts/seed.sql`.

@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { QuantityStepper } from './QuantityStepper';
+import { ResponsiveImage } from './ResponsiveImage';
 
 export interface MenuLineRowProps {
   name: string;
@@ -54,14 +55,13 @@ export function MenuLineRow({
     >
       {/* Optional 1:1 Square Dish Photo */}
       {imageUrl && (
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
-          <img
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border)]">
+          <ResponsiveImage
             src={imageUrl}
             alt={name}
+            crop="1x1"
             width={64}
             height={64}
-            loading="lazy"
-            decoding="async"
             className={`h-full w-full object-cover tf-photo-warm ${!inStock ? 'grayscale opacity-70' : ''}`}
           />
         </div>

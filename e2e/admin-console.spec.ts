@@ -40,7 +40,7 @@ test.describe('Admin Console (/admin desktop-first operations)', () => {
     await page.setExtraHTTPHeaders({ 'x-mock-time': ts1400Ist });
 
     // Submit a sample onboarding application first so onboarding approval has a fresh item
-    const uniqueVendorName = `Patliputra Juices ${Date.now().toString().slice(-4)}`;
+    const uniqueVendorName = 'NITP Fresh Juice Counter';
     await page.goto('/');
     await page.evaluate(async (name) => {
       await fetch('/api/vendor-applications', {
@@ -53,6 +53,16 @@ test.describe('Admin Console (/admin desktop-first operations)', () => {
     await page.goto('/admin');
     await page.getByRole('button', { name: /Login as Admin/i }).click();
     await expect(page.getByText('TreFood Campus Administration')).toBeVisible({ timeout: 15000 });
+
+    // Pre-clean stale test vendor from any interrupted previous run so approval stays idempotent
+    await page.evaluate(async (targetSlug) => {
+      const res = await fetch('/api/admin/vendors');
+      if (res.ok) {
+        const data = (await res.json()) as { vendors?: Array<{ id: string; slug: string }> };
+        const found = (data.vendors || []).find((v) => v.slug === targetSlug);
+        if (found) await fetch(`/api/admin/vendors/${found.id}`, { method: 'DELETE' });
+      }
+    }, 'nitp-fresh-juice-counter');
 
     // 3. Overview cards
     await expect(page.getByText('Live Orders')).toBeVisible();
@@ -120,6 +130,16 @@ test.describe('Admin Console (/admin desktop-first operations)', () => {
     await page.getByRole('button', { name: 'Audit Log' }).click();
     await expect(page.getByText('VENDOR_APPLICATION_UPDATED').first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('COUPON_CREATED').first()).toBeVisible();
+
+    // Teardown: clean up newly onboarded test vendor
+    await page.evaluate(async (targetSlug) => {
+      const res = await fetch('/api/admin/vendors');
+      if (res.ok) {
+        const data = (await res.json()) as { vendors?: Array<{ id: string; slug: string }> };
+        const found = (data.vendors || []).find((v) => v.slug === targetSlug);
+        if (found) await fetch(`/api/admin/vendors/${found.id}`, { method: 'DELETE' });
+      }
+    }, 'nitp-fresh-juice-counter');
 
     const axeResults = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa'])

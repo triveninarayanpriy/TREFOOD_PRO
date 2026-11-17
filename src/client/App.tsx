@@ -175,8 +175,14 @@ function AppShell() {
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/refunds" element={<RefundsPage />} />
-              <Route path="/dev/ui" element={<DevKitPage />} />
-              <Route path="/dev/kit" element={<DevKitPage />} />
+              {import.meta.env.DEV && (
+                <>
+                  <Route path="/dev/ui" element={<DevKitPage />} />
+                  <Route path="/dev/kit" element={<DevKitPage />} />
+                </>
+              )}
+              <Route path="/vendor/login" element={<VendorConsolePage />} />
+              <Route path="/admin/login" element={<AdminConsolePage />} />
               <Route path="/v" element={<VendorConsolePage />} />
               <Route path="/vendor" element={<VendorConsolePage />} />
               <Route path="/admin" element={<AdminConsolePage />} />

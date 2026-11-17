@@ -1,4 +1,4 @@
-/* global process, console, fetch, setTimeout, document, localStorage */
+/* global document, localStorage */
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';

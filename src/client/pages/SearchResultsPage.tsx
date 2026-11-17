@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { AppSearchBar, saveRecentSearch } from '../components/app/AppSearchBar';
 import { DesktopPacketSidebar } from '../components/app/DesktopPacketSidebar';
 import { getVendorImageUrl } from '../components/ui/VendorCard';
+import { ResponsiveImage } from '../components/ui/ResponsiveImage';
 import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { Chip, Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
@@ -434,14 +435,14 @@ export function SearchResultsPage() {
                           onClick={() => navigate(`/vendor/${dish.vendorSlug}`)}
                           className="flex min-w-0 flex-1 items-start gap-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
                         >
-                          <img
+                          <ResponsiveImage
                             src={dish.imageUrl || getVendorImageUrl(dish.vendorCategory)}
                             alt={dish.name}
+                            crop="1x1"
                             width={64}
                             height={64}
-                            loading="lazy"
-                            decoding="async"
-                            className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] ${
+                            fallbackSrc={getVendorImageUrl(dish.vendorCategory)}
+                            className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] ${
                               !dish.inStock ? 'grayscale opacity-70' : ''
                             }`}
                           />

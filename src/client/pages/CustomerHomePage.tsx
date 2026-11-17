@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Chip, Badge } from '../components/ui/Badge';
 import { getVendorImageUrl } from '../components/ui/VendorCard';
+import { ResponsiveImage } from '../components/ui/ResponsiveImage';
 import { GateBoard } from '../components/ui/GateBoard';
 import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { VendorCardSkeleton, Skeleton } from '../components/ui/Skeleton';
@@ -38,31 +39,31 @@ const CUSTOMER_TILE_CATEGORIES = [
   {
     id: 'food',
     label: 'Food',
-    img: '/images/categories/food-cat.png',
+    img: '/images/categories/food.jpg',
     href: '/app?category=meals',
   },
   {
     id: 'fruits_juices',
     label: 'Fruits & Juices',
-    img: '/images/categories/fruits-cat.png',
+    img: '/images/categories/juices.jpg',
     href: '/app/search?q=shake',
   },
   {
     id: 'groceries',
     label: 'Groceries',
-    img: '/images/categories/groceries-cat.png',
+    img: '/images/categories/groceries-real.jpg',
     href: '/app?category=snacks',
   },
   {
     id: 'chicken',
     label: 'Fresh Chicken',
-    img: '/images/categories/chicken-cat.png',
+    img: '/images/categories/chicken-real.jpg',
     href: '/app/search?q=chicken',
   },
   {
     id: 'vegetables',
     label: 'Vegetables',
-    img: '/images/categories/vegetables-cat.png',
+    img: '/images/categories/vegetables-real.jpg',
     href: '/app/search?q=veg',
   },
 ] as const;
@@ -371,14 +372,13 @@ export function CustomerHomePage() {
                 to={tile.href}
                 className="group overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
               >
-                <div className="aspect-[4/3] overflow-hidden border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]">
-                  <img
+                <div className="aspect-[4/3] overflow-hidden border-b border-[var(--color-border-subtle)]">
+                  <ResponsiveImage
                     src={tile.img}
                     alt={tile.label}
+                    crop="4x3"
                     width={160}
                     height={120}
-                    loading="lazy"
-                    decoding="async"
                     className="h-full w-full object-cover tf-photo-warm transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 </div>
@@ -426,14 +426,13 @@ export function CustomerHomePage() {
                       onClick={() => navigate(`/vendor/${pick.vendorSlug}`)}
                       className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] rounded-xl"
                     >
-                      <img
+                      <ResponsiveImage
                         src={pick.imageUrl || getVendorImageUrl(pick.vendorCategory)}
                         alt={pick.name}
+                        crop="1x1"
                         width={48}
                         height={48}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-12 w-12 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)]"
+                        className="h-12 w-12 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)]"
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">

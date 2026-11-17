@@ -3,6 +3,7 @@ import { Sheet } from '../ui/Sheet';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { QtyStepper } from '../ui/QtyStepper';
+import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { getVendorImageUrl } from '../ui/VendorCard';
 import type { EnrichedMenuItem } from '@shared/types';
 
@@ -83,13 +84,14 @@ export function ItemOptionsSheet({
       <div className="space-y-5 pb-2">
         {/* Item Summary */}
         <div className="flex items-start gap-3.5">
-          <img
+          <ResponsiveImage
             src={imgSrc}
             alt={item.name}
+            crop="1x1"
             width={72}
             height={72}
-            loading="lazy"
-            className={`h-[72px] w-[72px] rounded-2xl object-cover shrink-0 border border-[var(--color-border)] bg-[var(--color-surface-sunken)] ${
+            fallbackSrc={getVendorImageUrl(vendorCategory)}
+            className={`h-[72px] w-[72px] rounded-2xl object-cover shrink-0 border border-[var(--color-border)] ${
               !item.inStock ? 'grayscale opacity-70' : ''
             }`}
           />

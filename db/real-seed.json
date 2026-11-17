@@ -51,35 +51,35 @@
       "id": "food",
       "name": "Food",
       "subtitle": "Meals, Snacks, Biryani & More",
-      "imageUrl": "/images/categories/food-cat.png",
+      "imageUrl": "/images/categories/food.jpg",
       "startingPricePaise": 1200
     },
     {
       "id": "fruits_juices",
       "name": "Fruits & Juices",
       "subtitle": "Fresh Fruits, Juices & More",
-      "imageUrl": "/images/categories/fruits-cat.png",
+      "imageUrl": "/images/categories/juices.jpg",
       "startingPricePaise": 5900
     },
     {
       "id": "vegetables",
       "name": "Vegetables",
       "subtitle": "Fresh Vegetables & Greens",
-      "imageUrl": "/images/categories/vegetables-cat.png",
+      "imageUrl": "/images/categories/vegetables-real.jpg",
       "startingPricePaise": null
     },
     {
       "id": "groceries",
       "name": "Groceries",
       "subtitle": "Daily Essentials, Snacks & More",
-      "imageUrl": "/images/categories/groceries-cat.png",
+      "imageUrl": "/images/categories/groceries-real.jpg",
       "startingPricePaise": 1500
     },
     {
       "id": "fresh_chicken",
       "name": "Fresh Chicken",
       "subtitle": "Fresh Chicken & Meat Cuts",
-      "imageUrl": "/images/categories/chicken-cat.png",
+      "imageUrl": "/images/categories/chicken-real.jpg",
       "startingPricePaise": 8900
     }
   ],
@@ -92,31 +92,31 @@
     {
       "name": "Veg Burger",
       "vendorSlug": "chai-sutta-bar-csb",
-      "pricePaise": 6500,
+      "pricePaise": 7000,
       "imageUrl": "/images/items/chai-sutta-bar-csb--veg-burger.jpg"
     },
     {
       "name": "Masala Dosa",
       "vendorSlug": "sone-zone-cafe",
-      "pricePaise": 9900,
-      "imageUrl": "/images/categories/masala-dosa.png"
+      "pricePaise": 10900,
+      "imageUrl": "/images/items/sone-zone-cafe--masala-dosa.jpg"
     },
     {
-      "name": "Chicken Biryani",
+      "name": "Chicken Dum Biryani",
       "vendorSlug": "sone-zone-cafe",
-      "pricePaise": 14000,
-      "imageUrl": "/images/items/sone-zone-cafe--chicken-biryani.jpg"
+      "pricePaise": 15900,
+      "imageUrl": "/images/items/sone-zone-cafe--chicken-dum-biryani.jpg"
     },
     {
       "name": "Mango Shake",
       "vendorSlug": "sone-zone-cafe",
-      "pricePaise": 5900,
-      "imageUrl": "/images/categories/orange-juice-dish.png"
+      "pricePaise": 7900,
+      "imageUrl": "/images/items/sone-zone-cafe--mango-shake.jpg"
     },
     {
       "name": "Margherita Pizza",
       "vendorSlug": "wrapchik-pizza",
-      "pricePaise": 8900,
+      "pricePaise": 12900,
       "imageUrl": "/images/items/wrapchik-pizza--margherita-pizza.jpg"
     }
   ],
@@ -127,7 +127,7 @@
       "slug": "kolkata-biryani-fast-food-pizza-house",
       "name": "Kolkata Biryani Fast-Food Pizza House",
       "nameHi": null,
-      "tagline": null,
+      "tagline": "Biryani, Rolls & Campus Pizza",
       "category": "meals",
       "cuisines": [
         "Biryani",
@@ -158,7 +158,11 @@
       "outOfStockCount": 8,
       "status": "active",
       "ratingAvg": 4.4,
-      "ratingCount": 37
+      "ratingCount": 37,
+      "hours": {
+        "open": "10:00",
+        "close": "22:30"
+      }
     },
     {
       "id": "rest_csb_nitp",
@@ -166,7 +170,7 @@
       "slug": "chai-sutta-bar-csb",
       "name": "Chai Sutta Bar (CSB)",
       "nameHi": null,
-      "tagline": null,
+      "tagline": "Kulhad Chai, Maggi & Cafe Snacks",
       "category": "snacks",
       "cuisines": [
         "Chai",
@@ -200,7 +204,11 @@
       "outOfStockCount": 18,
       "status": "active",
       "ratingAvg": 4.1,
-      "ratingCount": 41
+      "ratingCount": 41,
+      "hours": {
+        "open": "10:30",
+        "close": "01:00"
+      }
     },
     {
       "id": "rest_wrapchik_nitp",
@@ -239,7 +247,11 @@
       "outOfStockCount": 14,
       "status": "active",
       "ratingAvg": 4.5,
-      "ratingCount": 49
+      "ratingCount": 49,
+      "hours": {
+        "open": "10:00",
+        "close": "23:00"
+      }
     },
     {
       "id": "rest_shwami_ji_nitp",
@@ -247,7 +259,7 @@
       "slug": "shwami-ji",
       "name": "Shwami Ji",
       "nameHi": null,
-      "tagline": null,
+      "tagline": "Tandoori Soya Chaap & North Indian",
       "category": "meals",
       "cuisines": [
         "Soya Chaap",
@@ -260,7 +272,7 @@
         "Student Offers",
         "Night Safe"
       ],
-      "coverImageUrl": "/images/vendors/shwami-ji.png",
+      "coverImageUrl": "/images/vendors/shwami-ji.jpg",
       "description": "Shwami Ji - Authentic Malai Chaap, Soya Chaap, Tandoori specialties and North Indian delicacies on campus.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
       "fssaiNo": "10424000000104",
@@ -275,7 +287,11 @@
       "outOfStockCount": 0,
       "status": "active",
       "ratingAvg": 4.3,
-      "ratingCount": 22
+      "ratingCount": 22,
+      "hours": {
+        "open": "10:00",
+        "close": "22:00"
+      }
     },
     {
       "id": "rest_royal_bihar_nitp",
@@ -315,7 +331,11 @@
       "outOfStockCount": 41,
       "status": "active",
       "ratingAvg": 4.5,
-      "ratingCount": 67
+      "ratingCount": 67,
+      "hours": {
+        "open": "11:00",
+        "close": "23:00"
+      }
     },
     {
       "id": "rest_sone_zone_nitp",
@@ -323,7 +343,7 @@
       "slug": "sone-zone-cafe",
       "name": "Sone Zone Cafe",
       "nameHi": null,
-      "tagline": null,
+      "tagline": "Campus Cafe, Shakes & Dosas",
       "category": "snacks",
       "cuisines": [
         "Cafe",
@@ -356,7 +376,11 @@
       "outOfStockCount": 60,
       "status": "active",
       "ratingAvg": 4.3,
-      "ratingCount": 50
+      "ratingCount": 50,
+      "hours": {
+        "open": "11:00",
+        "close": "22:00"
+      }
     },
     {
       "id": "rest_vrindavan_bhog_nitp",
@@ -379,7 +403,7 @@
         "Night Safe"
       ],
       "coverImageUrl": "/images/vendors/vrindavan-bhog.jpg",
-      "description": "",
+      "description": "Vrindavan Bhog - Pure vegetarian North Indian thalis, South Indian dosas, paneer specials, sweets, and homestyle meals near NIT Patna.",
       "nightSafetyNotice": "Campus Night Safety: After 7:00 PM, deliveries are handled personally by the restaurant owner, co-owner, or senior staff with complete trust to ensure campus premises safety.",
       "fssaiNo": "10424000000107",
       "hoursJson": "{\"open\":\"10:00\",\"close\":\"21:00\"}",
@@ -393,7 +417,11 @@
       "outOfStockCount": 2,
       "status": "active",
       "ratingAvg": 4.8,
-      "ratingCount": 35
+      "ratingCount": 35,
+      "hours": {
+        "open": "08:30",
+        "close": "22:00"
+      }
     },
     {
       "id": "rest_crave_nitp",
@@ -401,7 +429,7 @@
       "slug": "crave",
       "name": "Crave",
       "nameHi": null,
-      "tagline": "Best in Biryani",
+      "tagline": "Late Night Canteen",
       "category": "late_night",
       "cuisines": [
         "Biryani",
@@ -429,7 +457,11 @@
       "outOfStockCount": 0,
       "status": "active",
       "ratingAvg": 4.8,
-      "ratingCount": 20
+      "ratingCount": 20,
+      "hours": {
+        "open": "18:00",
+        "close": "03:00"
+      }
     }
   ],
   "menuCategories": [
@@ -4356,7 +4388,7 @@
       "vendorId": "rest_csb_nitp",
       "categoryId": "cat_0mul6esqj0d98c650d6069d8f",
       "categoryName": "Milk Packet",
-      "name": "MIlk PACKET   0.5L",
+      "name": "Milk Packet (0.5L)",
       "nameHi": null,
       "description": "Sudha Branding with date analysis",
       "pricePaise": 3900,
@@ -7824,7 +7856,7 @@
       "vendorId": "rest_wrapchik_nitp",
       "categoryId": "cat_0mv416o4571871db884e4f044",
       "categoryName": "Biriyani",
-      "name": "Hyderabadi chicken  Biryani 750gm",
+      "name": "Hyderabadi Chicken Biryani (750g)",
       "nameHi": null,
       "description": "",
       "pricePaise": 14900,
@@ -15960,7 +15992,7 @@
       "vendorId": "rest_sone_zone_nitp",
       "categoryId": "cat_sz_biryani",
       "categoryName": "Biryani",
-      "name": "Paneer   Biryani",
+      "name": "Paneer Biryani",
       "nameHi": null,
       "description": "Fragrant basmati rice layered with paneerand spices.",
       "pricePaise": 15900,

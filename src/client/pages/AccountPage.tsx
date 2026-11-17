@@ -15,7 +15,6 @@ import {
   Moon,
   LogOut,
   Trash2,
-  Sparkles,
 } from 'lucide-react';
 
 export function AccountPage() {
@@ -26,7 +25,7 @@ export function AccountPage() {
     noIndex: true,
   });
   const navigate = useNavigate();
-  const { user, loginAsDemo, logout, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const { i18n } = useTranslation();
@@ -143,64 +142,12 @@ export function AccountPage() {
         />
       </div>
 
-      {/* Demo Switchers for Reviewers */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-950/30 space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-900 dark:text-amber-200">
-          <Sparkles className="h-4 w-4 text-amber-600" />
-          <span>Demo Account Switcher (Review Mode)</span>
-        </div>
-        <p className="text-xs text-stone-600 dark:text-stone-400">
-          Switch roles instantly to test student ordering, vendor counter management, or campus administration.
-        </p>
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          <Button
-            onClick={async () => {
-              const res = await loginAsDemo('student');
-              if (res.ok) showToast('Logged in as Student', 'success');
-            }}
-            variant="secondary"
-            size="sm"
-            className="text-xs"
-          >
-            Student
-          </Button>
-          <Button
-            onClick={async () => {
-              const res = await loginAsDemo('vendor');
-              if (res.ok) {
-                showToast('Logged in as Chai Sutta Bar (CSB) Vendor', 'success');
-                navigate('/v');
-              }
-            }}
-            variant="secondary"
-            size="sm"
-            className="text-xs"
-          >
-            Vendor (/v)
-          </Button>
-          <Button
-            onClick={async () => {
-              const res = await loginAsDemo('admin');
-              if (res.ok) {
-                showToast('Logged in as Admin', 'success');
-                navigate('/admin');
-              }
-            }}
-            variant="secondary"
-            size="sm"
-            className="text-xs"
-          >
-            Admin (/admin)
-          </Button>
-        </div>
-      </div>
-
       {/* Privacy and Account Actions */}
-      <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden dark:border-stone-800 dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800">
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden divide-y divide-[var(--color-border-subtle)]">
         {!user && (
           <ListRow
             title="Sign In Options (/signin)"
-            subtitle="Google campus chooser, Email OTP fallback, or Demo roles"
+            subtitle="Google campus chooser or Email OTP"
             onClick={() => navigate('/signin?returnTo=/account')}
             showChevron
           />
@@ -209,12 +156,6 @@ export function AccountPage() {
           title="Saved Favourites"
           subtitle="Quickly view your pinned NIT Patna canteens"
           onClick={() => navigate('/favorites')}
-          showChevron
-        />
-        <ListRow
-          title="Design System & UI Kit"
-          subtitle="Explore all components, tokens and states"
-          onClick={() => navigate('/dev/ui')}
           showChevron
         />
         <ListRow

@@ -1,5 +1,6 @@
 import { Badge } from './Badge';
 import { QuantityStepper } from './QuantityStepper';
+import { ResponsiveImage } from './ResponsiveImage';
 import { getVendorImageUrl } from './VendorCard';
 import { SlidersHorizontal } from 'lucide-react';
 
@@ -56,14 +57,14 @@ export function MenuItemRow({
           aria-label={`View details and options for ${name}`}
           className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] disabled:cursor-default"
         >
-          <img
+          <ResponsiveImage
             src={imgSrc}
             alt={name}
+            crop="1x1"
             width={64}
             height={64}
-            loading="lazy"
-            decoding="async"
-            className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] ${
+            fallbackSrc={getVendorImageUrl(category || 'meals')}
+            className={`h-16 w-16 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] ${
               !inStock ? 'grayscale opacity-75' : ''
             }`}
           />

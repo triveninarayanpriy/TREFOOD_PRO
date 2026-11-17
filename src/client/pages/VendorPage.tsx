@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog } from '../components/ui/Dialog';
 import { MenuLineRow } from '../components/ui/MenuLineRow';
+import { ResponsiveImage } from '../components/ui/ResponsiveImage';
 import { DesktopPacketSidebar } from '../components/app/DesktopPacketSidebar';
 import { Skeleton, MenuItemSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -322,13 +323,12 @@ export function VendorPage() {
         <div className="lg:col-span-8 min-w-0 space-y-5">
           {/* Vendor Profile Header Card with Real Cover Photo & Tagline */}
           <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
-            <div className="relative aspect-[16/9] max-h-56 w-full overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
-              <img
+            <div className="relative aspect-[21/9] max-h-64 w-full overflow-hidden border-b border-[var(--color-border)]">
+              <ResponsiveImage
                 src={vendor.coverImageUrl || `/images/vendors/${vendor.slug}.jpg`}
                 alt={vendor.name}
-                width={768}
-                height={432}
-                fetchPriority="high"
+                crop="21x9"
+                priority
                 className="h-full w-full object-cover tf-photo-warm"
               />
               {vendor.tagline && (

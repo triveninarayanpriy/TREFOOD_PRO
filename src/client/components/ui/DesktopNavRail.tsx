@@ -3,9 +3,6 @@ import {
   Compass,
   Receipt,
   User,
-  Palette,
-  Store,
-  ShieldAlert,
   ShieldCheck,
   Heart,
 } from 'lucide-react';
@@ -23,12 +20,6 @@ export function DesktopNavRail() {
     { to: '/favorites', label: t('nav.favorites', 'Favourites'), icon: Heart },
     { to: '/orders', label: t('nav.orders', 'My Orders'), icon: Receipt },
     { to: '/account', label: t('nav.account', 'Account'), icon: User },
-  ];
-
-  const toolLinks = [
-    { to: '/vendor', label: t('nav.vendor', 'Vendor Console'), icon: Store },
-    { to: '/admin', label: t('nav.admin', 'Admin'), icon: ShieldAlert },
-    { to: '/dev/ui', label: 'UI Kit (/dev/ui)', icon: Palette },
   ];
 
   return (
@@ -53,31 +44,6 @@ export function DesktopNavRail() {
                     isActive
                       ? 'bg-[#830020] text-white shadow-xs dark:bg-[#FFB400] dark:text-[#1C1917]'
                       : 'text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)]'
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{link.label}</span>
-              </NavLink>
-            );
-          })}
-        </div>
-
-        <div className="space-y-1 border-t border-[var(--color-border-subtle)] pt-4">
-          <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-            Roles & System
-          </div>
-          {toolLinks.map((link) => {
-            const Icon = link.icon;
-            return (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  `flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB400] ${
-                    isActive
-                      ? 'bg-[#830020]/10 text-[#830020] dark:bg-[#FFB400]/15 dark:text-[#FFB400]'
-                      : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)]'
                   }`
                 }
               >

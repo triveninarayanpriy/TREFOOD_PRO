@@ -1,28 +1,26 @@
 import { Clock, Star, ChevronRight, Bell, BellRing, CalendarClock, Heart, Tag } from 'lucide-react';
 import { Badge } from './Badge';
+import { ResponsiveImage } from './ResponsiveImage';
 import type { VendorSummary } from '@shared/types';
 import { isNightSafetyActive } from '@shared/curfew';
 
 export function getVendorImageUrl(category: string): string {
   switch (category) {
     case 'meals':
-      return '/images/categories/food-cat.png';
     case 'snacks':
-      return '/images/categories/masala-dosa.png';
+      return '/images/categories/food.jpg';
     case 'fruits':
-      return '/images/categories/fruits-cat.png';
-    case 'groceries':
-      return '/images/categories/groceries-cat.png';
     case 'vegetables':
-      return '/images/categories/vegetables-cat.png';
+      return '/images/categories/vegetables-real.jpg';
+    case 'groceries':
+      return '/images/categories/groceries-real.jpg';
     case 'raw_chicken':
-      return '/images/categories/chicken-cat.png';
-    case 'late_night':
-      return '/images/vendors/crave.png';
+      return '/images/categories/chicken-real.jpg';
     case 'beverages':
-      return '/images/categories/orange-juice-dish.png';
+    case 'juices':
+      return '/images/categories/juices.jpg';
     default:
-      return '/images/categories/food-cat.png';
+      return '/images/categories/food.jpg';
   }
 }
 
@@ -174,14 +172,13 @@ export function VendorCard({
             onClick={onClick}
             className="flex flex-1 min-w-0 items-center gap-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
           >
-            <img
+            <ResponsiveImage
               src={vendor.coverImageUrl || getVendorImageUrl(vendor.category)}
-              alt=""
+              alt={vendor.name}
+              crop="4x3"
               width={56}
               height={56}
-              loading="lazy"
-              decoding="async"
-              className="h-14 w-14 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] tf-photo-warm"
+              className="h-14 w-14 rounded-xl object-cover shrink-0 border border-[var(--color-border-subtle)] tf-photo-warm"
             />
             <div className="min-w-0">
               <h3 className="text-base font-bold text-[var(--color-text)] leading-snug truncate">

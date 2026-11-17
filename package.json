@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/verify-images.mjs",
     "build": "vite build",
+    "build:images": "node scripts/build-images.mjs",
+    "verify:images": "node scripts/verify-images.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -54,6 +57,7 @@
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.1",
     "prettier": "^3.5.3",
+    "sharp": "0.35.5",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.29.0",

@@ -1,4 +1,5 @@
 import { Clock, ShieldCheck, Star, Heart, Bell, BellRing, CalendarClock, Utensils } from 'lucide-react';
+import { ResponsiveImage } from './ResponsiveImage';
 import type { VendorSummary } from '@shared/types';
 
 export interface VendorCounterRowProps {
@@ -147,13 +148,12 @@ export function VendorCounterRow({
         onClick={onClick}
         className="relative aspect-[4/3] w-full sm:w-44 md:w-48 shrink-0 overflow-hidden rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
       >
-        <img
+        <ResponsiveImage
           src={getFallbackCover(vendor)}
           alt={vendor.name}
+          crop="4x3"
           width={320}
           height={240}
-          loading="lazy"
-          decoding="async"
           className="h-full w-full object-cover tf-photo-warm transition-transform duration-300 group-hover:scale-[1.03]"
         />
         {vendor.tagline && (

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { GateBoard } from '../components/ui/GateBoard';
 import { VendorCounterRow } from '../components/ui/VendorCounterRow';
 import { PacketChit } from '../components/ui/PacketChit';
+import { ResponsiveImage } from '../components/ui/ResponsiveImage';
 import { Skeleton } from '../components/ui/Skeleton';
 import {
   ShieldCheck,
@@ -63,7 +64,7 @@ const CAMPUS_CATEGORIES = [
     name: 'Food',
     starting: 'From ₹12',
     sub: 'Meals, biryani, pizza, rolls & momos',
-    img: '/images/categories/food-cat.png',
+    img: '/images/categories/food.jpg',
     to: '/app?category=meals',
   },
   {
@@ -71,7 +72,7 @@ const CAMPUS_CATEGORIES = [
     name: 'Fruits & Juices',
     starting: 'From ₹49',
     sub: 'Shakes, lassi, citrus & chilled juices',
-    img: '/images/categories/fruits-cat.png',
+    img: '/images/categories/juices.jpg',
     to: '/app/search?q=shake',
   },
   {
@@ -79,7 +80,7 @@ const CAMPUS_CATEGORIES = [
     name: 'Groceries',
     starting: 'From ₹15',
     sub: 'Chai, coffee, Maggi, milk & quick snacks',
-    img: '/images/categories/groceries-cat.png',
+    img: '/images/categories/groceries-real.jpg',
     to: '/app?category=snacks',
   },
   {
@@ -87,7 +88,7 @@ const CAMPUS_CATEGORIES = [
     name: 'Fresh Chicken',
     starting: 'From ₹79',
     sub: 'Chicken biryani, rolls, soup & boneless cuts',
-    img: '/images/categories/chicken-cat.png',
+    img: '/images/categories/chicken-real.jpg',
     to: '/app/search?q=chicken',
   },
   {
@@ -95,7 +96,7 @@ const CAMPUS_CATEGORIES = [
     name: 'Vegetables',
     starting: 'Opening soon',
     sub: 'Fresh hostel cooking vegetables',
-    img: '/images/categories/vegetables-cat.png',
+    img: '/images/categories/vegetables-real.jpg',
     to: '/app/search?q=veg',
   },
 ] as const;
@@ -383,13 +384,13 @@ export function LandingPage() {
             <div className="lg:col-span-6">
               <div className="relative pb-6 sm:pb-8 sm:pr-4">
                 <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">
-                  <img
+                  <ResponsiveImage
                     src="/images/items/kolkata-biryani-fast-food-pizza-house--nawab-dum-biryani.webp"
                     alt="Nawab Dum Biryani served hot from Kolkata Biryani Fast-Food Pizza House near NIT Patna"
+                    crop="4x3"
+                    priority
                     width={640}
                     height={480}
-                    decoding="async"
-                    fetchPriority="high"
                     className="aspect-[4/3] w-full object-cover"
                   />
                 </div>
@@ -581,14 +582,13 @@ export function LandingPage() {
               to={cat.to}
               className="group overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] hover:border-[#830020] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
             >
-              <div className="overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface-sunken)]">
-                <img
+              <div className="overflow-hidden border-b border-[var(--color-border)]">
+                <ResponsiveImage
                   src={cat.img}
                   alt={cat.name}
+                  crop="4x3"
                   width={360}
                   height={270}
-                  loading="lazy"
-                  decoding="async"
                   className="aspect-[4/3] w-full object-cover tf-photo-warm transition-transform duration-300 group-hover:scale-[1.03]"
                 />
               </div>
@@ -795,16 +795,10 @@ export function LandingPage() {
                 <span>Contact (WhatsApp)</span>
               </a>
               <Link
-                to="/v"
+                to="/vendor/login"
                 className="inline-flex min-h-[44px] items-center text-[var(--color-text-muted)] hover:underline"
               >
-                Vendor Console
-              </Link>
-              <Link
-                to="/admin"
-                className="inline-flex min-h-[44px] items-center text-[var(--color-text-muted)] hover:underline"
-              >
-                Admin
+                For vendors
               </Link>
             </nav>
           </div>

@@ -14,6 +14,8 @@ import {
   coupons,
   issues,
   funnelEvents,
+  menuCategories,
+  menuItems,
 } from '../db/schema';
 import { requireAuth, requireRole } from '../middleware';
 import { nowUtc } from '../utils/time';
@@ -239,14 +241,42 @@ adminRoutes.patch('/vendor-applications/:id', async (c) => {
   let createdVendorId: string | null = null;
 
   if (parsed.data.status === 'approved' && application.status !== 'approved') {
+    const cleanSlug = toSlug(application.vendorName);
+    const existingVendor = await db
+      .select({ id: vendors.id })
+      .from(vendors)
+      .where(eq(vendors.slug, cleanSlug))
+      .get();
+    if (existingVendor) {
+      return c.json(
+        {
+          error: {
+            code: 'DUPLICATE_VENDOR',
+            message: 'A campus vendor with this name or slug already exists.',
+          },
+        },
+        409
+      );
+    }
+
+    const shopCoverMap: Record<string, string> = {
+      fruits: '/images/categories/juices.jpg',
+      vegetables: '/images/categories/vegetables-real.jpg',
+      groceries: '/images/categories/groceries-real.jpg',
+      raw_chicken: '/images/categories/chicken-real.jpg',
+    };
+    const defaultCover = shopCoverMap[application.shopType || ''] || '/images/categories/food.jpg';
+
     const newVendorId = `v_${ulid().slice(-8).toLowerCase()}`;
     const prepMinutes = parsed.data.prepMinutes ?? 15;
     await db.insert(vendors).values({
       id: newVendorId,
       campusId: application.campusId,
-      slug: toSlug(application.vendorName),
-      name: application.vendorName,
+      slug: cleanSlug,
+      name: application.vendorName.trim(),
+      tagline: 'NIT Patna Campus Partner',
       category: parsed.data.category || application.shopType || 'snacks',
+      coverImageUrl: defaultCover,
       description: `Verified NIT Patna partner (${application.shopType}).`,
       fssaiNo: '10426000000000',
       phone: application.phone,
@@ -348,6 +378,54 @@ adminRoutes.post('/vendors/invite', async (c) => {
 
   const inviteLink = `https://${c.req.header('host') || 'localhost'}/vendor?invite=${userId}`;
   return c.json({ ok: true, userId, email, inviteLink });
+});
+
+// DELETE /api/admin/vendors/:id (Remove test/unlaunched vendor only when it has zero historical orders)
+adminRoutes.delete('/vendors/:id', async (c) => {
+  const db = c.get('db');
+  const user = c.get('user')!;
+  const vendorId = c.req.param('id');
+
+  const existing = await db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
+  if (!existing) {
+    return c.json({ error: { code: 'VENDOR_NOT_FOUND', message: 'Vendor not found' } }, 404);
+  }
+
+  const orderCount = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(eq(orders.vendorId, vendorId))
+    .get();
+  if (orderCount) {
+    return c.json(
+      {
+        error: {
+          code: 'VENDOR_HAS_ORDERS',
+          message: 'Cannot delete a vendor that already has recorded orders.',
+        },
+      },
+      409
+    );
+  }
+
+  await db.batch([
+    db.delete(vendorGates).where(eq(vendorGates.vendorId, vendorId)),
+    db.delete(menuItems).where(eq(menuItems.vendorId, vendorId)),
+    db.delete(menuCategories).where(eq(menuCategories.vendorId, vendorId)),
+    db.delete(vendors).where(eq(vendors.id, vendorId)),
+  ]);
+
+  await db.insert(auditLog).values({
+    id: ulid(),
+    actorId: user.id,
+    action: 'VENDOR_DELETED',
+    targetType: 'vendors',
+    targetId: vendorId,
+    detailsJson: JSON.stringify({ name: existing.name, slug: existing.slug }),
+    at: nowUtc(),
+  });
+
+  return c.json({ ok: true, deletedVendorId: vendorId });
 });
 
 // GET /api/admin/gates
