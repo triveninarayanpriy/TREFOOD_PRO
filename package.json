@@ -33,7 +33,7 @@
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.7",
     "i18next": "^24.2.2",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.72.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^15.4.1",
