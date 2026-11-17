@@ -421,7 +421,7 @@ export function OrderDetailPage() {
   const isLocked = remainingAttempts <= 0;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-4 space-y-5 pb-24">
+    <div className="mx-auto max-w-5xl px-4 py-6 space-y-8 pb-24">
       <h1 className="sr-only">Order #{order.publicNo} Tracker &amp; Handover Code</h1>
       {/* Reconnecting banner on transient polling hiccup */}
       {reconnecting && (
@@ -436,22 +436,22 @@ export function OrderDetailPage() {
       )}
 
       {/* Top Navigation & Freshness Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
         <button
           type="button"
           onClick={() => navigate('/orders')}
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl px-3 text-[14px] font-bold text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[#830020] transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>All Orders</span>
+          <span>Back to All Orders</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span
             aria-live="polite"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-muted)]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--color-text-muted)]"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
             <span>{updatedText}</span>
           </span>
           <button
@@ -459,7 +459,7 @@ export function OrderDetailPage() {
             onClick={() => fetchOrder(true, false)}
             disabled={isRefreshing}
             aria-label="Refresh order status"
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-[13px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] focus:outline-none focus:ring-2 focus:ring-[#FFB400]"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
             <span>Refresh</span>
@@ -467,128 +467,135 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Signature R2 Packet Chit */}
-      <PacketChit
-        orderNo={order.publicNo}
-        handoverCode={order.handoverCode}
-        vendorName={order.vendorName || 'Campus Vendor'}
-        gateName={order.gateName || 'Hostel Gate'}
-        status={order.status}
-        etaMinutes={etaMinutesLeft ?? undefined}
-        totalPaise={order.totalPaise}
-        itemSummary={
-          order.items && order.items.length > 0
-            ? order.items.map((it) => `${it.name} ×${it.quantity}`).join(', ')
-            : undefined
-        }
-      />
+      {/* 2-Column Desktop Grid: Packet Chit beside Status Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Signature Packet Chit & Gate Handover Action (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <PacketChit
+            orderNo={order.publicNo}
+            handoverCode={order.handoverCode}
+            vendorName={order.vendorName || 'Campus Vendor'}
+            gateName={order.gateName || 'Hostel Gate'}
+            status={order.status}
+            etaMinutes={etaMinutesLeft ?? undefined}
+            totalPaise={order.totalPaise}
+            itemSummary={
+              order.items && order.items.length > 0
+                ? order.items.map((it) => `${it.name} ×${it.quantity}`).join(', ')
+                : undefined
+            }
+          />
 
-      {/* Gate Handover Verification Zone (strict server verification + 15-min countdown) */}
-      {isAtGate && (
-        <section
-          id="handover-verification-card"
-          aria-label="Confirm packet handover at gate"
-          className="rounded-3xl border-2 border-emerald-600 bg-emerald-50/75 p-5 dark:border-emerald-700 dark:bg-emerald-950/40 space-y-4 shadow-sm"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" aria-hidden="true" />
-              <span className="text-sm font-extrabold">Packet is at {order.gateName}</span>
-            </div>
-
-            <div
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-extrabold ${
-                gateWindowRemainingSec <= 180
-                  ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200'
-                  : 'bg-white text-emerald-800 dark:bg-stone-900 dark:text-emerald-300'
-              }`}
-              aria-live="off"
+          {/* Gate Handover Verification Zone (strict server verification + 15-min countdown) */}
+          {isAtGate && (
+            <section
+              id="handover-verification-card"
+              aria-label="Confirm packet handover at gate"
+              className="rounded-3xl border-2 border-emerald-600 bg-emerald-50/75 p-5 dark:border-emerald-700 dark:bg-emerald-950/40 space-y-4 shadow-sm"
             >
-              <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Gate window: {formatCountdown(gateWindowRemainingSec)}</span>
-            </div>
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" aria-hidden="true" />
+                  <span className="text-[14px] font-extrabold">Packet is at {order.gateName}</span>
+                </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-white/90 p-3.5 text-center dark:border-emerald-800 dark:bg-stone-900/90">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              {t('ticket.handover_code', 'Your 4-Digit Packet Code')}
-            </div>
-            <div className="tf-animate-reveal mt-1 font-mono text-3xl font-black tracking-[0.28em] text-[#830020] dark:text-[#FFB400]">
-              {order.handoverCode}
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              {t(
-                'ticket.match_digits_notice',
-                'Match the digits written on the packet at the gate, then enter them below to confirm delivery.'
-              )}
-            </p>
-          </div>
-
-          {isLocked ? (
-            <div
-              role="alert"
-              className="rounded-2xl border border-red-300 bg-red-50 p-3.5 text-xs text-red-900 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 space-y-2"
-            >
-              <div className="flex items-center gap-2 font-bold">
-                <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Handover verification locked after 5 mismatched attempts</span>
-              </div>
-              <p>
-                Show your student ID and Order #{order.publicNo} to the vendor delivery partner so they can complete handover assist from their counter tablet.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleConfirmHandover} className="space-y-3">
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="handover-code-input"
-                  className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 dark:text-emerald-200"
+                <div
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[13px] font-extrabold ${
+                    gateWindowRemainingSec <= 180
+                      ? 'bg-amber-500/20 text-amber-900 dark:text-amber-200'
+                      : 'bg-white text-emerald-800 dark:bg-stone-900 dark:text-emerald-300'
+                  }`}
+                  aria-live="off"
                 >
-                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Enter 4-digit code from packet ({remainingAttempts} attempts left)</span>
-                </label>
-                <input
-                  id="handover-code-input"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{4}"
-                  maxLength={4}
-                  autoComplete="one-time-code"
-                  placeholder="e.g. 4829"
-                  value={handoverInput}
-                  onChange={(e) => {
-                    setHandoverInput(e.target.value.replace(/\D/g, '').slice(0, 4));
-                    if (handoverError) setHandoverError(null);
-                  }}
-                  className="min-h-[48px] w-full rounded-2xl border-2 border-emerald-400 bg-white px-4 text-center font-mono text-xl font-extrabold tracking-[0.35em] text-stone-900 focus:border-[#830020] focus:outline-none dark:border-emerald-700 dark:bg-stone-900 dark:text-stone-100"
-                />
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Gate window: {formatCountdown(gateWindowRemainingSec)}</span>
+                </div>
               </div>
 
-              {handoverError && (
+              <div className="rounded-2xl border border-emerald-200 bg-white/90 p-3.5 text-center dark:border-emerald-800 dark:bg-stone-900/90">
+                <div className="text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  {t('ticket.handover_code', 'Your 4-Digit Packet Code')}
+                </div>
+                <div className="tf-animate-reveal mt-1 font-mono text-3xl font-black tracking-[0.28em] text-[#830020] dark:text-[#FFB400]">
+                  {order.handoverCode}
+                </div>
+                <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
+                  {t(
+                    'ticket.match_digits_notice',
+                    'Match the digits written on the packet at the gate, then enter them below to confirm delivery.'
+                  )}
+                </p>
+              </div>
+
+              {isLocked ? (
                 <div
                   role="alert"
-                  className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                  className="rounded-2xl border border-red-300 bg-red-50 p-3.5 text-[13px] text-red-900 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 space-y-2"
                 >
-                  {handoverError}
+                  <div className="flex items-center gap-2 font-bold">
+                    <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>Handover verification locked after 5 mismatched attempts</span>
+                  </div>
+                  <p>
+                    Show your student ID and Order #{order.publicNo} to the vendor delivery partner so they can complete handover assist from their counter tablet.
+                  </p>
                 </div>
+              ) : (
+                <form onSubmit={handleConfirmHandover} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="handover-code-input"
+                      className="flex items-center gap-1.5 text-[13px] font-bold text-emerald-950 dark:text-emerald-200"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Enter 4-digit code from packet ({remainingAttempts} attempts left)</span>
+                    </label>
+                    <input
+                      id="handover-code-input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{4}"
+                      maxLength={4}
+                      autoComplete="one-time-code"
+                      placeholder="e.g. 4829"
+                      value={handoverInput}
+                      onChange={(e) => {
+                        setHandoverInput(e.target.value.replace(/\D/g, '').slice(0, 4));
+                        if (handoverError) setHandoverError(null);
+                      }}
+                      className="min-h-[48px] w-full rounded-2xl border-2 border-emerald-400 bg-white px-4 text-center font-mono text-xl font-extrabold tracking-[0.35em] text-stone-900 focus:border-[#830020] focus:outline-none dark:border-emerald-700 dark:bg-stone-900 dark:text-stone-100"
+                    />
+                  </div>
+
+                  {handoverError && (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
+                    >
+                      {handoverError}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={handoverInput.length !== 4 || isConfirming}
+                    loading={isConfirming}
+                    variant="primary"
+                    className="w-full min-h-[48px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[14px]"
+                  >
+                    Confirm received
+                  </Button>
+                </form>
               )}
-
-              <Button
-                type="submit"
-                disabled={handoverInput.length !== 4 || isConfirming}
-                loading={isConfirming}
-                variant="primary"
-                className="w-full min-h-[48px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm"
-              >
-                Confirm received
-              </Button>
-            </form>
+            </section>
           )}
-        </section>
-      )}
 
-      {/* 6-Step Live Order Progress Timeline */}
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs space-y-4">
+          {/* Concise Push / In-App Notification Status Card */}
+          {isActive && <OrderPushStatusCard compact />}
+        </div>
+
+        {/* Right Column: Clean Status Timeline, Bill & Post-Delivery (7 cols) */}
+        <div className="lg:col-span-7 space-y-6">
         <StatusTimeline
           status={order.status}
           etaText={etaText}
@@ -770,6 +777,7 @@ export function OrderDetailPage() {
             </span>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Cancel Order Modal */}

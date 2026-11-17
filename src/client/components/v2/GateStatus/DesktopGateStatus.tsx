@@ -56,7 +56,7 @@ export function DesktopGateStatus({
       >
         <MapPin className="h-4 w-4 text-[#830020] dark:text-[#FFB400] shrink-0" />
         <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <div className="text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
             Delivery Gate
           </div>
           <div className="font-bold text-[14px] text-[var(--color-text)] truncate max-w-[180px]">
@@ -64,15 +64,15 @@ export function DesktopGateStatus({
           </div>
         </div>
         {currentGate.is24x7 ? (
-          <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+          <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 text-[13px] font-bold text-emerald-800 dark:text-emerald-300">
             Open 24x7
           </span>
         ) : countdownMinutes !== undefined && countdownMinutes <= 30 ? (
-          <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+          <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[13px] font-bold text-amber-900 dark:text-amber-200">
             Curfew in {countdownMinutes}m
           </span>
         ) : (
-          <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+          <span className="rounded-full bg-amber-100 dark:bg-amber-950/80 px-2 py-0.5 text-[13px] font-bold text-amber-900 dark:text-amber-200">
             Curfew {currentGate.curfewTime}
           </span>
         )}
@@ -86,7 +86,7 @@ export function DesktopGateStatus({
             <div className="font-display text-[15px] font-bold text-[var(--color-text)]">
               Choose Collection Gate
             </div>
-            <p className="text-[12px] text-[var(--color-text-muted)]">
+            <p className="text-[13px] text-[var(--color-text-muted)]">
               Deliveries are handed over personally at hostel gate pickup points.
             </p>
           </div>
@@ -110,7 +110,7 @@ export function DesktopGateStatus({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-[14px] truncate">{g.name}</div>
-                    <div className="text-[12px] text-[var(--color-text-muted)]">
+                    <div className="text-[13px] text-[var(--color-text-muted)]">
                       {g.is24x7 ? '24 Hours accessible' : `Closes at ${g.curfewTime} IST`}
                     </div>
                   </div>
@@ -122,7 +122,7 @@ export function DesktopGateStatus({
             })}
           </div>
 
-          <div className="pt-2 border-t border-[var(--color-border-subtle)] px-2 text-[11px] text-[var(--color-text-muted)] flex items-center gap-1.5">
+          <div className="pt-2 border-t border-[var(--color-border-subtle)] px-2 text-[13px] text-[var(--color-text-muted)] flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
             <span>Curfew-aware routing: orders blocked before closing window.</span>
           </div>

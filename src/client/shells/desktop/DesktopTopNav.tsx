@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, ShoppingBag, Receipt, Heart, User } from 'lucide-react';
 import { DesktopGateStatus } from '../../components/v2/GateStatus/DesktopGateStatus';
+import { DesktopCommandSearch } from '../../components/desktop/DesktopCommandSearch';
 import { useTranslation } from '../../i18n';
 import type { Gate } from '@shared/schemas';
 
@@ -24,111 +25,140 @@ export function DesktopTopNav({
   onOpenCart,
   className = '',
 }: DesktopTopNavProps) {
-  const navigate = useNavigate();
   const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    navigate(`/app/search?q=${encodeURIComponent(searchQuery.trim())}`);
-  };
+  // Global shortcut: Cmd+K / Ctrl+K opens search overlay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOverlayOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const rupeeTotal = `₹${Math.round(cartTotalPaise / 100)}`;
 
   return (
-    <header className={`sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md ${className}`}>
-      <div className="tf-desktop-container flex h-20 items-center justify-between gap-6">
-        {/* Left: Brand Logo & Campus Gate Selector */}
-        <div className="flex items-center gap-6 shrink-0">
-          <Link
-            to="/"
-            className="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-[#FFB400] rounded-[12px] p-1"
-          >
-            <img
-              src="/images/brand/trefood-brand-logo.jpg"
-              alt=""
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-[10px] object-cover border border-[var(--color-border)] shadow-xs"
-            />
-            <div className="leading-tight">
-              <span className="font-display text-[22px] font-black tracking-tight text-[#830020] dark:text-[#FFB400]">
-                TreFood
-              </span>
-              <span className="block text-[12px] font-medium text-[var(--color-text-muted)]">
-                NIT Patna
-              </span>
-            </div>
-          </Link>
-
-          <DesktopGateStatus
-            selectedGateId={selectedGateId}
-            gates={gates}
-            onSelectGate={onSelectGate}
-          />
-        </div>
-
-        {/* Centre: Generous Search Bar */}
-        <div className="flex-1 max-w-md mx-2">
-          <form onSubmit={handleSearch} className="relative w-full">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--color-text-muted)]" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search dishes, drinks, biryani, burgers or canteens..."
-              className="w-full min-h-[48px] rounded-full border border-[var(--color-border)] bg-[var(--color-surface-sunken)] pl-12 pr-4 text-[15px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:border-[#830020] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#FFB400] transition-colors"
-            />
-          </form>
-        </div>
-
-        {/* Right Navigation & Cart */}
-        <div className="flex items-center gap-3 shrink-0">
-          <nav aria-label="Desktop Navigation Rail" className="hidden lg:flex items-center gap-1">
+    <>
+      <header
+        className={`sticky top-0 z-40 h-[72px] border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md transition-shadow ${className}`}
+      >
+        <div className="tf-desktop-container h-full flex items-center justify-between gap-6">
+          {/* Left: Wordmark & Compact Gate Selector */}
+          <div className="flex items-center gap-6 shrink-0">
             <Link
               to="/app"
-              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+              aria-label="TreFood NIT Patna Home"
+              className="flex items-center gap-3 rounded-[12px] p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
             >
-              {t('nav.browse', 'Browse Canteens')}
+              <img
+                src="/images/brand/trefood-brand-logo.jpg"
+                alt=""
+                width={38}
+                height={38}
+                className="h-[38px] w-[38px] rounded-[10px] object-cover border border-[var(--color-border)] shadow-xs"
+              />
+              <div className="leading-tight">
+                <span className="font-display text-[22px] font-black tracking-tight text-[#830020] dark:text-[#FFB400]">
+                  TreFood
+                </span>
+                <span className="block text-[13px] font-semibold text-[var(--color-text-muted)]">
+                  NIT Patna
+                </span>
+              </div>
             </Link>
+
+            {/* Gate Selector */}
+            <DesktopGateStatus
+              selectedGateId={selectedGateId}
+              gates={gates}
+              onSelectGate={onSelectGate}
+            />
+          </div>
+
+          {/* Center: Command-Style Search Trigger Button */}
+          <div className="flex-1 max-w-lg mx-2">
+            <button
+              type="button"
+              aria-label="Search dishes or kitchens"
+              onClick={() => setSearchOverlayOpen(true)}
+              className="w-full h-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-sunken)] px-4 flex items-center justify-between text-[14px] text-[var(--color-text-muted)] hover:border-[#830020] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] cursor-pointer"
+            >
+              <span className="flex items-center gap-2.5">
+                <Search className="h-4 w-4 text-[var(--color-text-muted)]" />
+                <span className="font-medium">Search dishes, canteens, biryani...</span>
+              </span>
+              <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[13px] font-mono font-medium text-[var(--color-text-muted)]">
+                ⌘K
+              </kbd>
+            </button>
+          </div>
+
+          {/* Right: Slim Nav (Orders, Favourites, Cart, Account) */}
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               to="/orders"
-              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] hover:text-[#830020] dark:hover:text-[#FFB400] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
             >
-              {t('nav.orders', 'My Orders')}
+              <Receipt className="h-4 w-4 text-[var(--color-text-muted)]" />
+              <span>{t('nav.orders', 'Orders')}</span>
             </Link>
+
+            <Link
+              to="/favorites"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] hover:text-[#830020] dark:hover:text-[#FFB400] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
+            >
+              <Heart className="h-4 w-4 text-[var(--color-text-muted)]" />
+              <span>{t('nav.favorites', 'Favourites')}</span>
+            </Link>
+
+            {/* Cart Button with Count */}
+            <button
+              type="button"
+              onClick={onOpenCart}
+              aria-label={`Cart with ${cartItemCount} items, total ${rupeeTotal}`}
+              className={`flex h-11 items-center gap-2.5 rounded-full border px-4 py-2 font-bold transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400] ${
+                cartItemCount > 0
+                  ? 'border-[#830020] bg-[#830020] text-white shadow-[var(--elevation-2)] hover:bg-[#680019] dark:border-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1210]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[#830020] hover:bg-[var(--color-surface-sunken)]'
+              }`}
+            >
+              <ShoppingBag className="h-4 w-4 shrink-0" />
+              <span className="text-[14px]">
+                {cartItemCount > 0 ? `Cart (${cartItemCount})` : 'Cart'}
+              </span>
+              {cartItemCount > 0 && (
+                <>
+                  <span className="opacity-60">•</span>
+                  <span className="text-[14px] font-extrabold">{rupeeTotal}</span>
+                </>
+              )}
+            </button>
+
+            {/* Account */}
             <Link
               to="/account"
-              className="px-3 py-2 rounded-full text-[14px] font-bold text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] transition-colors"
+              aria-label="Account Settings"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-sunken)] hover:border-[#830020] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB400]"
             >
-              {t('nav.account', 'Account')}
+              <User className="h-4 w-4 text-[var(--color-text)]" />
             </Link>
-          </nav>
-
-          <button
-            type="button"
-            onClick={onOpenCart}
-            aria-label={`Cart with ${cartItemCount} items, total ${rupeeTotal}`}
-            className={`flex min-h-[48px] items-center gap-3 rounded-full border px-5 py-2 font-bold transition-all duration-150 cursor-pointer ${
-              cartItemCount > 0
-                ? 'border-[#830020] bg-[#830020] text-white shadow-[var(--elevation-2)] hover:bg-[#69001A] dark:border-[#FFB400] dark:bg-[#FFB400] dark:text-[#1C1210]'
-                : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-[#830020] hover:bg-[var(--color-surface-sunken)]'
-            }`}
-          >
-            <ShoppingBag className="h-4 w-4" />
-            <span className="text-[14px]">
-              {cartItemCount > 0 ? `${cartItemCount} items` : 'Packet'}
-            </span>
-            {cartItemCount > 0 && (
-              <>
-                <span className="opacity-60">•</span>
-                <span className="text-[15px] font-extrabold">{rupeeTotal}</span>
-              </>
-            )}
-          </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Command Search Overlay Modal */}
+      <DesktopCommandSearch
+        open={searchOverlayOpen}
+        onClose={() => setSearchOverlayOpen(false)}
+        selectedGateId={selectedGateId}
+      />
+    </>
   );
 }
+
+export default DesktopTopNav;

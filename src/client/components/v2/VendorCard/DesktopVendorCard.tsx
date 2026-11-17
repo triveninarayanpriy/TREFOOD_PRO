@@ -34,7 +34,7 @@ export function DesktopVendorCard({
     <article
       data-vendor-slug={vendor.slug}
       onClick={onClick}
-      className={`group flex flex-col justify-between overflow-hidden rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--elevation-1)] hover:shadow-[var(--elevation-2)] hover:border-[#830020] transition-all duration-150 cursor-pointer ${className}`}
+      className={`group flex flex-col justify-between overflow-hidden rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--elevation-1)] hover:shadow-[var(--elevation-3)] hover:border-[#830020] hover:-translate-y-1 transition-all duration-200 cursor-pointer ${className}`}
     >
       <div className="space-y-4">
         {/* Large 4:3 Editorial Photograph with View Transition Support */}

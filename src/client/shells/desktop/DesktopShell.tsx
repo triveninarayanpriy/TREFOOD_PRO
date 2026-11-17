@@ -1,17 +1,14 @@
-import { useState, lazy, Suspense } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCart } from '../../context/CartContext';
 import { DesktopTopNav } from './DesktopTopNav';
 import { DesktopCartSummary } from '../../components/v2/CartSummary/DesktopCartSummary';
 import type { Gate } from '@shared/schemas';
 
-const CheckoutModal = lazy(() =>
-  import('../../components/cart/CheckoutModal').then((m) => ({ default: m.CheckoutModal }))
-);
-
 export function DesktopShell({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     selectedGateId,
     setSelectedGateId,
@@ -40,7 +37,6 @@ export function DesktopShell({ children }: { children?: React.ReactNode }) {
   };
 
   const [cartSlideOpen, setCartSlideOpen] = useState(false);
-  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
 
   const { data: gatesData } = useQuery<{ ok: boolean; gates: Gate[] }>({
     queryKey: ['gates'],
@@ -108,20 +104,10 @@ export function DesktopShell({ children }: { children?: React.ReactNode }) {
           onDecrease={decreaseItem}
           onCheckout={() => {
             setCartSlideOpen(false);
-            setCheckoutModalOpen(true);
+            navigate('/checkout');
           }}
         />
       )}
-
-      {/* Lazy Checkout Modal */}
-      <Suspense fallback={null}>
-        {checkoutModalOpen && (
-          <CheckoutModal
-            open={checkoutModalOpen}
-            onClose={() => setCheckoutModalOpen(false)}
-          />
-        )}
-      </Suspense>
     </div>
   );
 }

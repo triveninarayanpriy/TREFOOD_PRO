@@ -54,6 +54,9 @@ const SignInPage = lazy(() =>
 const AccountPage = lazy(() =>
   import('./pages/AccountPage').then((m) => ({ default: m.AccountPage }))
 );
+const CheckoutPage = lazy(() =>
+  import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
+);
 const VendorConsolePage = lazy(() =>
   import('./pages/vendor/VendorConsolePage').then((m) => ({ default: m.VendorConsolePage }))
 );
@@ -98,6 +101,7 @@ function AppRoutes() {
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/about" element={<AboutPage />} />

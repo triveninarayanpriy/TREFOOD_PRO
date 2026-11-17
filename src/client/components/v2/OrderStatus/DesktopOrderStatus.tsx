@@ -47,7 +47,7 @@ export function DesktopOrderStatus({
 
         {/* High-Contrast Code Callout */}
         <div className="rounded-[20px] bg-[#1C1210] p-6 text-center text-white shadow-[var(--elevation-2)] space-y-2">
-          <div className="text-[12px] font-bold uppercase tracking-wider text-stone-400">
+          <div className="text-[13px] font-bold uppercase tracking-wider text-stone-400">
             Handover 4-Digit Marker Code
           </div>
           <div className="font-handwriting text-6xl font-black tracking-widest text-[#FFB400] select-all">
@@ -75,7 +75,7 @@ export function DesktopOrderStatus({
         <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[var(--elevation-1)] space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-4">
             <div>
-              <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <div className="text-[13px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Live Status
               </div>
               <h3 className="font-display text-[24px] font-bold text-[var(--color-text)] capitalize">
@@ -84,7 +84,7 @@ export function DesktopOrderStatus({
             </div>
             {isAtGate && remainingWindowSeconds !== undefined && (
               <div className="text-right">
-                <div className="text-[12px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                <div className="text-[13px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
                   Gate Window
                 </div>
                 <div className="font-mono text-[20px] font-extrabold text-amber-900 dark:text-amber-200">
@@ -159,7 +159,7 @@ export function DesktopOrderStatus({
             </div>
             <div>
               <div className="text-[14px] font-bold text-[var(--color-text)]">{vendorName}</div>
-              <div className="text-[12px] text-[var(--color-text-muted)]">Campus Kitchen Counter</div>
+              <div className="text-[13px] text-[var(--color-text-muted)]">Campus Kitchen Counter</div>
             </div>
           </div>
           <a

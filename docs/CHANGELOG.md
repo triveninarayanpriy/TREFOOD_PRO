@@ -4,6 +4,37 @@ All notable changes to the TreFood prototype will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Desktop Editorial Storefront Experience (Prompt P3)
+- **Top Navigation (`src/client/shells/desktop/DesktopTopNav.tsx`)**:
+  - Slim 72px top bar only: brand wordmark, gate status dropdown with live countdown, command-style search overlay trigger with Cmd/Ctrl+K shortcut, Orders, Favourites, live Cart button, and Account.
+  - Removed all developer/admin navigation from customer shell (zero sidebar for customers).
+- **Command Search Overlay (`src/client/components/desktop/DesktopCommandSearch.tsx`)**:
+  - Modal command palette with Cmd/Ctrl+K keyboard shortcut, auto-focus, arrow-key navigation, debounced `/api/search` queries, vendor and dish results, and popular search chips.
+- **Desktop Editorial Home Page (`src/client/shells/desktop/pages/DesktopHomePage.tsx`)**:
+  - Full-width hero banner with real food photography, headline, gate status, and an overlapping handwritten Caveat `#4812` packet chit (`rotate-[-3deg]`).
+  - Gate Board strip with open status and live closing countdowns for NIT Patna gates.
+  - "Open now" 3-column grid of large vendor cards with 4:3 photos, tags, rating, ETA, minimum order, and hover lift. Quiet single row for closed vendors below.
+  - Category photo tiles in a 5-column row.
+  - "Popular dishes" 4-column grid with 1:1 dish photography and instant one-click Add.
+  - Campus Night Safety block with clear owner-delivery policy after 19:00 IST.
+  - Generous 96px vertical section spacing (`space-y-24`).
+- **Desktop Editorial Vendor Page (`src/client/shells/desktop/pages/DesktopVendorPage.tsx`)**:
+  - 21:9 cover photo with vendor details overlaid on a dark gradient edge.
+  - Sticky left column of menu categories with `IntersectionObserver` scroll-spy.
+  - 2-column menu grid where every dish features a 160px photo, two-line description, price, and Add button.
+  - Sticky 360px bill panel on the right that slides in only after the first item is added, with untruncated vendor names and zero modal popups.
+- **Dedicated Full-Page Checkout (`src/client/pages/CheckoutPage.tsx`)**:
+  - 3 clear steps: Campus Gate & Drop Timing, Payment & Contact Details, Student Verification & Order Placement.
+  - Persistent sticky order summary on the right with coupon code input and breakdown.
+- **Desktop Order Tracking (`src/client/pages/OrderDetailPage.tsx`)**:
+  - 2-column layout pairing a physical handwritten Caveat 4-digit code chit beside a clean status timeline.
+- **Verification & Testing (`e2e/desktop-editorial.spec.ts`)**:
+  - Automated Playwright suite verifying 1280px, 1440px, and 1920px viewports.
+  - Verified no element smaller than 13px (minimum font size audit passed).
+  - Verified no cramped panels, 360px bill panel width, untruncated vendor names, and no modal on desktop vendor page.
+  - Captured responsive screenshots at 1280px, 1440px, and 1920px in `docs/screenshots/desktop/`.
+  - All 10 Playwright tests and all 42 Vitest unit tests passed.
+
 ### Fixed - Seed Data Quality, Veg Filter Accuracy & Overnight Operating Hours (Prompt 10)
 - **FSSAI Number Removal & Verification State (`db/real-seed.json`, `src/worker/routes/`, `src/client/pages/`)**:
   - Removed numeric FSSAI numbers across all 8 vendors in catalog seed, D1 database, and API responses.
